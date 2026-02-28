@@ -1,104 +1,49 @@
-# Tornar UPDATE de Selfie Determinístico via presence_id
+## Análise Técnica: "Invalid API Key"
 
-## Análise do código atual
+### Causa Raiz Identificada
 
-O RPC `activate_presence` já retorna o `presence_id` (UUID) na linha 613 de `usePresence.ts`:
+O problema está no arquivo `src/integrations/supabase/client.ts`, linha 5:
 
-```text
-const { data: newPresenceId, error } = await supabase.rpc('activate_presence', {...});
+```typescript
+const SUPABASE_PUBLISHABLE_KEY = "COLE_A_ANON_AQUI";
 ```
 
-Porém esse valor é descartado — `activatePresenceAtPlace` retorna apenas `{ error }` (linha 632). O mesmo ocorre com `createTemporaryPlace`, que chama `activatePresenceAtPlace` internamente e também não propaga o ID.
+Este é um placeholder, não a chave real. A evidência está no network request capturado:
 
-Em `Location.tsx`, o UPDATE da selfie usa `eq('user_id', user.id).eq('ativo', true)` — um filtro não-determinístico que pode falhar silenciosamente se o INSERT ainda não propagou.
-
-## Alterações
-
-### 1. `src/hooks/usePresence.ts` — activatePresenceAtPlace (linhas 559-638)
-
-Alterar retorno de `{ error: null }` para `{ error: null, presenceId: newPresenceId }`.
-
-Alterar os retornos de erro para incluir `presenceId: null`.
-
-Tipo de retorno passa a ser `{ error: Error | null; presenceId: string | null }`.
-
-### 2. `src/hooks/usePresence.ts` — createTemporaryPlace (linhas 642-687)
-
-Na linha 680, capturar `presenceId` do retorno de `activatePresenceAtPlace`:
-
-```text
-const { error: presenceError, presenceId } = await activatePresenceAtPlace(...)
+```
+Header: apikey: COLE_A_ANON_AQUI
+Response: {"message":"Invalid API key","hint":"Double check your Supabase `anon` or `service_role` API key."}
 ```
 
-Alterar retorno para incluir `presenceId`:
+### Diagnóstico ponto a ponto
 
-```text
-return { error: null, placeId: placeData.id, presenceId };
-```
+1. **Variáveis de ambiente vs client.ts**: O arquivo `.env` contém `VITE_SUPABASE_PUBLISHABLE_KEY` com a chave correta, porém o `client.ts` **não usa variáveis de ambiente**. Ele tem valores hardcoded. A URL está correta (`jhpxfvwhcxakzajioxiz.supabase.co`), mas a chave é o placeholder `"COLE_A_ANON_AQUI"`.
+2. **URL em uso**: Correta — `https://jhpxfvwhcxakzajioxiz.supabase.co`.
+3. **Chave em uso no runtime**: `"COLE_A_ANON_AQUI"` (placeholder inválido).
+4. **Integração Lovable-Supabase**: O projeto está conectado ao Supabase project `jhpxfvwhcxakzajioxiz`. A anon key real é `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpocHhmdndoY3hha3phamlveGl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTI2NjksImV4cCI6MjA4NzM2ODY2OX0.-4soKb5wlgrEQtsfFecDO9RgtImIymcb5RcoY2r2IH0`. Esta chave nunca foi inserida no `client.ts`.
+5. **Build atual**: Corresponde ao código visível — o placeholder está no código fonte.
 
-Tipo de retorno passa a ser `{ error: Error | null; placeId: string | null; presenceId: string | null }`.
+### Conflito
 
-### 3. `src/pages/Location.tsx` — handleActivatePresence (linhas 273-321)
+Não há conflito entre múltiplas fontes. O problema é simples: o `client.ts` tem a chave placeholder e nenhum mecanismo (como `import.meta.env`) para ler a chave real do `.env`.
 
-Capturar `presenceId` de ambos os caminhos:
+### Correção necessária
 
-```text
-let presenceId: string | null = null;
+Refatorar obrigatoriamente o client.ts para usar import.meta.env.VITE_SUPABASE_URL e import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY.
 
-if (selectedPlaceId) {
-  const result = await activatePresenceAtPlace(...);
-  error = result.error;
-  presenceId = result.presenceId;
-} else if (newPlaceName.trim() && userCoords) {
-  const result = await createTemporaryPlace(...);
-  error = result.error;
-  presenceId = result.presenceId;
-}
-```
+Não utilizar chave hardcoded no código.
 
-Substituir o UPDATE (linhas 303-312):
+### Erro secundário: tipos vazios
 
-```text
-if (!presenceId) {
-  throw new Error('Presence ID not returned after activation');
-}
+O `src/integrations/supabase/types.ts` define `Database` com tabelas vazias (`Tables: {}`, `Functions: {}`), causando todos os erros de build (70+ erros). Os tipos precisam ser regenerados para refletir o schema real do banco.
 
-await supabase
-  .from('presence')
-  .update({
-    checkin_selfie_url: selfieUrl,
-    checkin_selfie_created_at: new Date().toISOString(),
-    selfie_provided: selfieSource === 'camera',
-    selfie_source: selfieSource,
-  })
-  .eq('id', presenceId);
+### Resumo das ações necessárias
 
-const { data: updatedPresence, error: updateError } = await supabase
-  .from('presence')
-  .select('id')
-  .eq('id', presenceId)
-  .single();
+1. Corrigir a anon key no `client.ts` (usar a chave real ou `import.meta.env`)
+2. Regenerar src/integrations/supabase/types.ts a partir do schema atual do projeto jhpxfvwhcxakzajioxiz, garantindo que todas as tabelas, funções e enums estejam refletidas corretamente no tipo Database.
 
-if (updateError || !updatedPresence) {
-  throw new Error('Selfie update failed — presence not yet visible after activation');
-}
-```
+### Após aplicar as correções:
 
-## Arquivos alterados
-
-
-| Arquivo                    | Alteração                                                    |
-| -------------------------- | ------------------------------------------------------------ |
-| `src/hooks/usePresence.ts` | activatePresenceAtPlace retorna presenceId                   |
-| `src/hooks/usePresence.ts` | createTemporaryPlace propaga presenceId                      |
-| `src/pages/Location.tsx`   | Captura presenceId e usa no UPDATE via .eq('id', presenceId) |
-
-
-## O que NÃO muda
-
-- CheckinSelfie.tsx
-- cameraService.ts
-- RPC activate_presence (já retorna o ID)
-- UI ou UX
-- Fluxo de fallback upload
-- Conversas e waves
+1. Confirmar que o login funciona no preview.
+2. Confirmar que não há mais erros de tipagem no build.
+3. Confirmar que as chamadas para /auth/v1/token utilizam a chave correta em runtime.
