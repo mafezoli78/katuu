@@ -28,7 +28,6 @@ export function useConversations() {
   const [conversations, setConversations] = useState<ConversationWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  // Track known conversation IDs to detect truly new ones
   const knownConversationIds = useRef<Set<string>>(new Set());
 
   const fetchConversations = useCallback(async () => {
@@ -41,63 +40,72 @@ export function useConversations() {
     try {
       const { data, error } = await supabase
         .from('conversations')
-        .select('*')
+        .select(`
+          *,
+          place:places (
+            id,
+            nome
+          ),
+          user1_profile:profiles!conversations_user1_id_fkey (
+            id,
+            nome,
+            foto_url
+          ),
+          user2_profile:profiles!conversations_user2_id_fkey (
+            id,
+            nome,
+            foto_url
+          )
+        `)
         .eq('ativo', true)
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
         .order('criado_em', { ascending: false });
 
       if (error) throw error;
 
-      // Fetch additional details for each conversation
-      const conversationsWithDetails: ConversationWithDetails[] = [];
-      
-      for (const conv of data || []) {
-        const otherUserId = conv.user1_id === user.id ? conv.user2_id : conv.user1_id;
-        
-        // Get place_id - MUST exist for valid conversations
-        const placeId = conv.place_id;
-        
-        if (!placeId) {
-          console.warn(`[useConversations] Conversation ${conv.id} has no place_id, skipping`);
-          continue;
-        }
-        
-        const [profileRes, placeRes, presenceRes] = await Promise.all([
-          supabase
-            .from('profiles')
-            .select('id, nome, foto_url')
-            .eq('id', otherUserId)
-            .single(),
-          supabase
-            .from('places')
-            .select('id, nome')
-            .eq('id', placeId)
-            .single(),
-          supabase
-            .from('presence')
-            .select('checkin_selfie_url')
-            .eq('user_id', otherUserId)
-            .eq('ativo', true)
-            .maybeSingle()
-        ]);
+      const conversationsWithDetails: ConversationWithDetails[] =
+        (data || []).map((conv: any) => {
+          const isUser1 = conv.user1_id === user.id;
+          const otherProfile = isUser1
+            ? conv.user2_profile
+            : conv.user1_profile;
 
-        if (profileRes.data && placeRes.data) {
-          conversationsWithDetails.push({
+          return {
             ...conv,
             otherUser: {
-              ...profileRes.data,
-              checkin_selfie_url: presenceRes.data?.checkin_selfie_url || null,
+              id: otherProfile.id,
+              nome: otherProfile.nome,
+              foto_url: otherProfile.foto_url,
+              checkin_selfie_url: null,
             },
-            place: placeRes.data
-          });
-        } else if (profileRes.data && !placeRes.data) {
-          console.warn(`[useConversations] Place ${placeId} not found for conversation ${conv.id}`);
-        }
+            place: conv.place,
+          };
+        });
+
+      // Buscar presence em lote
+      const otherUserIds = conversationsWithDetails.map(c => c.otherUser.id);
+
+      if (otherUserIds.length > 0) {
+        const { data: presences } = await supabase
+          .from('presence')
+          .select('user_id, checkin_selfie_url')
+          .in('user_id', otherUserIds)
+          .eq('ativo', true);
+
+        const presenceMap = new Map(
+          presences?.map(p => [p.user_id, p.checkin_selfie_url])
+        );
+
+        conversationsWithDetails.forEach(c => {
+          c.otherUser.checkin_selfie_url =
+            presenceMap.get(c.otherUser.id) || null;
+        });
       }
 
-      // Update known IDs after initial fetch
-      knownConversationIds.current = new Set(conversationsWithDetails.map(c => c.id));
-      
+      knownConversationIds.current = new Set(
+        conversationsWithDetails.map(c => c.id)
+      );
+
       setConversations(conversationsWithDetails);
     } catch (error) {
       console.error('Error fetching conversations:', error);
@@ -110,7 +118,6 @@ export function useConversations() {
     fetchConversations();
   }, [fetchConversations]);
 
-  // Layer 1: Polling fallback (15s) with visibility check
   useEffect(() => {
     if (!user) return;
 
@@ -135,7 +142,6 @@ export function useConversations() {
     };
   }, [user, fetchConversations]);
 
-  // Layer 2: Realtime subscription for INSERT and UPDATE
   useEffect(() => {
     if (!user) return;
 
@@ -143,27 +149,31 @@ export function useConversations() {
 
     const handleRealtimeEvent = async (eventType: string, payload: any) => {
       const conv = payload.new as Conversation;
-      console.log(`[Realtime] ${eventType} conversation:`, conv.id);
 
-      const involvesMe = conv.user1_id === user.id || conv.user2_id === user.id;
+      const involvesMe =
+        conv.user1_id === user.id || conv.user2_id === user.id;
+
       if (!involvesMe) return;
 
-      // Debounce to group multiple events
       clearTimeout(debounceTimeout);
       debounceTimeout = setTimeout(async () => {
-        // Check if truly new for toast purposes
-        if (eventType === 'INSERT' && !knownConversationIds.current.has(conv.id) && conv.ativo) {
+        if (
+          eventType === 'INSERT' &&
+          !knownConversationIds.current.has(conv.id) &&
+          conv.ativo
+        ) {
           knownConversationIds.current.add(conv.id);
 
-          // Suppress toast for acceptor (already shown locally)
           if (conv.user2_id === user.id) {
-            console.log('[Realtime] Suppressing toast for acceptor');
             fetchConversations();
             return;
           }
 
-          // Show toast for wave sender
-          const otherUserId = conv.user1_id === user.id ? conv.user2_id : conv.user1_id;
+          const otherUserId =
+            conv.user1_id === user.id
+              ? conv.user2_id
+              : conv.user1_id;
+
           const { data: profileData } = await supabase
             .from('profiles')
             .select('nome')
@@ -176,12 +186,14 @@ export function useConversations() {
             action: (
               <ToastAction
                 altText="Abrir conversa"
-                onClick={() => navigate(`/chat?conversationId=${conv.id}`)}
+                onClick={() =>
+                  navigate(`/chat?conversationId=${conv.id}`)
+                }
               >
                 <MessageCircle className="h-4 w-4 mr-1" />
                 Abrir chat
               </ToastAction>
-            )
+            ),
           });
         }
 
@@ -191,19 +203,17 @@ export function useConversations() {
 
     const channel = supabase
       .channel('conversations-updates')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'conversations'
-      }, (payload) => handleRealtimeEvent('INSERT', payload))
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'conversations'
-      }, (payload) => handleRealtimeEvent('UPDATE', payload))
-      .subscribe((status) => {
-        console.log('[Realtime] Conversations subscription:', status);
-      });
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'conversations' },
+        payload => handleRealtimeEvent('INSERT', payload)
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'conversations' },
+        payload => handleRealtimeEvent('UPDATE', payload)
+      )
+      .subscribe();
 
     channelRef.current = channel;
 
@@ -217,10 +227,7 @@ export function useConversations() {
   }, [user, fetchConversations, navigate]);
 
   const addConversation = (conversation: Conversation) => {
-    // Mark as known to prevent duplicate toast from realtime
     knownConversationIds.current.add(conversation.id);
-    // This is used to add a conversation optimistically after accepting a wave
-    // The full details will be fetched on next refetch
     fetchConversations();
   };
 
@@ -231,16 +238,18 @@ export function useConversations() {
       .eq('id', conversationId);
 
     if (!error) {
-      setConversations(prev => prev.filter(c => c.id !== conversationId));
+      setConversations(prev =>
+        prev.filter(c => c.id !== conversationId)
+      );
     }
 
     return { error };
   };
 
-  /**
-   * Get conversation with a specific user at a specific place.
-   */
-  const getConversationWithUser = (otherUserId: string, placeId?: string) => {
+  const getConversationWithUser = (
+    otherUserId: string,
+    placeId?: string
+  ) => {
     return conversations.find(c => {
       const isMatch = c.otherUser.id === otherUserId;
       if (placeId) {
