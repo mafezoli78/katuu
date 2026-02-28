@@ -1,49 +1,51 @@
-## Análise Técnica: "Invalid API Key"
+## Plan: Fix build error + Configure Edge Function secret + Refactor search-places
 
-### Causa Raiz Identificada
+### 1. Fix build error in `src/hooks/useWaves.ts`
 
-O problema está no arquivo `src/integrations/supabase/client.ts`, linha 5:
+The `Conversation` interface (line 36-47) is missing `reinteracao_permitida_em` and has `encerrado_motivo` typed too narrowly. Add the missing field and align the type with the DB schema:
 
 ```typescript
-const SUPABASE_PUBLISHABLE_KEY = "COLE_A_ANON_AQUI";
+export interface Conversation {
+  id: string;
+  user1_id: string;
+  user2_id: string;
+  place_id: string;
+  origem_wave_id: string | null;
+  criado_em: string;
+  ativo: boolean;
+  encerrado_por: string | null;
+  encerrado_em: string | null;
+  encerrado_motivo: "manual" | "presence_end" | null;
+  reinteracao_permitida_em: string | null;
+}
 ```
 
-Este é um placeholder, não a chave real. A evidência está no network request capturado:
+### 2. Add Supabase secrets
 
-```
-Header: apikey: COLE_A_ANON_AQUI
-Response: {"message":"Invalid API key","hint":"Double check your Supabase `anon` or `service_role` API key."}
-```
+Use the secrets tool to set:
 
-### Diagnóstico ponto a ponto
+- `FOURSQUARE_API_KEY` = `4BY3B3MUNVX4GF3GN2UPPCCSBLU3VIPGNPTPPRPD1XXCQAKE`
+- `PLACE_PROVIDER` = `foursquare`
 
-1. **Variáveis de ambiente vs client.ts**: O arquivo `.env` contém `VITE_SUPABASE_PUBLISHABLE_KEY` com a chave correta, porém o `client.ts` **não usa variáveis de ambiente**. Ele tem valores hardcoded. A URL está correta (`jhpxfvwhcxakzajioxiz.supabase.co`), mas a chave é o placeholder `"COLE_A_ANON_AQUI"`.
-2. **URL em uso**: Correta — `https://jhpxfvwhcxakzajioxiz.supabase.co`.
-3. **Chave em uso no runtime**: `"COLE_A_ANON_AQUI"` (placeholder inválido).
-4. **Integração Lovable-Supabase**: O projeto está conectado ao Supabase project `jhpxfvwhcxakzajioxiz`. A anon key real é `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpocHhmdndoY3hha3phamlveGl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3OTI2NjksImV4cCI6MjA4NzM2ODY2OX0.-4soKb5wlgrEQtsfFecDO9RgtImIymcb5RcoY2r2IH0`. Esta chave nunca foi inserida no `client.ts`.
-5. **Build atual**: Corresponde ao código visível — o placeholder está no código fonte.
+### 3. Refactor Edge Function `search-places`
 
-### Conflito
+The current function is 799 lines with all Foursquare logic inline. The user wants a provider-based architecture. However, Supabase Edge Functions do not support subdirectories/multiple files per function — all code must be in `index.ts`.
 
-Não há conflito entre múltiplas fontes. O problema é simples: o `client.ts` tem a chave placeholder e nenhum mecanismo (como `import.meta.env`) para ler a chave real do `.env`.
+**Approach**: Keep everything in `supabase/functions/search-places/index.ts` but organize the code with clear provider sections:
 
-### Correção necessária
+- Define `PlaceProvider` interface and `StandardPlace` type at the top
+- Implement `FoursquareProvider` class (wrapping the existing logic)
+- Implement `MapboxProvider` stub class
+- Read `PLACE_PROVIDER` env var to select provider
+- Keep the existing category filtering, DB persistence, and response format unchanged
 
-Refatorar obrigatoriamente o client.ts para usar import.meta.env.VITE_SUPABASE_URL e import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY.
+The existing curadoria logic (ALLOWED/EXCLUDED category IDs) stays as-is since it's Foursquare-specific. The provider abstraction will handle the API call and mapping to standard format, while filtering remains provider-specific.
 
-Não utilizar chave hardcoded no código.
+### Technical details
 
-### Erro secundário: tipos vazios
-
-O `src/integrations/supabase/types.ts` define `Database` com tabelas vazias (`Tables: {}`, `Functions: {}`), causando todos os erros de build (70+ erros). Os tipos precisam ser regenerados para refletir o schema real do banco.
-
-### Resumo das ações necessárias
-
-1. Corrigir a anon key no `client.ts` (usar a chave real ou `import.meta.env`)
-2. Regenerar src/integrations/supabase/types.ts a partir do schema atual do projeto jhpxfvwhcxakzajioxiz, garantindo que todas as tabelas, funções e enums estejam refletidas corretamente no tipo Database.
-
-### Após aplicar as correções:
-
-1. Confirmar que o login funciona no preview.
-2. Confirmar que não há mais erros de tipagem no build.
-3. Confirmar que as chamadas para /auth/v1/token utilizam a chave correta em runtime.
+- Edge Functions only support a single `index.ts` file — no `providers/` subfolder imports
+- The `FOURSQUARE_API_KEY` error will be resolved by adding the secret via Supabase
+- The provider pattern uses a factory function reading `PLACE_PROVIDER` env var
+- MapboxProvider will return a controlled JSON error:
+  return new Response(JSON.stringify({ error: "Mapbox provider not implemented yet" }), { status: 501 });
+- Response contract with frontend remains: `{ places: Place[], source: string }`
