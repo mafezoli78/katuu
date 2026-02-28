@@ -43,7 +43,8 @@ export interface Conversation {
   ativo: boolean;
   encerrado_por: string | null;
   encerrado_em: string | null;
-  encerrado_motivo: 'manual' | 'presence_end' | null;
+  encerrado_motivo: string | null;
+  reinteracao_permitida_em: string | null;
 }
 
 export function useWaves() {
