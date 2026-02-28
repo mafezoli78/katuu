@@ -16,7 +16,7 @@ export interface Conversation {
   ativo: boolean;
   encerrado_por: string | null;
   encerrado_em: string | null;
-  encerrado_motivo: 'manual' | 'presence_end' | null;
+  encerrado_motivo: string | null;
 }
 
 export interface ConversationWithDetails extends Conversation {
