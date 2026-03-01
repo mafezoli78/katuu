@@ -13,6 +13,9 @@ import Chat from "./pages/Chat";
 import Location from "./pages/Location";
 import NotFound from "./pages/NotFound";
 import Debug from "./pages/Debug";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +35,9 @@ const App = () => (
             <Route path="/chat" element={<Chat />} />
             <Route path="/location" element={<Location />} />
             <Route path="/debug" element={<Debug />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
