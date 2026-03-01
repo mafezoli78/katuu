@@ -24,7 +24,7 @@ export default function Auth() {
     }
   }, [user, navigate]);
 
-  const handleOAuth = async (provider: 'google' | 'apple') => {
+  const handleOAuth = async (provider: 'google') => {
     const { error } = await signInWithOAuth(provider);
     if (error) {
       toast({
@@ -54,7 +54,6 @@ export default function Auth() {
         {step === 'main' && (
           <AuthMainStep
             onGoogle={() => handleOAuth('google')}
-            onApple={() => handleOAuth('apple')}
             onEmail={() => setStep('email')}
           />
         )}
