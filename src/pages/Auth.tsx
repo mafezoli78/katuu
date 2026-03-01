@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import logoKatuu from '@/assets/logo-katu-branco.png';
+import logoKatuu from '@/assets/logo-katuu-oficial.png';
 import iconKatuu from '@/assets/icon-katuu.png';
 import { AuthMainStep } from '@/components/auth/AuthMainStep';
 import { AuthEmailStep } from '@/components/auth/AuthEmailStep';

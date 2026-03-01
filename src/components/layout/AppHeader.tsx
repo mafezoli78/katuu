@@ -1,4 +1,4 @@
-import logoKatuu from '@/assets/logo-katuu.png';
+import logoKatuu from '@/assets/logo-katuu-oficial.png';
 
 interface AppHeaderProps {
   showLogo?: boolean;

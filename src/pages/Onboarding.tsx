@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 
 import { useToast } from '@/hooks/use-toast';
 import { Camera, X, Check } from 'lucide-react';
-import logoKatu from '@/assets/logo-katu-branco.png';
+import logoKatu from '@/assets/logo-katuu-oficial.png';
 
 const AVAILABLE_INTERESTS = [
   'Música', 'Cinema', 'Esportes', 'Tecnologia', 'Viagens', 'Gastronomia',

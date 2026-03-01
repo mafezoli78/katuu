@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
-import logoKatuu from '@/assets/logo-katuu.png';
+import logoKatuu from '@/assets/logo-katuu-oficial.png';
 import iconKatuu from '@/assets/icon-katuu.png';
 
 export default function Splash() {
