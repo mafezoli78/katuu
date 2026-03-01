@@ -86,7 +86,7 @@ export default function Auth() {
         {/* Footer */}
         <p className="mt-8 text-xs text-white/60 text-center max-w-xs">
           Ao continuar, você concorda com os{' '}
-          <Link to="/terms" className="underline text-white/80">Termos</Link>
+          <Link to="/terms" className="underline text-white/80">Termos de Uso</Link>
           {' '}e com a{' '}
           <Link to="/privacy" className="underline text-white/80">Política de Privacidade</Link>
         </p>
