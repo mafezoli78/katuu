@@ -44,13 +44,13 @@ export default function Auth() {
       </div>
 
       {/* Logo area */}
-      <div className="flex-1 flex flex-col items-center justify-center py-8 relative z-10 animate-fade-in">
+      <div className="flex flex-col items-center justify-end pt-16 pb-6 relative z-10 animate-fade-in" style={{ flex: '2' }}>
         <img src={logoKatuu} alt="Katuu" className="w-44 h-auto mb-4 drop-shadow-lg" />
         <img src={iconKatuu} alt="" className="w-20 h-20 object-contain drop-shadow-xl" />
       </div>
 
       {/* Content area */}
-      <div className="relative z-10 px-8 pb-10 flex flex-col items-center animate-slide-up">
+      <div className="relative z-10 px-8 pb-10 flex flex-col items-center animate-slide-up" style={{ flex: '3' }}>
         {step === 'main' && (
           <AuthMainStep
             onGoogle={() => handleOAuth('google')}
