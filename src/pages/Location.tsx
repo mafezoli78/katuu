@@ -42,7 +42,7 @@ export default function Location() {
   const [cameraRequesting, setCameraRequesting] = useState(false);
 
   // Default intention: "Livre" (aberto a qualquer interação)
-  const DEFAULT_INTENTION_ID = '8302ef7d-e40e-494f-9ea3-7cfb52730bb2';
+  const DEFAULT_INTENTION_ID = 'fe9396db-a8d8-4064-a5f5-c1220e6722f1';
   const [nearbyTempToConfirm, setNearbyTempToConfirm] = useState<NearbyTemporaryPlace | null>(null);
 
   // New states for optimized flow
