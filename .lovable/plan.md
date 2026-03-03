@@ -1,42 +1,159 @@
+## Diagnóstico Estrutural — Tela de Login Legada Intermitente
 
+Causa Raiz Identificada
 
-## Diagnostic Summary
+O problema é uma race condition clássica no bootstrap de autenticação. Veja o fluxo de execução:
 
-### 1. Table `intentions` -- EXISTS with 5 records:
+Plain text
 
-| id | nome | descricao |
-|---|---|---|
-| `fe9396db-a8d8-4064-a5f5-c1220e6722f1` | Livre | Aberto a qualquer interação |
-| `6f8ffec7-b4f8-4452-a1d2-89b3ea7495c4` | Conversar | Bater um papo casual |
-| `a13bd937-64fb-49d5-9c85-20abc9da9280` | Conhecer pessoas | Conhecer novas pessoas |
-| `f3c354c6-945f-4e15-97e8-7844158855e5` | Companhia | Buscar companhia para o momento |
-| `f735afb1-63fc-41ca-8e71-be9316fff554` | Networking | Fazer contatos profissionais |
+Copiar código
 
-A intention "Livre" (`fe9396db-...`) is the natural default.
+1. App monta → AuthProvider monta → loading = true, user = null
 
-### 2. Column `presence.intention_id`
-- **NOT NULL** -- yes, required
-- **Foreign key** to `intentions(id)` -- yes, active
-- **Being filled** -- yes, via `activate_presence` RPC with `p_intention_id`
+2. onAuthStateChange registrado (assíncrono, aguarda callback)
 
-### 3. Root cause (frontend)
-In `src/pages/Location.tsx` line 45:
-```ts
-const DEFAULT_INTENTION_ID = '8302ef7d-e40e-494f-9ea3-7cfb52730bb2';
-```
-This UUID **does not exist** in the `intentions` table. The correct UUID for "Livre" is `fe9396db-a8d8-4064-a5f5-c1220e6722f1`.
+3. getSession() disparado (assíncrono, aguarda resposta da rede)
 
-### 4. Business model assessment
-`intention_id` is still structurally used (passed to `activate_presence`, stored in presence records), but the user never selects it in the current UI -- it's always hardcoded as a default. It remains a structural component but is not actively used for matching/filtering logic on the frontend.
+4. ENQUANTO ISSO, a rota atual renderiza normalmente
 
----
+O problema central: A decisão de qual rota renderizar ocorre antes de loading estabilizar, permitindo redirecionamentos indevidos durante o bootstrap.
 
-## Recommended Fix: Scenario A (minimal, safe)
+Pontos Exatos de Falha
 
-Since the `intentions` table exists with valid data and the architecture still references it, the fix is simply correcting the hardcoded UUID.
+1. Auth.tsx — Redireciona baseado apenas em user, sem considerar loading.
 
-**Single change in `src/pages/Location.tsx`:**
-- Replace `'8302ef7d-e40e-494f-9ea3-7cfb52730bb2'` with `'fe9396db-a8d8-4064-a5f5-c1220e6722f1'` (the actual "Livre" record)
+2. Home.tsx — Redireciona baseado apenas em user, sem considerar loading.
 
-No database changes needed. No schema modifications. This is a one-line fix that resolves the FK violation entirely.
+3. Splash.tsx — Atua apenas na rota /, não protege acessos diretos a /home ou /auth.
 
+4. AuthContext.tsx — O duplo setLoading(false) não é a causa raiz e não precisa ser alterado neste momento.
+
+Cenário de Reprodução
+
+Plain text
+
+Copiar código
+
+1. Usuário logado abre app em /home
+
+2. AuthProvider inicia: loading=true, user=null
+
+3. Home.tsx executa useEffect → !user é true → navigate('/auth')
+
+4. Auth.tsx renderiza completamente
+
+5. getSession resolve → user preenchido → Auth redireciona para /home
+
+Em conexões lentas, a etapa 4 pode permitir interação indevida.
+
+Proposta de Correção Estrutural
+
+Abordagem (correção centralizada)
+
+Bloquear a renderização de qualquer rota enquanto loading === true, no nível do componente que controla as rotas principais (ex: App.tsx).
+
+A proteção deve ser única e centralizada.
+
+Alteração Única — App.tsx (ou componente que contém <Routes>)
+
+Adicionar no topo do componente que define as rotas:
+
+TypeScript
+
+Copiar código
+
+const { user, loading } = useAuth();
+
+if (loading) {
+
+  return null; // ou <Splash />
+
+}
+
+E estruturar as rotas condicionalmente:
+
+TypeScript
+
+Copiar código
+
+return (
+
+  <Routes>
+
+    {user ? (
+
+      <>
+
+        <Route path="/home" element={<Home />} />
+
+        <Route path="/profile" element={<Profile />} />
+
+        <Route path="/waves" element={<Waves />} />
+
+        <Route path="/chat/:id" element={<Chat />} />
+
+        <Route path="/location/:id" element={<Location />} />
+
+        <Route path="/onboarding" element={<Onboarding />} />
+
+        <Route path="*" element={<Navigate to="/home" replace />} />
+
+      </>
+
+    ) : (
+
+      <>
+
+        <Route path="/auth" element={<Auth />} />
+
+        <Route path="*" element={<Navigate to="/auth" replace />} />
+
+      </>
+
+    )}
+
+  </Routes>
+
+);
+
+O que NÃO deve ser feito
+
+Não espalhar if (loading) return null em múltiplas páginas.
+
+Não alterar AuthContext.tsx neste momento.
+
+Não modificar lógica de onAuthStateChange.
+
+O problema está no consumo do estado, não na produção do estado.
+
+Resumo das Alterações
+
+Arquivo
+
+Alteração
+
+App.tsx (ou root de rotas)
+
+Adicionar guard global if (loading) return null antes de renderizar <Routes>
+
+Nenhuma alteração necessária em:
+
+AuthContext.tsx
+
+Auth.tsx
+
+Home.tsx
+
+Outras páginas
+
+Impacto
+
+Elimina completamente a race condition
+
+Remove renderização indevida da tela legada
+
+Mantém arquitetura limpa
+
+Evita duplicação de lógica
+
+Zero impacto no banco ou UX
