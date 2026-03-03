@@ -1,76 +1,42 @@
-## Plan: Nova Tela de Login Katuu
 
-### Visão Geral
 
-Redesenhar `Auth.tsx` para seguir a referência visual (fundo gradiente full-screen, 3 botões de login, termos no rodapé) e implementar fluxo de e-mail em etapas separadas. Substituir Instagram por Apple Sign In.
+## Diagnostic Summary
 
-### Questão Importante: Apple Sign In
+### 1. Table `intentions` -- EXISTS with 5 records:
 
-Supabase suporta Apple OAuth, mas requer configuração manual no Apple Developer Console e no dashboard do Supabase. Você precisará:
+| id | nome | descricao |
+|---|---|---|
+| `fe9396db-a8d8-4064-a5f5-c1220e6722f1` | Livre | Aberto a qualquer interação |
+| `6f8ffec7-b4f8-4452-a1d2-89b3ea7495c4` | Conversar | Bater um papo casual |
+| `a13bd937-64fb-49d5-9c85-20abc9da9280` | Conhecer pessoas | Conhecer novas pessoas |
+| `f3c354c6-945f-4e15-97e8-7844158855e5` | Companhia | Buscar companhia para o momento |
+| `f735afb1-63fc-41ca-8e71-be9316fff554` | Networking | Fazer contatos profissionais |
 
-1. Criar um Services ID no Apple Developer Console
-2. Gerar chave privada (.p8)
-3. Configurar redirect URL do Supabase
-4. Inserir Client ID e Client Secret no Supabase (Authentication → Providers → Apple)
+A intention "Livre" (`fe9396db-...`) is the natural default.
 
-O botão será implementado no código, mas só funcionará após essa configuração externa. Google OAuth também precisa estar configurado no dashboard do Supabase.
+### 2. Column `presence.intention_id`
+- **NOT NULL** -- yes, required
+- **Foreign key** to `intentions(id)` -- yes, active
+- **Being filled** -- yes, via `activate_presence` RPC with `p_intention_id`
 
----
+### 3. Root cause (frontend)
+In `src/pages/Location.tsx` line 45:
+```ts
+const DEFAULT_INTENTION_ID = '8302ef7d-e40e-494f-9ea3-7cfb52730bb2';
+```
+This UUID **does not exist** in the `intentions` table. The correct UUID for "Livre" is `fe9396db-a8d8-4064-a5f5-c1220e6722f1`.
 
-### Alterações
-
-#### 1. Redesenhar `src/pages/Auth.tsx`
-
-Substituir completamente o layout atual por uma tela full-screen com:
-
-- Fundo gradiente (`#124854` → `#1F3A5F`) sem card branco
-- Logo + ícone centralizados (assets existentes)
-- "Bem-vindo de volta" / "Entre na sua conta para continuar" em branco
-- 3 botões brancos arredondados com ícone à esquerda:
-  - "Continuar com Google" → `signInWithOAuth({ provider: 'google' })`
-  - "Continuar com Apple" → `signInWithOAuth({ provider: 'apple' })`
-  - "Continuar com e-mail" → navega para estado de e-mail
-- Rodapé: "Ao continuar, você concorda com os **Termos** e com a **Política de privacidade**" (links para `/terms` e `/privacy`)
-
-Internamente usa state machine com `step`: `'main'` | `'email'` | `'password'` | `'register'` — tudo dentro de `Auth.tsx`, sem criar arquivos separados de página (mais simples, mesma UX).
-
-- **Step email**: campo e-mail + "Continuar" + "Voltar". Ao submeter, chamar uma RPC segura check_email_exists no Supabase (criada previamente com SECURITY DEFINER) que retorna boolean indicando se o e-mail já possui conta. Se true → navegar para step 'password'. Se false → navegar para step 'register'.
-- **Step password**: campo senha + "Entrar" + "Esqueci minha senha" + "Voltar"
-- **Step register**: campos nome, e-mail (pré-preenchido, disabled), senha + "Criar conta"
-
-#### 2. Atualizar `src/contexts/AuthContext.tsx`
-
-Adicionar método `signInWithOAuth(provider: string)` ao contexto para Google e Apple.
-
-#### 3. Criar `src/pages/Terms.tsx` e `src/pages/Privacy.tsx`
-
-Páginas simples com conteúdo placeholder institucional, estilizadas com fundo branco e texto escuro. Facilmente editáveis.
-
-#### 4. Adicionar rotas em `src/App.tsx`
-
-- `/terms` → `Terms.tsx`
-- `/privacy` → `Privacy.tsx`
-
-#### 5. Criar `src/pages/ResetPassword.tsx`
-
-Página para redefinição de senha (necessária para o fluxo "Esqueci minha senha"):
-
-- Verifica `type=recovery` na URL
-- Formulário para nova senha
-- Chama `supabase.auth.updateUser({ password })`
-
-Rota: `/reset-password`
+### 4. Business model assessment
+`intention_id` is still structurally used (passed to `activate_presence`, stored in presence records), but the user never selects it in the current UI -- it's always hardcoded as a default. It remains a structural component but is not actively used for matching/filtering logic on the frontend.
 
 ---
 
-### Arquivos modificados
+## Recommended Fix: Scenario A (minimal, safe)
 
-- `src/pages/Auth.tsx` — redesign completo
-- `src/contexts/AuthContext.tsx` — adicionar `signInWithOAuth`
-- `src/App.tsx` — novas rotas
+Since the `intentions` table exists with valid data and the architecture still references it, the fix is simply correcting the hardcoded UUID.
 
-### Arquivos criados
+**Single change in `src/pages/Location.tsx`:**
+- Replace `'8302ef7d-e40e-494f-9ea3-7cfb52730bb2'` with `'fe9396db-a8d8-4064-a5f5-c1220e6722f1'` (the actual "Livre" record)
 
-- `src/pages/Terms.tsx`
-- `src/pages/Privacy.tsx`
-- `src/pages/ResetPassword.tsx`
+No database changes needed. No schema modifications. This is a one-line fix that resolves the FK violation entirely.
+
