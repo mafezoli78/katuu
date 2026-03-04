@@ -32,7 +32,7 @@ export default function Location() {
     presenceRadiusMeters,
     currentPresence
   } = usePresence();
-  const { requireProfile, isOpen: profileGateOpen, closeModal: closeProfileGate } = useProfileGate();
+  const { requireProfile, isOpen: profileGateOpen, openModal: openProfileGate, closeModal: closeProfileGate } = useProfileGate();
 
   const [step, setStep] = useState<'permission' | 'detecting' | 'select' | 'create_temp' | 'confirm_temp' | 'expression' | 'selfie'>('permission');
   const [permissionStatus, setPermissionStatus] = useState<'prompt' | 'granted' | 'denied' | 'blocked'>('prompt');
@@ -306,6 +306,10 @@ export default function Location() {
       }
 
       if (error) {
+        if (error.message === 'PROFILE_INCOMPLETE') {
+          openProfileGate();
+          return;
+        }
         toast({ variant: 'destructive', title: 'Erro ao ativar presença', description: error.message });
       } else {
         if (!presenceId) {
