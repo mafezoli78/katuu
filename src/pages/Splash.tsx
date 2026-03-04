@@ -1,18 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProfile } from '@/hooks/useProfile';
 import logoKatuu from '@/assets/logo-katuu-oficial.png';
 import iconKatuu from '@/assets/icon-katuu.png';
 
 export default function Splash() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { profile, loading: profileLoading, isProfileComplete } = useProfile();
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    // Animate progress bar
     const progressInterval = setInterval(() => {
       setProgress(prev => {
         if (prev >= 100) return 100;
@@ -24,20 +21,18 @@ export default function Splash() {
   }, []);
 
   useEffect(() => {
-    if (authLoading || (user && profileLoading)) return;
+    if (authLoading) return;
 
     const timer = setTimeout(() => {
       if (!user) {
         navigate('/auth', { replace: true });
-      } else if (!isProfileComplete()) {
-        navigate('/onboarding', { replace: true });
       } else {
-        navigate('/home', { replace: true });
+        navigate('/location', { replace: true });
       }
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [user, authLoading, profileLoading, profile, navigate, isProfileComplete]);
+  }, [user, authLoading, navigate]);
 
   return (
     <div className="min-h-screen katu-gradient flex flex-col items-center justify-center animate-fade-in relative overflow-hidden">

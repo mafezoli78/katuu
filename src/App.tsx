@@ -43,7 +43,7 @@ function AppRoutes() {
           <Route path="/chat" element={<Chat />} />
           <Route path="/location" element={<Location />} />
           <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="*" element={<Navigate to="/home" replace />} />
+          <Route path="*" element={<Navigate to="/location" replace />} />
         </>
       ) : (
         <>

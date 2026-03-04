@@ -37,8 +37,8 @@ export function AuthRegisterStep({ email, onBack }: AuthRegisterStepProps) {
         description: error.message.includes('already registered') ? 'Este email já está cadastrado' : error.message,
       });
     } else {
-      toast({ title: 'Conta criada!', description: 'Vamos configurar seu perfil' });
-      navigate('/onboarding');
+      toast({ title: 'Conta criada!', description: 'Bem-vindo ao Katuu!' });
+      navigate('/location');
     }
   };
 
