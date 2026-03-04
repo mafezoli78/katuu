@@ -32,8 +32,8 @@ export default function Location() {
     presenceRadiusMeters,
     currentPresence
   } = usePresence();
+  const [showProfileGate, setShowProfileGate] = useState(false);
   const { requireProfile, isOpen: profileGateOpen, openModal: openProfileGate, closeModal: closeProfileGate } = useProfileGate();
-
   const [step, setStep] = useState<'permission' | 'detecting' | 'select' | 'create_temp' | 'confirm_temp' | 'expression' | 'selfie'>('permission');
   const [permissionStatus, setPermissionStatus] = useState<'prompt' | 'granted' | 'denied' | 'blocked'>('prompt');
   const [isRequestingPermission, setIsRequestingPermission] = useState(false);
@@ -287,23 +287,36 @@ export default function Location() {
       let presenceId: string | null = null;
       const trimmedExpression = expressionText.trim() || undefined;
 
-      if (selectedPlaceId) {
-        const result = await activatePresenceAtPlace(selectedPlaceId, DEFAULT_INTENTION_ID, trimmedExpression);
-        error = result.error;
-        presenceId = result.presenceId;
-      } else if (newPlaceName.trim() && userCoords) {
-        const result = await createTemporaryPlace(
-          newPlaceName.trim(),
-          userCoords.lat,
-          userCoords.lng,
-          DEFAULT_INTENTION_ID,
-          trimmedExpression
-        );
-        error = result.error;
-        presenceId = result.presenceId;
-      } else {
-        error = new Error('Nenhum local selecionado');
-      }
+try {
+  let result;
+  if (selectedPlaceId) {
+    result = await activatePresenceAtPlace(selectedPlaceId, DEFAULT_INTENTION_ID, trimmedExpression);
+  } else if (newPlaceName.trim() && userCoords) {
+    result = await createTemporaryPlace(
+      newPlaceName.trim(),
+      userCoords.lat,
+      userCoords.lng,
+      DEFAULT_INTENTION_ID,
+      trimmedExpression
+    );
+  } else {
+    error = new Error('Nenhum local selecionado');
+    return;
+  }
+  
+  error = result.error;
+  presenceId = result.presenceId;
+} catch (err: any) {
+  if (err.message === 'PROFILE_LOADING') {
+    return; // Silencia, spinner continua
+  }
+  if (err.message === 'PROFILE_INCOMPLETE') {
+    setShowProfileGate(true);
+    return;
+  }
+  throw err; // Outros erros são reais
+}
+
 
       if (error) {
         if (error.message === 'PROFILE_INCOMPLETE') {
