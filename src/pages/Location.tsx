@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePresence, NearbyTemporaryPlace } from '@/hooks/usePresence';
 import { useProfileGate } from '@/hooks/useProfileGate';
@@ -21,6 +21,7 @@ import * as cameraService from '@/services/cameraService';
 export default function Location() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const {
     intentions,
@@ -33,7 +34,7 @@ export default function Location() {
     currentPresence
   } = usePresence();
   const [showProfileGate, setShowProfileGate] = useState(false);
-  const { requireProfile, isOpen: profileGateOpen, openModal: openProfileGate, closeModal: closeProfileGate } = useProfileGate();
+  const { requireProfile, isOpen: profileGateOpen, pendingAction: gatePendingAction, openModal: openProfileGate, closeModal: closeProfileGate } = useProfileGate();
   const [step, setStep] = useState<'permission' | 'detecting' | 'select' | 'create_temp' | 'confirm_temp' | 'expression' | 'selfie'>('permission');
   const [permissionStatus, setPermissionStatus] = useState<'prompt' | 'granted' | 'denied' | 'blocked'>('prompt');
   const [isRequestingPermission, setIsRequestingPermission] = useState(false);
@@ -156,6 +157,23 @@ export default function Location() {
         // Permissions API not supported, stay on permission screen
       });}}, [user, navigate, loading, currentPresence]);
 
+  // Restore pending action from navigation state (after returning from onboarding)
+  useEffect(() => {
+    const state = location.state as any;
+    const pending = state?.pendingAction;
+    if (!pending) return;
+
+    // Clear navigation state to prevent re-trigger on refresh
+    navigate(location.pathname, { replace: true, state: {} });
+
+    if (pending.type === 'selectPlace' && pending.placeId) {
+      setSelectedPlaceId(pending.placeId);
+      setStep('expression');
+    }
+    // For 'createTemp', we just go to expression step since place doesn't exist yet
+    // User will need to re-enter the name
+  }, []); // Only on mount
+
   // Explicit handler: user taps "Permitir localização"
   const handleRequestLocation = useCallback(() => {
     if (isRequestingPermission || hasFetchedRef.current) return;
@@ -211,7 +229,7 @@ export default function Location() {
   }, [isRequestingPermission, toast]);
 
   const handleSelectPlace = (placeId: string) => {
-    if (!requireProfile()) return;
+    if (!requireProfile({ type: 'selectPlace', placeId })) return;
     setSelectedPlaceId(placeId);
     setStep('expression');
   };
@@ -242,7 +260,7 @@ export default function Location() {
   };
 
   const handleCreateTemporaryPlace = async () => {
-    if (!requireProfile()) return;
+    if (!requireProfile({ type: 'createTemp' })) return;
     if (!newPlaceName.trim() || !userCoords) {
       toast({ variant: 'destructive', title: 'Preencha o nome do local' });
       return;
@@ -640,7 +658,7 @@ export default function Location() {
 
         }
       </div>
-      <ProfileGateModal open={profileGateOpen} onClose={closeProfileGate} />
+      <ProfileGateModal open={profileGateOpen} onClose={closeProfileGate} pendingAction={gatePendingAction} />
     </MobileLayout>);
 
 }
