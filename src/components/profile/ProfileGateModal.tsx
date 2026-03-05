@@ -9,13 +9,15 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { UserCircle } from 'lucide-react';
+import type { PendingAction } from '@/hooks/useProfileGate';
 
 interface ProfileGateModalProps {
   open: boolean;
   onClose: () => void;
+  pendingAction?: PendingAction;
 }
 
-export function ProfileGateModal({ open, onClose }: ProfileGateModalProps) {
+export function ProfileGateModal({ open, onClose, pendingAction }: ProfileGateModalProps) {
   const navigate = useNavigate();
 
   return (
@@ -34,7 +36,7 @@ export function ProfileGateModal({ open, onClose }: ProfileGateModalProps) {
           <Button
             onClick={() => {
               onClose();
-              navigate('/onboarding');
+              navigate('/onboarding', { state: pendingAction ? { pendingAction } : undefined });
             }}
             className="w-full h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
           >
