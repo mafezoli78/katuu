@@ -23,7 +23,7 @@ export default function Onboarding() {
   const { user } = useAuth();
   const { profile, updateProfile, updateInterests, uploadAvatar, isProfileComplete } = useProfile();
   const navigate = useNavigate();
-  const location = useLocation();
+  
   const { toast } = useToast();
   
 
