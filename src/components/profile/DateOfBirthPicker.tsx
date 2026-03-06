@@ -59,7 +59,8 @@ export function DateOfBirthPicker({ value, onChange }: DateOfBirthPickerProps) {
   const monthNum = parseInt(month) || 0;
   const yearNum = parseInt(year) || 0;
 
-  const maxDays = getDaysInMonth(monthNum || 1, yearNum || currentYear);
+  // Always show 31 days — validation happens in emitChange when all 3 fields are set
+  const maxDays = 31;
 
   const emitChange = (d: string, m: string, y: string) => {
     const dN = parseInt(d) || 0;
