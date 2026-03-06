@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { calculateAge } from '@/utils/date';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { isProfileComplete as checkProfileComplete } from '@/utils/profileCompletion';
 
 export interface Profile {
   id: string;
@@ -121,7 +122,7 @@ export function useProfile() {
   };
 
   const isProfileComplete = () => {
-    return profile?.nome && profile?.data_nascimento && interests.length > 0;
+    return checkProfileComplete(profile, interests);
   };
 
   // Re-export calculateAge from shared utility

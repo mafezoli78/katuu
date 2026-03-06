@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useProfile } from '@/hooks/useProfile';
+import { isProfileComplete as checkProfileComplete } from '@/utils/profileCompletion';
 
 export interface PendingAction {
   type: 'selectPlace' | 'createTemp';
@@ -11,7 +12,7 @@ export function useProfileGate() {
   const [isOpen, setIsOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | undefined>();
 
-  const isProfileComplete = !loading && !!profile?.nome && !!profile?.data_nascimento && interests.length > 0;
+  const isProfileComplete = !loading && checkProfileComplete(profile, interests);
 
   const requireProfile = useCallback((action?: PendingAction): boolean => {
     if (isProfileComplete) return true;

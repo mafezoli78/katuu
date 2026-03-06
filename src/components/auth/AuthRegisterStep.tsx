@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Eye, EyeOff, Mail } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -12,10 +11,11 @@ interface AuthRegisterStepProps {
 export function AuthRegisterStep({ email, onBack }: AuthRegisterStepProps) {
   const [nome, setNome] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const { signUp } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleRegister = async () => {
@@ -25,6 +25,10 @@ export function AuthRegisterStep({ email, onBack }: AuthRegisterStepProps) {
     }
     if (password.length < 6) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Senha deve ter pelo menos 6 caracteres' });
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'As senhas não coincidem' });
       return;
     }
     setLoading(true);
@@ -37,10 +41,26 @@ export function AuthRegisterStep({ email, onBack }: AuthRegisterStepProps) {
         description: error.message.includes('already registered') ? 'Este email já está cadastrado' : error.message,
       });
     } else {
-      toast({ title: 'Conta criada!', description: 'Bem-vindo ao Katuu!' });
-      navigate('/location');
+      setShowConfirmation(true);
     }
   };
+
+  if (showConfirmation) {
+    return (
+      <div className="w-full max-w-sm flex flex-col items-center text-center">
+        <div className="w-16 h-16 rounded-full bg-white/15 flex items-center justify-center mb-6">
+          <Mail className="w-8 h-8 text-white" />
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">Verifique seu e-mail</h2>
+        <p className="text-white/70 text-sm mb-6">
+          Enviamos um e-mail de confirmação para <span className="text-white font-medium">{email}</span>. Verifique sua caixa de entrada para ativar sua conta.
+        </p>
+        <button onClick={onBack} className="mt-4 flex items-center gap-1 text-white/70 text-sm hover:text-white transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Voltar ao login
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-sm flex flex-col items-center">
@@ -56,14 +76,7 @@ export function AuthRegisterStep({ email, onBack }: AuthRegisterStepProps) {
         autoFocus
       />
 
-      <input
-        type="email"
-        value={email}
-        disabled
-        className="w-full rounded-full py-3 px-6 bg-white/5 border border-white/10 text-white/50 mb-3 cursor-not-allowed"
-      />
-
-      <div className="w-full relative mb-2">
+      <div className="w-full relative mb-3">
         <input
           type={showPassword ? 'text' : 'password'}
           value={password}
@@ -78,6 +91,16 @@ export function AuthRegisterStep({ email, onBack }: AuthRegisterStepProps) {
         >
           {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
         </button>
+      </div>
+
+      <div className="w-full relative mb-2">
+        <input
+          type={showPassword ? 'text' : 'password'}
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="Confirme a senha"
+          className="w-full rounded-full py-3 px-6 pr-12 bg-white/10 border border-white/20 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/40"
+        />
       </div>
 
       <button

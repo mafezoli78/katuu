@@ -1,5 +1,6 @@
 import { useProfile } from '@/hooks/useProfile';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { isProfileComplete as checkProfileComplete } from '@/utils/profileCompletion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { placesService, Place } from '@/services/placesService';
@@ -54,7 +55,8 @@ const TEMPORARY_PLACE_DURATION_MS = 6 * 60 * 60 * 1000;
 
 export function usePresence() {
   const { user } = useAuth();
-  const { isProfileComplete, loading: profileLoading } = useProfile();
+  const { profile, interests, loading: profileLoading } = useProfile();
+  const activationPromiseRef = useRef<Promise<any> | null>(null);
   const [intentions, setIntentions] = useState<Intention[]>([]);
   const [nearbyPlaces, setNearbyPlaces] = useState<Place[]>([]);
   const [nearbyTemporaryPlaces, setNearbyTemporaryPlaces] = useState<NearbyTemporaryPlace[]>([]);
@@ -563,7 +565,7 @@ export function usePresence() {
       throw new Error('PROFILE_LOADING');
     }
     
-    if (!isProfileComplete()) {
+    if (!checkProfileComplete(profile, interests)) {
       throw new Error('PROFILE_INCOMPLETE');
     }
     
@@ -571,6 +573,17 @@ export function usePresence() {
 
     if (!placeId) {
       return { error: new Error('place_id é obrigatório para criar presença'), presenceId: null };
+    }
+
+    // Prevent concurrent activations
+    if (activationPromiseRef.current) {
+      return activationPromiseRef.current;
+    }
+
+    // Idempotency: if already active at this place, return existing presence
+    if (currentPresence?.place_id === placeId && currentPresence?.ativo) {
+      console.log('[Presence] Already active at this place, returning existing');
+      return { error: null, presenceId: currentPresence.id };
     }
 
     console.log(`[Presence] 🔄 Activating presence at place: ${placeId}`);
@@ -585,6 +598,7 @@ export function usePresence() {
     // Stop GPS monitoring from previous presence
     stopGPSMonitoring();
 
+    const promise = (async () => {
     try {
       // DEFENSIVE CLEANUP: Explicitly end previous presence before RPC
       // This is a safety net — the RPC also does this atomically, but if it fails
@@ -646,6 +660,11 @@ export function usePresence() {
       setIsEnteringPlace(false);
       console.log('[Presence] ✅ Entry transition completed');
     }
+    })();
+
+    activationPromiseRef.current = promise;
+    promise.finally(() => { activationPromiseRef.current = null; });
+    return promise;
   };
 
   // Create a temporary place and activate presence

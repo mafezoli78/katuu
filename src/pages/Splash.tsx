@@ -23,15 +23,11 @@ export default function Splash() {
   useEffect(() => {
     if (authLoading) return;
 
-    const timer = setTimeout(() => {
-      if (!user) {
-        navigate('/auth', { replace: true });
-      } else {
-        navigate('/location', { replace: true });
-      }
-    }, 2000);
-
-    return () => clearTimeout(timer);
+    if (!user) {
+      navigate('/auth', { replace: true });
+    } else {
+      navigate('/location', { replace: true });
+    }
   }, [user, authLoading, navigate]);
 
   return (

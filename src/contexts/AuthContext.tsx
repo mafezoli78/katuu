@@ -23,8 +23,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(prev => {
+          if (prev?.access_token === session?.access_token) return prev;
+          return session;
+        });
+        setUser(prev => {
+          if (prev?.id === session?.user?.id) return prev;
+          return session?.user ?? null;
+        });
         setLoading(false);
       }
     );

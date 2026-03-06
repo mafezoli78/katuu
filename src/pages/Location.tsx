@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePresence, NearbyTemporaryPlace } from '@/hooks/usePresence';
-import { useProfileGate } from '@/hooks/useProfileGate';
 import { ProfileGateModal } from '@/components/profile/ProfileGateModal';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
@@ -34,8 +33,8 @@ export default function Location() {
     currentPresence
   } = usePresence();
   const [showProfileGate, setShowProfileGate] = useState(false);
-  const { requireProfile, isOpen: profileGateOpen, pendingAction: gatePendingAction, openModal: openProfileGate, closeModal: closeProfileGate } = useProfileGate();
-  const [step, setStep] = useState<'permission' | 'detecting' | 'select' | 'create_temp' | 'confirm_temp' | 'expression' | 'selfie'>('permission');
+  const [step, setStep] = useState<'permission' | 'detecting' | 'select' | 'create_temp' | 'confirm_temp' | 'expression' | 'selfie'>('detecting');
+  const [permissionChecked, setPermissionChecked] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<'prompt' | 'granted' | 'denied' | 'blocked'>('prompt');
   const [isRequestingPermission, setIsRequestingPermission] = useState(false);
   const [userCoords, setUserCoords] = useState<{lat: number;lng: number;} | null>(null);
@@ -143,19 +142,26 @@ export default function Location() {
     // Passive check only — never trigger a prompt or navigate automatically
     if (navigator.permissions) {
       navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+        setPermissionChecked(true);
         if (result.state === 'granted') {
-          // Permission already granted from a previous session — auto-proceed is safe
           setPermissionStatus('granted');
+          setStep('detecting');
           handleRequestLocation();
+        } else if (result.state === 'denied') {
+          setPermissionStatus('blocked');
+          setStep('permission');
+        } else {
+          setStep('permission');
         }
-        // For 'denied' or 'prompt', stay on permission screen and wait for user action.
-        // We do NOT set 'blocked' here because many mobile browsers report 'denied'
-        // even when the user has never been asked.
       }).catch(() => {
-
-
-        // Permissions API not supported, stay on permission screen
-      });}}, [user, navigate, loading, currentPresence]);
+        setPermissionChecked(true);
+        setStep('permission');
+      });
+    } else {
+      setPermissionChecked(true);
+      setStep('permission');
+    }
+  }, [user, navigate, loading, currentPresence]);
 
   // Restore pending action from navigation state (after returning from onboarding)
   useEffect(() => {
@@ -229,7 +235,6 @@ export default function Location() {
   }, [isRequestingPermission, toast]);
 
   const handleSelectPlace = (placeId: string) => {
-    if (!requireProfile({ type: 'selectPlace', placeId })) return;
     setSelectedPlaceId(placeId);
     setStep('expression');
   };
@@ -260,7 +265,6 @@ export default function Location() {
   };
 
   const handleCreateTemporaryPlace = async () => {
-    if (!requireProfile({ type: 'createTemp' })) return;
     if (!newPlaceName.trim() || !userCoords) {
       toast({ variant: 'destructive', title: 'Preencha o nome do local' });
       return;
@@ -336,7 +340,7 @@ export default function Location() {
 
       if (error) {
         if (error.message === 'PROFILE_INCOMPLETE') {
-          openProfileGate();
+          setShowProfileGate(true);
           return;
         }
         toast({ variant: 'destructive', title: 'Erro ao ativar presença', description: error.message });
@@ -401,8 +405,16 @@ export default function Location() {
   return (
     <MobileLayout>
       <div className="p-4 space-y-4 page-fade">
+        {/* Show loader until permission status is checked */}
+        {!permissionChecked &&
+        <div className="flex flex-col items-center justify-center py-16">
+            <Loader2 className="h-12 w-12 text-katu-blue mx-auto mb-4 animate-spin" />
+            <p className="text-muted-foreground">Carregando...</p>
+          </div>
+        }
+
         {/* Permission request step */}
-        {step === 'permission' &&
+        {permissionChecked && step === 'permission' &&
         <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
             <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-6">
               <MapPin className="h-8 w-8 text-accent" />
@@ -658,7 +670,7 @@ export default function Location() {
 
         }
       </div>
-      <ProfileGateModal open={profileGateOpen} onClose={closeProfileGate} pendingAction={gatePendingAction} />
+      <ProfileGateModal open={showProfileGate} onClose={() => setShowProfileGate(false)} pendingAction={selectedPlaceId ? { type: 'selectPlace', placeId: selectedPlaceId } : undefined} />
     </MobileLayout>);
 
 }
