@@ -330,6 +330,11 @@ export default function Location() {
           return; // Silencia, spinner continua
         }
         if (err.message === 'PROFILE_INCOMPLETE') {
+          savePendingAction({
+            type: 'ACTIVATE_PRESENCE',
+            placeId: selectedPlaceId || '',
+            expressionText: expressionText?.trim() || undefined,
+          });
           setShowProfileGate(true);
           return;
         }
