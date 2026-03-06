@@ -170,7 +170,8 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
           {!cameraError && (
             <Button
               onClick={handleCapture}
-              className="w-full h-12 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-base"
+              variant="secondary"
+              className="w-full h-12 rounded-xl font-semibold text-base"
             >
               <Camera className="h-5 w-5 mr-2" />
               Capturar
