@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { PRESENCE_DURATION_MS } from '@/config/presence';
 import { 
   deriveFacts, 
-  canWave, 
   canAcceptWave,
   type InteractionData,
 } from '@/lib/interactionRules';
@@ -131,101 +129,55 @@ export function useWaves() {
     }
 
     // =========================================================================
-    // VALIDAÇÃO CANÔNICA: Busca dados frescos e usa função única
+    // RPC ATÔMICA: Toda validação acontece no backend
     // =========================================================================
     try {
-      const now = new Date();
-      const nowISO = now.toISOString();
+      const { data: waveId, error: rpcError } = await supabase.rpc('send_wave', {
+        p_from_user_id: user.id,
+        p_to_user_id: toUserId,
+        p_place_id: placeId,
+      });
 
-      // Buscar todos os dados necessários em paralelo
-      const [blocksResult, mutesResult, conversationsResult, wavesResult] = await Promise.all([
-        // Bloqueios envolvendo ambos os usuários
-        supabase
-          .from('user_blocks')
-          .select('user_id, blocked_user_id')
-          .or(`user_id.eq.${user.id},blocked_user_id.eq.${user.id}`),
-        
-        // Mutes ativos do usuário atual
-        supabase
-          .from('user_mutes')
-          .select('user_id, muted_user_id, expira_em')
-          .eq('user_id', user.id)
-          .gt('expira_em', nowISO),
-        
-        // Conversas neste local
-        supabase
-          .from('conversations')
-          .select('id, user1_id, user2_id, place_id, ativo, encerrado_por, reinteracao_permitida_em')
-          .eq('place_id', placeId)
-          .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`),
-        
-        // Waves pendentes entre os usuários neste local
-        supabase
-          .from('waves')
-          .select('id, de_user_id, para_user_id, place_id, status, expires_at')
-          .eq('place_id', placeId)
-          .eq('status', 'pending')
-          .or(`de_user_id.eq.${user.id},para_user_id.eq.${user.id}`),
-      ]);
-
-      // Verificar erros de banco
-      if (blocksResult.error) throw blocksResult.error;
-      if (mutesResult.error) throw mutesResult.error;
-      if (conversationsResult.error) throw conversationsResult.error;
-      if (wavesResult.error) throw wavesResult.error;
-
-      // Preparar dados para função canônica
-      const data: InteractionData = {
-        blocks: (blocksResult.data || []).filter(
-          b => b.blocked_user_id === toUserId || b.user_id === toUserId
-        ),
-        mutes: (mutesResult.data || []).filter(
-          m => m.muted_user_id === toUserId
-        ),
-        conversations: (conversationsResult.data || []).filter(
-          c => c.user1_id === toUserId || c.user2_id === toUserId
-        ),
-        waves: (wavesResult.data || []).filter(
-          w => w.de_user_id === toUserId || w.para_user_id === toUserId
-        ),
-      };
-
-      // Derivar fatos e verificar permissão
-      const facts = deriveFacts(user.id, toUserId, placeId, now, data);
-      const permission = canWave(facts);
-
-      if (!permission.allowed) {
-        return { error: new Error(permission.reason || 'Ação não permitida') };
+      if (rpcError) {
+        // Map backend error codes to user-friendly messages
+        const errorMessage = mapSendWaveError(rpcError.message);
+        return { error: new Error(errorMessage) };
       }
 
+      // Fetch the created wave to update local state
+      if (waveId) {
+        const { data: newWave } = await supabase
+          .from('waves')
+          .select('*')
+          .eq('id', waveId)
+          .single();
+
+        if (newWave) {
+          setSentWaves(prev => [newWave as Wave, ...prev]);
+        }
+      }
+
+      return { error: null, data: { id: waveId } as Wave | null };
     } catch (error) {
-      console.error('[useWaves] Error validating wave:', error);
-      return { error: new Error('Erro ao verificar permissões') };
+      console.error('[useWaves] Error sending wave:', error);
+      return { error: new Error('Erro ao enviar aceno') };
     }
+  };
 
-    // =========================================================================
-    // EXECUÇÃO: Criar wave no banco
-    // =========================================================================
-    const expiresAt = new Date(Date.now() + PRESENCE_DURATION_MS).toISOString();
-
-    const { data, error } = await supabase
-      .from('waves')
-      .insert({
-        de_user_id: user.id,
-        para_user_id: toUserId,
-        location_id: placeId,
-        place_id: placeId,
-        expires_at: expiresAt,
-        status: 'pending'
-      })
-      .select()
-      .single();
-
-    if (!error && data) {
-      setSentWaves(prev => [data as Wave, ...prev]);
-    }
-
-    return { error, data: data as Wave | null };
+  /**
+   * Maps backend RPC error codes to user-friendly messages.
+   */
+  const mapSendWaveError = (errorMessage: string): string => {
+    if (errorMessage.includes('WAVE_SELF')) return 'Você não pode acenar para si mesmo';
+    if (errorMessage.includes('WAVE_BLOCKED')) return 'Usuário bloqueado';
+    if (errorMessage.includes('WAVE_MUTED')) return 'Usuário silenciado';
+    if (errorMessage.includes('WAVE_ACTIVE_CHAT')) return 'Você já tem uma conversa ativa com esta pessoa';
+    if (errorMessage.includes('WAVE_COOLDOWN')) return 'Não é possível acenar - interação recente neste local';
+    if (errorMessage.includes('WAVE_DUPLICATE')) return 'Você já acenou para esta pessoa neste local';
+    if (errorMessage.includes('WAVE_IGNORE_COOLDOWN')) return 'Aguarde para enviar novo aceno';
+    if (errorMessage.includes('WAVE_NO_PRESENCE_SENDER')) return 'Você precisa estar presente neste local';
+    if (errorMessage.includes('WAVE_NO_PRESENCE_RECIPIENT')) return 'Esta pessoa não está mais neste local';
+    return 'Erro ao enviar aceno';
   };
 
   /**

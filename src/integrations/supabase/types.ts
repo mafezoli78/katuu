@@ -632,6 +632,14 @@ export type Database = {
         Args: { p_other_user_id: string; p_user_id: string }
         Returns: boolean
       }
+      send_wave: {
+        Args: {
+          p_from_user_id: string
+          p_place_id: string
+          p_to_user_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
