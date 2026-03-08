@@ -342,7 +342,7 @@ export default function Location() {
       }
 
       if (error) {
-        if (error?.message === 'PROFILE_INCOMPLETE' || error?.code === 'PROFILE_INCOMPLETE') {
+        if (error?.message === 'PROFILE_INCOMPLETE' || (error as any)?.code === 'PROFILE_INCOMPLETE') {
           savePendingAction({
             type: 'ACTIVATE_PRESENCE',
             placeId: selectedPlaceId || '',
