@@ -16,21 +16,33 @@ export interface PersonNearby {
  * Fetch people with active presence at the same place.
  * Uses a single RPC call instead of N+1 queries.
  * Realtime subscriptions with 300ms debounce to prevent event storms.
- * 
- * IMPORTANT: This hook returns ALL users present at the location
- * (excluding blocked/muted). Visibility filtering for interactions
- * is handled EXCLUSIVELY by PersonCard via useInteractionState.
+ * Hardened against unmount races, duplicate channels, and state leaks.
  */
 export function usePeopleNearby(placeId: string | null) {
   const { user } = useAuth();
   const [people, setPeople] = useState<PersonNearby[]>([]);
   const [loading, setLoading] = useState(true);
+
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+  const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const blocksChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const mutesChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // Mark unmounted
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const fetchPeopleNearby = useCallback(async () => {
     if (!user || !placeId) {
-      setPeople([]);
-      setLoading(false);
+      if (mountedRef.current) {
+        setPeople([]);
+        setLoading(false);
+      }
       return;
     }
 
@@ -39,6 +51,8 @@ export function usePeopleNearby(placeId: string | null) {
         p_user_id: user.id,
         p_place_id: placeId,
       });
+
+      if (!mountedRef.current) return;
 
       if (error) {
         console.error('[usePeopleNearby] RPC error:', error);
@@ -70,90 +84,110 @@ export function usePeopleNearby(placeId: string | null) {
       setPeople(mapped);
     } catch (error) {
       console.error('[usePeopleNearby] Error:', error);
-      setPeople([]);
+      if (mountedRef.current) setPeople([]);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, [user, placeId]);
 
-  // Debounced fetch — coalesces multiple Realtime events into one RPC call
+  // Debounced fetch
   const scheduleFetch = useCallback(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchPeopleNearby();
     }, 300);
   }, [fetchPeopleNearby]);
 
-  // Cleanup debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, []);
-
-  // Initial fetch (no debounce)
+  // Initial fetch
   useEffect(() => {
     fetchPeopleNearby();
   }, [fetchPeopleNearby]);
 
-  // Realtime: presence changes at this place
+  // Realtime: presence
   useEffect(() => {
     if (!placeId) return;
 
-    const channel = supabase
+    if (presenceChannelRef.current) {
+      supabase.removeChannel(presenceChannelRef.current);
+    }
+
+    presenceChannelRef.current = supabase
       .channel(`presence-feed-${placeId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'presence',
         filter: `place_id=eq.${placeId}`,
-      }, () => {
-        scheduleFetch();
-      })
+      }, scheduleFetch)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (presenceChannelRef.current) {
+        supabase.removeChannel(presenceChannelRef.current);
+        presenceChannelRef.current = null;
+      }
+    };
   }, [placeId, scheduleFetch]);
 
-  // Realtime: block changes
+  // Realtime: blocks
   useEffect(() => {
     if (!user?.id) return;
 
-    const channel = supabase
+    if (blocksChannelRef.current) {
+      supabase.removeChannel(blocksChannelRef.current);
+    }
+
+    blocksChannelRef.current = supabase
       .channel(`people-blocks-${user.id}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'user_blocks',
-      }, () => {
-        scheduleFetch();
-      })
+      }, scheduleFetch)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (blocksChannelRef.current) {
+        supabase.removeChannel(blocksChannelRef.current);
+        blocksChannelRef.current = null;
+      }
+    };
   }, [user?.id, scheduleFetch]);
 
-  // Realtime: mute changes
+  // Realtime: mutes
   useEffect(() => {
     if (!user?.id) return;
 
-    const channel = supabase
+    if (mutesChannelRef.current) {
+      supabase.removeChannel(mutesChannelRef.current);
+    }
+
+    mutesChannelRef.current = supabase
       .channel(`people-mutes-${user.id}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'user_mutes',
-      }, () => {
-        scheduleFetch();
-      })
+      }, scheduleFetch)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (mutesChannelRef.current) {
+        supabase.removeChannel(mutesChannelRef.current);
+        mutesChannelRef.current = null;
+      }
+    };
   }, [user?.id, scheduleFetch]);
+
+  // Global cleanup
+  useEffect(() => {
+    return () => {
+      if (presenceChannelRef.current) supabase.removeChannel(presenceChannelRef.current);
+      if (blocksChannelRef.current) supabase.removeChannel(blocksChannelRef.current);
+      if (mutesChannelRef.current) supabase.removeChannel(mutesChannelRef.current);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   return {
     people,
