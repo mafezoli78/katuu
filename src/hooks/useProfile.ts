@@ -3,17 +3,9 @@ import { calculateAge } from '@/utils/date';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { isProfileComplete as checkProfileComplete } from '@/utils/profileCompletion';
+import type { Gender } from '@/types/gender';
 
-export type Gender =
-  | 'man'
-  | 'woman'
-  | 'non_binary'
-  | 'trans_man'
-  | 'trans_woman'
-  | 'agender'
-  | 'genderfluid'
-  | 'prefer_not_to_say'
-  | 'other';
+export type { Gender };
 
 export interface Profile {
   id: string;
