@@ -276,6 +276,23 @@ export default function Profile() {
                     {bioStatus.message}
                   </p>
                 </div>
+
+                {/* Gender */}
+                <div>
+                  <Label className="text-sm font-medium">Gênero</Label>
+                  <Select value={gender ?? ''} onValueChange={(v) => setGender(v as Gender)}>
+                    <SelectTrigger className="mt-1.5 rounded-xl">
+                      <SelectValue placeholder="Selecione seu gênero" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {GENDER_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             ) : (
               <div className="text-center">
