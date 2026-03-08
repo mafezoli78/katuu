@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
+import type { Gender } from '@/types/gender';
+import { GENDER_OPTIONS } from '@/types/gender';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ImageCropper } from '@/components/profile/ImageCropper';
 import { EmailChangeDialog } from '@/components/profile/EmailChangeDialog';
@@ -40,6 +43,7 @@ export default function Profile() {
   const [bio, setBio] = useState('');
   const [dataNascimento, setDataNascimento] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [gender, setGender] = useState<Gender | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Image cropper state
@@ -61,6 +65,7 @@ export default function Profile() {
       setNome(profile.nome || '');
       setBio(profile.bio || '');
       setDataNascimento(profile.data_nascimento || '');
+      setGender(profile.gender ?? null);
     }
     setSelectedInterests(interests.map(i => i.tag));
   }, [profile, interests]);
@@ -135,7 +140,8 @@ export default function Profile() {
       await updateProfile({ 
         nome: nome.trim(), 
         bio: bio.trim(),
-        data_nascimento: dataNascimento
+        data_nascimento: dataNascimento,
+        gender: gender,
       });
       await updateInterests(selectedInterests);
       toast({ title: 'Perfil atualizado!' });
@@ -270,6 +276,23 @@ export default function Profile() {
                     {bioStatus.message}
                   </p>
                 </div>
+
+                {/* Gender */}
+                <div>
+                  <Label className="text-sm font-medium">Gênero</Label>
+                  <Select value={gender ?? ''} onValueChange={(v) => setGender(v as Gender)}>
+                    <SelectTrigger className="mt-1.5 rounded-xl">
+                      <SelectValue placeholder="Selecione seu gênero" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {GENDER_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             ) : (
               <div className="text-center">
@@ -376,10 +399,11 @@ export default function Profile() {
                 onClick={() => {
                   setEditing(false);
                   // Reset to original values
-                  if (profile) {
+                   if (profile) {
                     setNome(profile.nome || '');
                     setBio(profile.bio || '');
                     setDataNascimento(profile.data_nascimento || '');
+                    setGender(profile.gender ?? null);
                   }
                   setSelectedInterests(interests.map(i => i.tag));
                 }} 
