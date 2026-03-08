@@ -4,12 +4,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { isProfileComplete as checkProfileComplete } from '@/utils/profileCompletion';
 
+export type Gender =
+  | 'man'
+  | 'woman'
+  | 'non_binary'
+  | 'trans_man'
+  | 'trans_woman'
+  | 'agender'
+  | 'genderfluid'
+  | 'prefer_not_to_say'
+  | 'other';
+
 export interface Profile {
   id: string;
   nome: string | null;
   data_nascimento: string | null;
   bio: string | null;
   foto_url: string | null;
+  gender: Gender | null;
   criado_em: string;
   atualizado_em: string;
 }
@@ -42,7 +54,7 @@ export function useProfile() {
         .single();
 
       if (profileError) throw profileError;
-      setProfile(profileData);
+      setProfile(profileData as Profile);
 
       const { data: interestsData, error: interestsError } = await supabase
         .from('user_interests')

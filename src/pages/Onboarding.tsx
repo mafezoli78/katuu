@@ -1,18 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProfile } from '@/hooks/useProfile';
+import { useProfile, Gender } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { DateOfBirthPicker } from '@/components/profile/DateOfBirthPicker';
 import { Camera, X, Check } from 'lucide-react';
 import logoKatu from '@/assets/logo-katuu-oficial.png';
+
+const GENDER_OPTIONS: { value: Gender; label: string }[] = [
+  { value: 'man', label: 'Homem' },
+  { value: 'woman', label: 'Mulher' },
+  { value: 'non_binary', label: 'Não-binário' },
+  { value: 'trans_man', label: 'Homem trans' },
+  { value: 'trans_woman', label: 'Mulher trans' },
+  { value: 'agender', label: 'Agênero' },
+  { value: 'genderfluid', label: 'Gênero fluido' },
+  { value: 'prefer_not_to_say', label: 'Prefiro não dizer' },
+  { value: 'other', label: 'Outro' },
+];
 
 const AVAILABLE_INTERESTS = [
   'Música', 'Cinema', 'Esportes', 'Tecnologia', 'Viagens', 'Gastronomia',
@@ -32,6 +44,7 @@ export default function Onboarding() {
   const [nome, setNome] = useState('');
   const [dataNascimento, setDataNascimento] = useState('');
   const [bio, setBio] = useState('');
+  const [gender, setGender] = useState<Gender | ''>('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -51,6 +64,7 @@ export default function Onboarding() {
       if (profile.nome) setNome(profile.nome);
       if (profile.data_nascimento) setDataNascimento(profile.data_nascimento);
       if (profile.bio) setBio(profile.bio);
+      if (profile.gender) setGender(profile.gender);
       if (profile.foto_url) setAvatarPreview(profile.foto_url);
     }
   }, [profile]);
@@ -128,6 +142,7 @@ export default function Onboarding() {
         nome: nome.trim(),
         data_nascimento: dataNascimento,
         bio: bio.trim() || null,
+        gender: gender || null,
       });
 
       if (profileError) {
@@ -233,6 +248,22 @@ export default function Onboarding() {
                 {ageError && (
                   <p className="text-sm text-destructive">{ageError}</p>
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Gênero (opcional)</Label>
+                <Select value={gender} onValueChange={(v) => setGender(v as Gender)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione seu gênero" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GENDER_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

@@ -386,6 +386,7 @@ export type Database = {
           criado_em: string
           data_nascimento: string | null
           foto_url: string | null
+          gender: string | null
           id: string
           nome: string | null
         }
@@ -395,6 +396,7 @@ export type Database = {
           criado_em?: string
           data_nascimento?: string | null
           foto_url?: string | null
+          gender?: string | null
           id: string
           nome?: string | null
         }
@@ -404,6 +406,7 @@ export type Database = {
           criado_em?: string
           data_nascimento?: string | null
           foto_url?: string | null
+          gender?: string | null
           id?: string
           nome?: string | null
         }
