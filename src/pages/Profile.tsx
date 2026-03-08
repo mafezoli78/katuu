@@ -65,6 +65,7 @@ export default function Profile() {
       setNome(profile.nome || '');
       setBio(profile.bio || '');
       setDataNascimento(profile.data_nascimento || '');
+      setGender(profile.gender ?? null);
     }
     setSelectedInterests(interests.map(i => i.tag));
   }, [profile, interests]);
