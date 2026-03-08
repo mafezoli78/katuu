@@ -13,22 +13,17 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { DateOfBirthPicker } from '@/components/profile/DateOfBirthPicker';
-import { Camera, X, Check } from 'lucide-react';
+import { InterestsStep } from '@/components/onboarding/InterestsStep';
+import { useInterestCategories } from '@/hooks/useInterestCategories';
+import { Camera } from 'lucide-react';
 import logoKatu from '@/assets/logo-katuu-oficial.png';
-
-const AVAILABLE_INTERESTS = [
-  'Música', 'Cinema', 'Esportes', 'Tecnologia', 'Viagens', 'Gastronomia',
-  'Arte', 'Fotografia', 'Leitura', 'Games', 'Natureza', 'Yoga',
-  'Dança', 'Teatro', 'Empreendedorismo', 'Fitness', 'Pets', 'Café'
-];
 
 export default function Onboarding() {
   const { user } = useAuth();
   const { profile, updateProfile, updateInterests, uploadAvatar, isProfileComplete } = useProfile();
+  const { categories } = useInterestCategories();
   const navigate = useNavigate();
-  
   const { toast } = useToast();
-  
 
   const [step, setStep] = useState(1);
   const [nome, setNome] = useState('');
@@ -67,7 +62,6 @@ export default function Onboarding() {
     if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
       age--;
     }
-    
     if (age < 18) {
       setAgeError('Você precisa ter pelo menos 18 anos para usar o Katu');
       return false;
@@ -88,11 +82,11 @@ export default function Onboarding() {
     }
   };
 
-  const toggleInterest = (interest: string) => {
+  const toggleInterest = (interestId: string) => {
     setSelectedInterests(prev =>
-      prev.includes(interest)
-        ? prev.filter(i => i !== interest)
-        : [...prev, interest]
+      prev.includes(interestId)
+        ? prev.filter(i => i !== interestId)
+        : [...prev, interestId]
     );
   };
 
@@ -106,9 +100,7 @@ export default function Onboarding() {
         toast({ variant: 'destructive', title: 'Por favor, insira sua data de nascimento' });
         return;
       }
-      if (!validateAge(dataNascimento)) {
-        return;
-      }
+      if (!validateAge(dataNascimento)) return;
       setStep(2);
     } else if (step === 2) {
       if (selectedInterests.length < 3) {
@@ -122,12 +114,10 @@ export default function Onboarding() {
   const handleComplete = async () => {
     setLoading(true);
     try {
-      // Upload avatar if selected
       if (avatarFile) {
         await uploadAvatar(avatarFile);
       }
 
-      // Update profile
       const { error: profileError } = await updateProfile({
         nome: nome.trim(),
         data_nascimento: dataNascimento,
@@ -136,7 +126,6 @@ export default function Onboarding() {
       });
 
       if (profileError) {
-        // Handle backend age validation (trigger)
         const msg = profileError.message || String(profileError);
         if (msg.includes('MINIMUM_AGE')) {
           setAgeError('Você precisa ter pelo menos 18 anos');
@@ -147,7 +136,6 @@ export default function Onboarding() {
         throw profileError;
       }
 
-      // Update interests
       const { error: interestsError } = await updateInterests(selectedInterests);
       if (interestsError) throw interestsError;
 
@@ -159,6 +147,15 @@ export default function Onboarding() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper to get interest name by ID
+  const getInterestName = (interestId: string): string => {
+    for (const cat of categories) {
+      const found = cat.interests.find(i => i.id === interestId);
+      if (found) return found.name;
+    }
+    return interestId;
   };
 
   return (
@@ -271,7 +268,7 @@ export default function Onboarding() {
                 </p>
               </div>
 
-              <Button 
+              <Button
                 onClick={handleNextStep}
                 className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
                 disabled={!!ageError}
@@ -284,52 +281,12 @@ export default function Onboarding() {
 
         {/* Step 2: Interests */}
         {step === 2 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Seus interesses</CardTitle>
-              <CardDescription>
-                Selecione pelo menos 3 interesses para encontrar pessoas com gostos parecidos
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {AVAILABLE_INTERESTS.map((interest) => {
-                  const isSelected = selectedInterests.includes(interest);
-                  return (
-                    <Badge
-                      key={interest}
-                      variant={isSelected ? 'default' : 'outline'}
-                      className={`cursor-pointer transition-all py-2 px-3 ${
-                        isSelected 
-                          ? 'bg-secondary text-secondary-foreground hover:bg-secondary/90' 
-                          : 'hover:bg-muted'
-                      }`}
-                      onClick={() => toggleInterest(interest)}
-                    >
-                      {interest}
-                      {isSelected && <Check className="ml-1 h-3 w-3" />}
-                    </Badge>
-                  );
-                })}
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                {selectedInterests.length} de 3 ou mais selecionados
-              </p>
-
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
-                  Voltar
-                </Button>
-                <Button 
-                  onClick={handleNextStep}
-                  className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
-                >
-                  Continuar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <InterestsStep
+            selectedInterests={selectedInterests}
+            onToggleInterest={toggleInterest}
+            onNext={handleNextStep}
+            onBack={() => setStep(1)}
+          />
         )}
 
         {/* Step 3: Review */}
@@ -359,9 +316,9 @@ export default function Onboarding() {
               <div>
                 <p className="text-sm font-medium mb-2">Seus interesses:</p>
                 <div className="flex flex-wrap gap-2">
-                  {selectedInterests.map((interest) => (
-                    <Badge key={interest} variant="secondary">
-                      {interest}
+                  {selectedInterests.map((interestId) => (
+                    <Badge key={interestId} variant="secondary">
+                      {getInterestName(interestId)}
                     </Badge>
                   ))}
                 </div>
@@ -371,7 +328,7 @@ export default function Onboarding() {
                 <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
                   Voltar
                 </Button>
-                <Button 
+                <Button
                   onClick={handleComplete}
                   className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
                   disabled={loading}

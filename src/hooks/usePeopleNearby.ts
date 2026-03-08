@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Profile, UserInterest } from './useProfile';
+import { Profile } from './useProfile';
 
 export interface PersonNearby {
   id: string;
   profile: Profile;
-  interests: UserInterest[];
+  interestNames: string[];
   commonInterests: string[];
   assuntoAtual: string | null;
   checkinSelfieUrl: string | null;
@@ -72,11 +72,7 @@ export function usePeopleNearby(placeId: string | null) {
           criado_em: '',
           atualizado_em: '',
         } as Profile,
-        interests: (row.interests || []).map((tag: string) => ({
-          id: '',
-          user_id: row.user_id,
-          tag,
-        })) as UserInterest[],
+        interestNames: row.interests || [],
         commonInterests: row.mutual_interests || [],
         assuntoAtual: row.assunto_atual || null,
         checkinSelfieUrl: row.checkin_selfie_url || null,

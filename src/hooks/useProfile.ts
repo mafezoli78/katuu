@@ -4,8 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { isProfileComplete as checkProfileComplete } from '@/utils/profileCompletion';
 import type { Gender } from '@/types/gender';
+import type { UserInterest } from '@/types/interests';
 
 export type { Gender };
+export type { UserInterest };
 
 export interface Profile {
   id: string;
@@ -16,12 +18,6 @@ export interface Profile {
   gender: Gender | null;
   criado_em: string;
   atualizado_em: string;
-}
-
-export interface UserInterest {
-  id: string;
-  user_id: string;
-  tag: string;
 }
 
 export function useProfile() {
@@ -50,11 +46,11 @@ export function useProfile() {
 
       const { data: interestsData, error: interestsError } = await supabase
         .from('user_interests')
-        .select('*')
+        .select('user_id, interest_id')
         .eq('user_id', user.id);
 
       if (interestsError) throw interestsError;
-      setInterests(interestsData || []);
+      setInterests((interestsData || []) as UserInterest[]);
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
@@ -81,7 +77,7 @@ export function useProfile() {
     return { error };
   };
 
-  const updateInterests = async (tags: string[]) => {
+  const updateInterests = async (interestIds: string[]) => {
     if (!user) return { error: new Error('Not authenticated') };
 
     // Delete existing interests
@@ -91,10 +87,10 @@ export function useProfile() {
       .eq('user_id', user.id);
 
     // Insert new interests
-    if (tags.length > 0) {
+    if (interestIds.length > 0) {
       const { error } = await supabase
         .from('user_interests')
-        .insert(tags.map(tag => ({ user_id: user.id, tag })));
+        .insert(interestIds.map(interest_id => ({ user_id: user.id, interest_id })));
 
       if (error) return { error };
     }
@@ -128,9 +124,6 @@ export function useProfile() {
   const isProfileComplete = () => {
     return checkProfileComplete(profile, interests);
   };
-
-  // Re-export calculateAge from shared utility
-  // calculateAge is imported from @/utils/date
 
   return {
     profile,

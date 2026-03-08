@@ -140,6 +140,56 @@ export type Database = {
         }
         Relationships: []
       }
+      interest_categories: {
+        Row: {
+          id: string
+          name: string
+          sort_order: number | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          sort_order?: number | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
+      interests: {
+        Row: {
+          category_id: string
+          id: string
+          name: string
+          slug: string
+          sort_order: number | null
+        }
+        Insert: {
+          category_id: string
+          id?: string
+          name: string
+          slug: string
+          sort_order?: number | null
+        }
+        Update: {
+          category_id?: string
+          id?: string
+          name?: string
+          slug?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interests_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "interest_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           criado_em: string
@@ -450,29 +500,23 @@ export type Database = {
       }
       user_interests: {
         Row: {
-          criado_em: string
-          id: string
-          tag: string
+          interest_id: string
           user_id: string
         }
         Insert: {
-          criado_em?: string
-          id?: string
-          tag: string
+          interest_id: string
           user_id: string
         }
         Update: {
-          criado_em?: string
-          id?: string
-          tag?: string
+          interest_id?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "user_interests_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "user_interests_interest_id_fkey"
+            columns: ["interest_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "interests"
             referencedColumns: ["id"]
           },
         ]
