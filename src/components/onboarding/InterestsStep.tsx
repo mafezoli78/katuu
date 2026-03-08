@@ -119,9 +119,14 @@ export function InterestsStep({ selectedInterests, onToggleInterest, onNext, onB
           );
         })}
 
-        <p className="text-sm text-muted-foreground">
-          {selectedInterests.length} de {MIN_INTERESTS}–{MAX_INTERESTS} selecionados
-        </p>
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            {selectedInterests.length} de {MIN_INTERESTS}–{MAX_INTERESTS} selecionados
+          </p>
+          {validationError && (
+            <p className="text-sm text-destructive">{validationError}</p>
+          )}
+        </div>
 
         <div className="flex gap-2">
           <Button variant="outline" onClick={onBack} className="flex-1">
@@ -130,7 +135,7 @@ export function InterestsStep({ selectedInterests, onToggleInterest, onNext, onB
           <Button
             onClick={onNext}
             className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
-            disabled={selectedInterests.length < MIN_INTERESTS}
+            disabled={!!validationError}
           >
             Continuar
           </Button>
