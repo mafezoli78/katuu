@@ -728,6 +728,7 @@ export type Database = {
           foto_url: string
           intention_id: string
           interests: string[]
+          match_score: number
           mutual_interests: string[]
           nome: string
           presence_inicio: string
