@@ -102,32 +102,34 @@ export default function Home() {
     );
     
     if (existingMute) {
-      // Remove mute
-      const { error } = await supabase
-        .from('user_mutes')
-        .delete()
-        .eq('id', existingMute.id);
+      // Remove mute via RPC
+      const { error } = await supabase.rpc('unmute_user', {
+        p_user_id: user.id,
+        p_muted_user_id: targetUserId,
+      });
       
       if (error) {
         toast({ variant: 'destructive', title: 'Erro ao remover silenciamento' });
       } else {
-      toast({ title: 'Silenciamento removido' });
+        toast({ title: 'Silenciamento removido' });
         await refetchInteractionData();
       }
     } else {
-      // Create mute
-      const { error } = await supabase
-        .from('user_mutes')
-        .insert({
-          user_id: user.id,
-          muted_user_id: targetUserId,
-          place_id: currentPlace.id,
-        });
+      // Create mute via RPC (with side-effects: cancel waves)
+      const { error } = await supabase.rpc('mute_user', {
+        p_user_id: user.id,
+        p_muted_user_id: targetUserId,
+        p_place_id: currentPlace.id,
+      });
       
       if (error) {
-        toast({ variant: 'destructive', title: 'Erro ao silenciar' });
+        if (error.message.includes('MUTE_ALREADY_EXISTS')) {
+          toast({ title: 'Usuário já está silenciado' });
+        } else {
+          toast({ variant: 'destructive', title: 'Erro ao silenciar' });
+        }
       } else {
-      toast({ title: 'Usuário silenciado por 24h' });
+        toast({ title: 'Usuário silenciado por 24h' });
         await refetchInteractionData();
       }
     }
@@ -142,31 +144,33 @@ export default function Home() {
     );
     
     if (existingBlock) {
-      // Remove block
-      const { error } = await supabase
-        .from('user_blocks')
-        .delete()
-        .eq('id', existingBlock.id);
+      // Remove block via RPC
+      const { error } = await supabase.rpc('unblock_user', {
+        p_user_id: user.id,
+        p_blocked_user_id: targetUserId,
+      });
       
       if (error) {
         toast({ variant: 'destructive', title: 'Erro ao remover bloqueio' });
       } else {
-      toast({ title: 'Bloqueio removido' });
+        toast({ title: 'Bloqueio removido' });
         await refetchInteractionData();
       }
     } else {
-      // Create block
-      const { error } = await supabase
-        .from('user_blocks')
-        .insert({
-          user_id: user.id,
-          blocked_user_id: targetUserId,
-        });
+      // Create block via RPC (with side-effects: end conversations, cancel waves)
+      const { error } = await supabase.rpc('block_user', {
+        p_user_id: user.id,
+        p_blocked_user_id: targetUserId,
+      });
       
       if (error) {
-        toast({ variant: 'destructive', title: 'Erro ao bloquear' });
+        if (error.message.includes('BLOCK_ALREADY_EXISTS')) {
+          toast({ title: 'Usuário já está bloqueado' });
+        } else {
+          toast({ variant: 'destructive', title: 'Erro ao bloquear' });
+        }
       } else {
-      toast({ title: 'Usuário bloqueado' });
+        toast({ title: 'Usuário bloqueado' });
         await refetchInteractionData();
       }
     }
