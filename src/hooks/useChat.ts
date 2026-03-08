@@ -266,47 +266,13 @@ export function useChat(options?: UseChatOptions) {
   }, [chatState.conversation, user, refetchConversations]);
 
   // Called when presence ends (from usePresence)
-  const endAllChatsForPresence = useCallback(async (placeId?: string) => {
+  // endAllChatsForPresence: DB cleanup is handled by end_presence_cascade RPC
+  // This function only cleans up local React state
+  const endAllChatsForPresence = useCallback(async (_placeId?: string) => {
     if (!user) return;
 
-    console.log('[useChat] Ending all chats due to presence end', placeId ? `at place ${placeId}` : '');
+    console.log('[useChat] Presence ended - cleaning up local chat state (DB handled by end_presence_cascade)');
 
-    // Build query for active conversations
-    let query = supabase
-      .from('conversations')
-      .select('id')
-      .eq('ativo', true)
-      .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
-
-    // Filter by place_id if provided
-    if (placeId) {
-      query = query.eq('place_id', placeId);
-    }
-
-    const { data: activeConversations } = await query;
-
-    if (activeConversations && activeConversations.length > 0) {
-      for (const conv of activeConversations) {
-        // Update conversation
-        await supabase
-          .from('conversations')
-          .update({
-            ativo: false,
-            encerrado_por: user.id,
-            encerrado_em: new Date().toISOString(),
-            encerrado_motivo: 'presence_end',
-          })
-          .eq('id', conv.id);
-
-        // Delete messages (ephemeral)
-        await supabase
-          .from('messages')
-          .delete()
-          .eq('conversation_id', conv.id);
-      }
-    }
-
-    // R3: We ended due to presence (human action), so wasEndedByMe = true
     setChatState({
       isActive: false,
       conversation: null,
