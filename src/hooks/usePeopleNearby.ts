@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Profile, UserInterest } from './useProfile';
@@ -15,6 +15,7 @@ export interface PersonNearby {
 /**
  * Fetch people with active presence at the same place.
  * Uses a single RPC call instead of N+1 queries.
+ * Realtime subscriptions with 300ms debounce to prevent event storms.
  * 
  * IMPORTANT: This hook returns ALL users present at the location
  * (excluding blocked/muted). Visibility filtering for interactions
@@ -24,6 +25,7 @@ export function usePeopleNearby(placeId: string | null) {
   const { user } = useAuth();
   const [people, setPeople] = useState<PersonNearby[]>([]);
   const [loading, setLoading] = useState(true);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchPeopleNearby = useCallback(async () => {
     if (!user || !placeId) {
@@ -74,7 +76,26 @@ export function usePeopleNearby(placeId: string | null) {
     }
   }, [user, placeId]);
 
-  // Initial fetch
+  // Debounced fetch — coalesces multiple Realtime events into one RPC call
+  const scheduleFetch = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      fetchPeopleNearby();
+    }, 300);
+  }, [fetchPeopleNearby]);
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
+  // Initial fetch (no debounce)
   useEffect(() => {
     fetchPeopleNearby();
   }, [fetchPeopleNearby]);
@@ -91,12 +112,12 @@ export function usePeopleNearby(placeId: string | null) {
         table: 'presence',
         filter: `place_id=eq.${placeId}`,
       }, () => {
-        fetchPeopleNearby();
+        scheduleFetch();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [placeId, fetchPeopleNearby]);
+  }, [placeId, scheduleFetch]);
 
   // Realtime: block changes
   useEffect(() => {
@@ -109,12 +130,12 @@ export function usePeopleNearby(placeId: string | null) {
         schema: 'public',
         table: 'user_blocks',
       }, () => {
-        fetchPeopleNearby();
+        scheduleFetch();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user?.id, fetchPeopleNearby]);
+  }, [user?.id, scheduleFetch]);
 
   // Realtime: mute changes
   useEffect(() => {
@@ -127,12 +148,12 @@ export function usePeopleNearby(placeId: string | null) {
         schema: 'public',
         table: 'user_mutes',
       }, () => {
-        fetchPeopleNearby();
+        scheduleFetch();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user?.id, fetchPeopleNearby]);
+  }, [user?.id, scheduleFetch]);
 
   return {
     people,
