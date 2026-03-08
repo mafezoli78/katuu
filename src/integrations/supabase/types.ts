@@ -585,6 +585,10 @@ export type Database = {
         }
         Returns: string
       }
+      block_user: {
+        Args: { p_blocked_user_id: string; p_user_id: string }
+        Returns: undefined
+      }
       can_auto_end_presence: {
         Args: { p_place_id: string; p_user_id: string }
         Returns: boolean
@@ -594,6 +598,14 @@ export type Database = {
       confirm_presence: {
         Args: { p_place_id: string; p_user_id: string }
         Returns: boolean
+      }
+      end_conversation: {
+        Args: {
+          p_conversation_id: string
+          p_motivo?: string
+          p_user_id: string
+        }
+        Returns: undefined
       }
       end_presence_cascade:
         | {
@@ -636,6 +648,14 @@ export type Database = {
         Args: { p_other_user_id: string; p_user_id: string }
         Returns: boolean
       }
+      mute_user: {
+        Args: {
+          p_muted_user_id: string
+          p_place_id?: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       send_wave: {
         Args: {
           p_from_user_id: string
@@ -643,6 +663,14 @@ export type Database = {
           p_to_user_id: string
         }
         Returns: string
+      }
+      unblock_user: {
+        Args: { p_blocked_user_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      unmute_user: {
+        Args: { p_muted_user_id: string; p_user_id: string }
+        Returns: undefined
       }
     }
     Enums: {
