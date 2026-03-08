@@ -671,6 +671,22 @@ export type Database = {
       }
       get_user_active_location_id: { Args: never; Returns: string }
       get_user_active_place_id: { Args: never; Returns: string }
+      get_users_at_place_feed: {
+        Args: { p_place_id: string; p_user_id: string }
+        Returns: {
+          assunto_atual: string
+          bio: string
+          checkin_selfie_url: string
+          data_nascimento: string
+          foto_url: string
+          intention_id: string
+          interests: string[]
+          mutual_interests: string[]
+          nome: string
+          presence_inicio: string
+          user_id: string
+        }[]
+      }
       is_user_blocked: {
         Args: { p_other_user_id: string; p_user_id: string }
         Returns: boolean
