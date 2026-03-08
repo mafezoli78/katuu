@@ -7,6 +7,7 @@ import { Check, Loader2 } from 'lucide-react';
 const MIN_INTERESTS = 3;
 const MAX_INTERESTS = 10;
 const MAX_PER_CATEGORY = 4;
+const MIN_CATEGORIES = 2;
 
 interface InterestsStepProps {
   selectedInterests: string[];
