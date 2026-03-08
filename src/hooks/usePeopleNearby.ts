@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Profile, UserInterest } from './useProfile';
+import { Profile } from './useProfile';
 
 export interface PersonNearby {
   id: string;
   profile: Profile;
-  interests: UserInterest[];
+  interestNames: string[];
   commonInterests: string[];
   assuntoAtual: string | null;
   checkinSelfieUrl: string | null;
