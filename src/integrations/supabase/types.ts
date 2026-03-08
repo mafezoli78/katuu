@@ -594,6 +594,7 @@ export type Database = {
         Returns: boolean
       }
       check_email_exists: { Args: { p_email: string }; Returns: boolean }
+      cleanup_expired_presences: { Args: never; Returns: number }
       close_conversations_without_presence: { Args: never; Returns: undefined }
       confirm_presence: {
         Args: { p_place_id: string; p_user_id: string }
