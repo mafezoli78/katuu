@@ -43,6 +43,7 @@ export default function Profile() {
   const [bio, setBio] = useState('');
   const [dataNascimento, setDataNascimento] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [gender, setGender] = useState<Gender | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Image cropper state
