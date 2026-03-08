@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          entity: string | null
+          entity_id: string | null
+          id: string
+          metadata: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          entity?: string | null
+          entity_id?: string | null
+          id?: string
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          entity?: string | null
+          entity_id?: string | null
+          id?: string
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           ativo: boolean
@@ -648,6 +678,16 @@ export type Database = {
       is_user_muted: {
         Args: { p_other_user_id: string; p_user_id: string }
         Returns: boolean
+      }
+      log_action: {
+        Args: {
+          p_action: string
+          p_entity: string
+          p_entity_id: string
+          p_metadata?: Json
+          p_user_id: string
+        }
+        Returns: undefined
       }
       mute_user: {
         Args: {
