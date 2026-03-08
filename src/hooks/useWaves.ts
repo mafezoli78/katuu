@@ -183,189 +183,66 @@ export function useWaves() {
     if (!user) return { error: new Error('Not authenticated'), conversation: null };
 
     // =========================================================================
-    // 1. BUSCAR WAVE NO BANCO
-    // =========================================================================
-    const { data: wave, error: waveError } = await supabase
-      .from('waves')
-      .select('id, de_user_id, para_user_id, place_id, location_id, status, expires_at')
-      .eq('id', waveId)
-      .maybeSingle();
-
-    if (waveError) {
-      console.error('[useWaves] Error fetching wave:', waveError);
-      return { error: new Error('Erro ao buscar aceno'), conversation: null };
-    }
-
-    if (!wave) {
-      return { error: new Error('Aceno não encontrado'), conversation: null };
-    }
-
-    // Validações básicas do wave
-    if (wave.de_user_id === user.id) {
-      return { error: new Error('Você não pode aceitar seu próprio aceno'), conversation: null };
-    }
-
-    if (wave.para_user_id !== user.id) {
-      return { error: new Error('Este aceno não é para você'), conversation: null };
-    }
-
-    if (wave.expires_at && new Date(wave.expires_at) <= new Date()) {
-      setReceivedWaves(prev => prev.filter(w => w.id !== waveId));
-      return { error: new Error('Este aceno expirou'), conversation: null };
-    }
-
-    if (wave.status !== 'pending') {
-      setReceivedWaves(prev => prev.filter(w => w.id !== waveId));
-      return { error: new Error('Este aceno não está mais disponível'), conversation: null };
-    }
-
-    const placeId = wave.place_id || wave.location_id;
-    if (!placeId) {
-      return { error: new Error('Este aceno não possui um local válido'), conversation: null };
-    }
-
-    // =========================================================================
-    // 2. VALIDAÇÃO CANÔNICA: Busca dados frescos e usa função única
+    // RPC ATÔMICA: Toda validação e execução acontece no backend
     // =========================================================================
     try {
-      const now = new Date();
-      const nowISO = now.toISOString();
-      const otherUserId = wave.de_user_id;
+      const { data: conversationId, error: rpcError } = await supabase.rpc('accept_wave', {
+        p_wave_id: waveId,
+        p_user_id: user.id,
+      });
 
-      const [blocksResult, mutesResult, conversationsResult, wavesResult] = await Promise.all([
-        supabase
-          .from('user_blocks')
-          .select('user_id, blocked_user_id')
-          .or(`user_id.eq.${user.id},blocked_user_id.eq.${user.id}`),
-        
-        supabase
-          .from('user_mutes')
-          .select('user_id, muted_user_id, expira_em')
-          .eq('user_id', user.id)
-          .gt('expira_em', nowISO),
-        
-        supabase
-          .from('conversations')
-          .select('id, user1_id, user2_id, place_id, ativo, encerrado_por, reinteracao_permitida_em')
-          .eq('place_id', placeId)
-          .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`),
-        
-        supabase
-          .from('waves')
-          .select('id, de_user_id, para_user_id, place_id, status, expires_at')
-          .eq('place_id', placeId)
-          .eq('status', 'pending')
-          .or(`de_user_id.eq.${user.id},para_user_id.eq.${user.id}`),
-      ]);
-
-      if (blocksResult.error) throw blocksResult.error;
-      if (mutesResult.error) throw mutesResult.error;
-      if (conversationsResult.error) throw conversationsResult.error;
-      if (wavesResult.error) throw wavesResult.error;
-
-      const data: InteractionData = {
-        blocks: (blocksResult.data || []).filter(
-          b => b.blocked_user_id === otherUserId || b.user_id === otherUserId
-        ),
-        mutes: (mutesResult.data || []).filter(
-          m => m.muted_user_id === otherUserId
-        ),
-        conversations: (conversationsResult.data || []).filter(
-          c => c.user1_id === otherUserId || c.user2_id === otherUserId
-        ),
-        waves: (wavesResult.data || []).filter(
-          w => w.de_user_id === otherUserId || w.para_user_id === otherUserId
-        ),
-      };
-
-      const facts = deriveFacts(user.id, otherUserId, placeId, now, data);
-      const permission = canAcceptWave(facts);
-
-      if (!permission.allowed) {
-        return { error: new Error(permission.reason || 'Ação não permitida'), conversation: null };
-      }
-
-      // =========================================================================
-      // 3. EXECUÇÃO: Atualizar wave e criar conversa
-      // =========================================================================
-      
-      // Verificar se place existe
-      const { data: place, error: placeError } = await supabase
-        .from('places')
-        .select('id')
-        .eq('id', placeId)
-        .maybeSingle();
-
-      if (placeError || !place) {
-        console.error('[useWaves] Place not found:', placeId);
-        return { error: new Error('Local não encontrado'), conversation: null };
-      }
-
-      // Atualizar status do wave
-      const { error: updateError } = await supabase
-        .from('waves')
-        .update({
-          status: 'accepted',
-          accepted_by: user.id,
-          visualizado: true
-        })
-        .eq('id', waveId)
-        .eq('status', 'pending');
-
-      if (updateError) {
-        if (updateError.message.includes('0 rows')) {
+      if (rpcError) {
+        const errorMessage = mapAcceptWaveError(rpcError.message);
+        // Remove wave from local state if it's no longer valid
+        if (rpcError.message.includes('EXPIRED') || 
+            rpcError.message.includes('NOT_PENDING') || 
+            rpcError.message.includes('ALREADY_ACCEPTED') ||
+            rpcError.message.includes('NOT_FOUND')) {
           setReceivedWaves(prev => prev.filter(w => w.id !== waveId));
-          return { error: new Error('Este aceno já foi aceito por outro usuário'), conversation: null };
         }
-        throw updateError;
+        return { error: new Error(errorMessage), conversation: null };
       }
 
-      // Criar conversa
-      const { data: conversationData, error: conversationError } = await supabase
-        .from('conversations')
-        .insert({
-          user1_id: wave.de_user_id,
-          user2_id: user.id,
-          place_id: placeId,
-          origem_wave_id: waveId
-        })
-        .select()
-        .single();
+      // Fetch the created conversation
+      if (conversationId) {
+        const { data: conversationData } = await supabase
+          .from('conversations')
+          .select('*')
+          .eq('id', conversationId)
+          .single();
 
-      if (conversationError) {
-        if (conversationError.code === '23505') {
-          const { data: existingConversation } = await supabase
-            .from('conversations')
-            .select('*')
-            .eq('ativo', true)
-            .or(`and(user1_id.eq.${wave.de_user_id},user2_id.eq.${user.id}),and(user1_id.eq.${user.id},user2_id.eq.${wave.de_user_id})`)
-            .eq('place_id', placeId)
-            .maybeSingle();
+        // Update local state
+        setReceivedWaves(prev => prev.filter(w => w.id !== waveId));
+        setUnreadCount(prev => Math.max(0, prev - 1));
 
-          if (existingConversation) {
-            setReceivedWaves(prev => prev.filter(w => w.id !== waveId));
-            return { error: null, conversation: existingConversation as Conversation };
-          }
-        }
-
-        // Rollback wave status
-        await supabase
-          .from('waves')
-          .update({ status: 'pending', accepted_by: null })
-          .eq('id', waveId);
-
-        throw conversationError;
+        return { error: null, conversation: conversationData as Conversation };
       }
 
-      // Atualizar estado local
-      setReceivedWaves(prev => prev.filter(w => w.id !== waveId));
-      setUnreadCount(prev => Math.max(0, prev - 1));
-
-      return { error: null, conversation: conversationData as Conversation };
+      return { error: new Error('Erro inesperado ao aceitar aceno'), conversation: null };
     } catch (error) {
-      console.error('Error accepting wave:', error);
+      console.error('[useWaves] Error accepting wave:', error);
       return { error: error as Error, conversation: null };
     }
+  };
+
+  /**
+   * Maps backend accept_wave error codes to user-friendly messages.
+   */
+  const mapAcceptWaveError = (errorMessage: string): string => {
+    if (errorMessage.includes('ACCEPT_WAVE_NOT_FOUND')) return 'Aceno não encontrado';
+    if (errorMessage.includes('ACCEPT_WAVE_NOT_RECIPIENT')) return 'Este aceno não é para você';
+    if (errorMessage.includes('ACCEPT_WAVE_SELF')) return 'Você não pode aceitar seu próprio aceno';
+    if (errorMessage.includes('ACCEPT_WAVE_NO_PLACE')) return 'Aceno sem local válido';
+    if (errorMessage.includes('ACCEPT_WAVE_NOT_PENDING')) return 'Este aceno não está mais disponível';
+    if (errorMessage.includes('ACCEPT_WAVE_EXPIRED')) return 'Este aceno expirou';
+    if (errorMessage.includes('ACCEPT_WAVE_BLOCKED')) return 'Usuário bloqueado';
+    if (errorMessage.includes('ACCEPT_WAVE_MUTED')) return 'Usuário silenciado';
+    if (errorMessage.includes('ACCEPT_WAVE_ACTIVE_CHAT')) return 'Já existe uma conversa ativa';
+    if (errorMessage.includes('ACCEPT_WAVE_COOLDOWN')) return 'Período de espera ativo';
+    if (errorMessage.includes('ACCEPT_WAVE_NO_PRESENCE_SENDER')) return 'A outra pessoa não está mais neste local';
+    if (errorMessage.includes('ACCEPT_WAVE_NO_PRESENCE_RECIPIENT')) return 'Você precisa estar presente neste local';
+    if (errorMessage.includes('ACCEPT_WAVE_ALREADY_ACCEPTED')) return 'Este aceno já foi aceito';
+    return 'Erro ao aceitar aceno';
   };
 
   const ignoreWave = async (waveId: string) => {
