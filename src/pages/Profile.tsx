@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
+import { useInterestCategories } from '@/hooks/useInterestCategories';
 import type { Gender } from '@/types/gender';
 import { GENDER_OPTIONS } from '@/types/gender';
 import { MobileLayout } from '@/components/layout/MobileLayout';
@@ -11,7 +12,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ImageCropper } from '@/components/profile/ImageCropper';
@@ -23,18 +23,15 @@ import {
   Mail, Lock, AlertCircle 
 } from 'lucide-react';
 
-const AVAILABLE_INTERESTS = [
-  'Música', 'Cinema', 'Esportes', 'Tecnologia', 'Viagens', 'Gastronomia',
-  'Arte', 'Fotografia', 'Leitura', 'Games', 'Natureza', 'Yoga',
-  'Dança', 'Teatro', 'Empreendedorismo', 'Fitness', 'Pets', 'Café'
-];
-
 const MIN_BIO_LENGTH = 40;
 const MAX_BIO_LENGTH = 150;
+const MAX_INTERESTS = 10;
+const MAX_PER_CATEGORY = 4;
 
 export default function Profile() {
   const { user, signOut } = useAuth();
   const { profile, interests, updateProfile, updateInterests, uploadAvatar, calculateAge, refetch } = useProfile();
+  const { categories } = useInterestCategories();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -67,7 +64,7 @@ export default function Profile() {
       setDataNascimento(profile.data_nascimento || '');
       setGender(profile.gender ?? null);
     }
-    setSelectedInterests(interests.map(i => i.tag));
+    setSelectedInterests(interests.map(i => i.interest_id));
   }, [profile, interests]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,7 +77,6 @@ export default function Profile() {
       };
       reader.readAsDataURL(file);
     }
-    // Reset input so same file can be selected again
     e.target.value = '';
   };
 
@@ -96,12 +92,31 @@ export default function Profile() {
     setImageToCrop(null);
   };
 
-  const toggleInterest = (interest: string) => {
+  const getCategoryCount = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId);
+    if (!category) return 0;
+    return category.interests.filter(i => selectedInterests.includes(i.id)).length;
+  };
+
+  const toggleInterest = (interestId: string, categoryId: string) => {
+    const isSelected = selectedInterests.includes(interestId);
+    if (!isSelected) {
+      if (selectedInterests.length >= MAX_INTERESTS) return;
+      if (getCategoryCount(categoryId) >= MAX_PER_CATEGORY) return;
+    }
     setSelectedInterests(prev =>
-      prev.includes(interest)
-        ? prev.filter(i => i !== interest)
-        : [...prev, interest]
+      prev.includes(interestId)
+        ? prev.filter(i => i !== interestId)
+        : [...prev, interestId]
     );
+  };
+
+  const getInterestName = (interestId: string): string => {
+    for (const cat of categories) {
+      const found = cat.interests.find(i => i.id === interestId);
+      if (found) return found.name;
+    }
+    return interestId;
   };
 
   const validateForm = (): boolean => {
@@ -314,46 +329,68 @@ export default function Profile() {
             <CardTitle className="text-base flex items-center gap-2">
               <Heart className="h-4 w-4 text-accent" />
               Interesses
-              {editing && <span className="text-xs text-muted-foreground font-normal">(mín. 3)</span>}
+              {editing && <span className="text-xs text-muted-foreground font-normal">(3–{MAX_INTERESTS})</span>}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {editing ? (
-                AVAILABLE_INTERESTS.map((interest) => {
-                  const isSelected = selectedInterests.includes(interest);
+            {editing ? (
+              <div className="space-y-4">
+                {categories.map((category) => {
+                  const catCount = getCategoryCount(category.id);
                   return (
-                    <Badge
-                      key={interest}
-                      variant={isSelected ? 'default' : 'outline'}
-                      className={`cursor-pointer py-1.5 px-3 rounded-lg transition-all ${
-                        isSelected 
-                          ? 'bg-katu-green text-white hover:bg-katu-green/90' 
-                          : 'hover:bg-muted'
-                      }`}
-                      onClick={() => toggleInterest(interest)}
-                    >
-                      {interest}
-                      {isSelected && <Check className="ml-1.5 h-3 w-3" />}
-                    </Badge>
+                    <div key={category.id}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-semibold text-foreground">{category.name}</h3>
+                        {catCount > 0 && (
+                          <span className="text-xs text-muted-foreground">{catCount}/{MAX_PER_CATEGORY}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {category.interests.map((interest) => {
+                          const isSelected = selectedInterests.includes(interest.id);
+                          const categoryFull = catCount >= MAX_PER_CATEGORY && !isSelected;
+                          const maxReached = selectedInterests.length >= MAX_INTERESTS && !isSelected;
+                          const disabled = categoryFull || maxReached;
+                          return (
+                            <Badge
+                              key={interest.id}
+                              variant={isSelected ? 'default' : 'outline'}
+                              className={`cursor-pointer py-1.5 px-3 rounded-lg transition-all ${
+                                isSelected
+                                  ? 'bg-katu-green text-white hover:bg-katu-green/90'
+                                  : disabled
+                                    ? 'opacity-40 cursor-not-allowed'
+                                    : 'hover:bg-muted'
+                              }`}
+                              onClick={() => !disabled && toggleInterest(interest.id, category.id)}
+                            >
+                              {interest.name}
+                              {isSelected && <Check className="ml-1.5 h-3 w-3" />}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
-                })
-              ) : (
-                interests.length > 0 ? (
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {interests.length > 0 ? (
                   interests.map((i) => (
                     <Badge 
-                      key={i.id} 
+                      key={i.interest_id} 
                       variant="secondary"
                       className="py-1.5 px-3 rounded-lg bg-katu-green/10 text-katu-green"
                     >
-                      {i.tag}
+                      {getInterestName(i.interest_id)}
                     </Badge>
                   ))
                 ) : (
                   <p className="text-sm text-muted-foreground">Nenhum interesse selecionado</p>
-                )
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -398,14 +435,13 @@ export default function Profile() {
                 variant="outline" 
                 onClick={() => {
                   setEditing(false);
-                  // Reset to original values
-                   if (profile) {
+                  if (profile) {
                     setNome(profile.nome || '');
                     setBio(profile.bio || '');
                     setDataNascimento(profile.data_nascimento || '');
                     setGender(profile.gender ?? null);
                   }
-                  setSelectedInterests(interests.map(i => i.tag));
+                  setSelectedInterests(interests.map(i => i.interest_id));
                 }} 
                 className="flex-1 h-11 rounded-xl"
               >
