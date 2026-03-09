@@ -1,9 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { useMemo } from 'react';
 import { InteractionState, deriveFacts, getInteractionState } from '@/lib/interactionRules';
 import { useAuth } from '@/contexts/AuthContext';
 import { PersonNearby } from '@/hooks/usePeopleNearby';
