@@ -359,7 +359,7 @@ export default function Location() {
             placeId: selectedPlaceId || '',
             expressionText: expressionText?.trim() || undefined,
           });
-          setShowProfileGate(true);
+          requireProfile();
           return;
         }
         throw err; // Outros erros são reais
