@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { savePendingAction, getPendingAction, clearPendingAction } from '@/utils/pendingAction';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePresence, NearbyTemporaryPlace } from '@/hooks/usePresence';
+import { useProfileGate } from '@/hooks/useProfileGate';
 import { ProfileGateModal } from '@/components/profile/ProfileGateModal';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,7 @@ export default function Location() {
     presenceRadiusMeters,
     currentPresence
   } = usePresence();
-  const [showProfileGate, setShowProfileGate] = useState(false);
+  const { isProfileComplete, requireProfile, isOpen: showProfileGate, closeModal: closeProfileGate } = useProfileGate();
   const [step, setStep] = useState<'permission' | 'detecting' | 'select' | 'create_temp' | 'confirm_temp' | 'expression' | 'selfie'>('detecting');
   const [permissionChecked, setPermissionChecked] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<'prompt' | 'granted' | 'denied' | 'blocked'>('prompt');
@@ -248,6 +249,14 @@ export default function Location() {
   }, [isRequestingPermission, toast]);
 
   const handleSelectPlace = (placeId: string) => {
+    if (!isProfileComplete) {
+      savePendingAction({
+        type: 'ACTIVATE_PRESENCE',
+        placeId,
+      });
+      requireProfile();
+      return;
+    }
     setSelectedPlaceId(placeId);
     setStep('expression');
   };
@@ -350,7 +359,7 @@ export default function Location() {
             placeId: selectedPlaceId || '',
             expressionText: expressionText?.trim() || undefined,
           });
-          setShowProfileGate(true);
+          requireProfile();
           return;
         }
         throw err; // Outros erros são reais
@@ -363,7 +372,7 @@ export default function Location() {
             placeId: selectedPlaceId || '',
             expressionText: expressionText?.trim() || undefined,
           });
-          setShowProfileGate(true);
+          requireProfile();
           return;
         }
         toast({ variant: 'destructive', title: 'Erro ao ativar presença', description: error.message });
@@ -693,7 +702,7 @@ export default function Location() {
 
         }
       </div>
-      <ProfileGateModal open={showProfileGate} onClose={() => setShowProfileGate(false)} />
+      <ProfileGateModal open={showProfileGate} onClose={closeProfileGate} />
     </MobileLayout>);
 
 }
