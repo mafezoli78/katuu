@@ -251,7 +251,7 @@ export function usePresence() {
     const semanticReason = mapToSemanticReason(reason);
     const message = END_REASON_MESSAGES[semanticReason];
 
-    console.log(`[Presence] 🔚 Ending presence: ${reason} → ${semanticReason} (human-initiated)`);
+    logger.debug(`[Presence] 🔚 Ending presence: ${reason} → ${semanticReason} (human-initiated)`);
     stopGPSMonitoring();
 
     const placeId = currentPresence?.place_id || currentPlace?.id;
@@ -267,7 +267,7 @@ export function usePresence() {
         if (error) {
           console.error('[Presence] Error in cascade cleanup:', error);
         } else {
-          console.log('[Presence] ✅ Cascade cleanup completed with reason:', reason);
+          logger.debug('[Presence] ✅ Cascade cleanup completed with reason:', reason);
         }
       } catch (err) {
         console.error('[Presence] Error calling end_presence_cascade:', err);
