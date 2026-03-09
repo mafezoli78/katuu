@@ -208,7 +208,7 @@ export function usePresence() {
             console.error('[usePresence] Error fetching place details:', placeError);
           }
         }
-        console.log('[usePresence] ✅ Presence validated successfully');
+        logger.debug('[usePresence] ✅ Presence validated successfully');
         return { valid: true };
       } else {
         if (isRevalidation) {
