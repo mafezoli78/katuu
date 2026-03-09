@@ -2,55 +2,31 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/components/ui/use-toast';
+import type { Tables } from '@/integrations/supabase/types';
 
 /**
- * Hook para buscar todos os dados necessários para alimentar useInteractionState.
+ * Hook para buscar todos os dados necessários para interação entre usuários.
  * 
- * Retorna dados normalizados (usando apenas place_id, sem location_id) para:
- * - Acenos enviados/recebidos pendentes
- * - Conversas (ativas e em cooldown)
- * - Silenciamentos ativos
- * - Bloqueios
- * 
- * GARANTIAS DE ESTABILIDADE:
- * 1. Dados NUNCA são limpos durante refetch - mantém estado anterior até novo chegar
- * 2. Race conditions são tratadas via fetchIdRef
- * 3. Subscriptions realtime garantem atualizações imediatas
- * 4. O estado do botão permanece consistente durante todo o ciclo de vida
+ * Usa tipos Supabase canônicos (Tables<>) em vez de interfaces manuais.
+ * Retorna dados normalizados para waves, conversas, mutes e blocks.
  */
 
-export interface NormalizedWave {
-  id: string;
-  de_user_id: string;
-  para_user_id: string;
-  place_id: string;
-  status: string;
-  expires_at: string | null;
-  ignore_cooldown_until?: string | null;
-}
+// Tipos normalizados derivados das tabelas Supabase
+export type NormalizedWave = Pick<Tables<'waves'>,
+  'id' | 'de_user_id' | 'para_user_id' | 'place_id' | 'status' | 'expires_at' | 'ignore_cooldown_until'
+> & { place_id: string }; // place_id é obrigatório após normalização
 
-export interface NormalizedConversation {
-  id: string;
-  user1_id: string;
-  user2_id: string;
-  place_id: string;
-  ativo: boolean;
-  encerrado_por: string | null;
-  reinteracao_permitida_em: string | null;
-}
+export type NormalizedConversation = Pick<Tables<'conversations'>,
+  'id' | 'user1_id' | 'user2_id' | 'place_id' | 'ativo' | 'encerrado_por' | 'reinteracao_permitida_em'
+>;
 
-export interface NormalizedMute {
-  id: string;
-  user_id: string;
-  muted_user_id: string;
-  expira_em: string;
-}
+export type NormalizedMute = Pick<Tables<'user_mutes'>,
+  'id' | 'user_id' | 'muted_user_id' | 'expira_em'
+>;
 
-export interface NormalizedBlock {
-  id: string;
-  user_id: string;
-  blocked_user_id: string;
-}
+export type NormalizedBlock = Pick<Tables<'user_blocks'>,
+  'id' | 'user_id' | 'blocked_user_id'
+>;
 
 interface UseInteractionDataResult {
   sentWaves: NormalizedWave[];
