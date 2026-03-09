@@ -214,7 +214,10 @@ export default function Location() {
         logger.debug(`[Location] 📍 Got user coordinates: lat=${coords.lat}, lng=${coords.lng}`);
         setUserCoords(coords);
         fetchPlacesRef.current?.(coords.lat, coords.lng);
-        setStep('select');
+        // Don't override step if restoring a pending action
+        if (!pendingRef.current) {
+          setStep('select');
+        }
       },
       (error) => {
         setIsRequestingPermission(false);
