@@ -383,7 +383,6 @@ export function deriveFacts(
   );
 
   return {
-    isBlocked,
     isBlockedByMe,
     isBlockedByOther,
     isMutedByA,
