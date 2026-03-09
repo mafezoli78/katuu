@@ -249,6 +249,14 @@ export default function Location() {
   }, [isRequestingPermission, toast]);
 
   const handleSelectPlace = (placeId: string) => {
+    if (!isProfileComplete) {
+      savePendingAction({
+        type: 'ACTIVATE_PRESENCE',
+        placeId,
+      });
+      requireProfile();
+      return;
+    }
     setSelectedPlaceId(placeId);
     setStep('expression');
   };
