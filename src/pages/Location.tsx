@@ -702,7 +702,7 @@ export default function Location() {
 
         }
       </div>
-      <ProfileGateModal open={showProfileGate} onClose={() => setShowProfileGate(false)} />
+      <ProfileGateModal open={showProfileGate} onClose={closeProfileGate} />
     </MobileLayout>);
 
 }
