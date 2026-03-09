@@ -328,11 +328,11 @@ export function usePresence() {
     if (activationPromiseRef.current) return activationPromiseRef.current;
 
     if (currentPresence?.place_id === placeId && currentPresence?.ativo) {
-      console.log('[Presence] Already active at this place, returning existing');
+      logger.debug('[Presence] Already active at this place, returning existing');
       return { error: null, presenceId: currentPresence.id };
     }
 
-    console.log(`[Presence] 🔄 Activating presence at place: ${placeId}`);
+    logger.debug(`[Presence] 🔄 Activating presence at place: ${placeId}`);
     setIsEnteringPlace(true);
     setLastEndReason(null);
     stopGPSMonitoring();
@@ -352,14 +352,14 @@ export function usePresence() {
           return { error, presenceId: null };
         }
 
-        console.log(`[Presence] ✅ Presence activated: ${newPresenceId}`);
+        logger.debug(`[Presence] ✅ Presence activated: ${newPresenceId}`);
         timerHook.resetTimer();
         await fetchCurrentPresence();
 
         return { error: null, presenceId: newPresenceId as string | null };
       } finally {
         setIsEnteringPlace(false);
-        console.log('[Presence] ✅ Entry transition completed');
+        logger.debug('[Presence] ✅ Entry transition completed');
       }
     })();
 
