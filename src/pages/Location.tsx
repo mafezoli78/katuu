@@ -35,7 +35,7 @@ export default function Location() {
     presenceRadiusMeters,
     currentPresence
   } = usePresence();
-  const [showProfileGate, setShowProfileGate] = useState(false);
+  const { isProfileComplete, requireProfile, isOpen: showProfileGate, closeModal: closeProfileGate } = useProfileGate();
   const [step, setStep] = useState<'permission' | 'detecting' | 'select' | 'create_temp' | 'confirm_temp' | 'expression' | 'selfie'>('detecting');
   const [permissionChecked, setPermissionChecked] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<'prompt' | 'granted' | 'denied' | 'blocked'>('prompt');
