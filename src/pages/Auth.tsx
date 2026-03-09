@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import logoKatuu from '@/assets/logo-katuu-oficial.png';
 import iconKatuu from '@/assets/icon-katuu.png';
 import { AuthMainStep } from '@/components/auth/AuthMainStep';

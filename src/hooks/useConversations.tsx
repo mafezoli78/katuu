@@ -2,7 +2,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

@@ -8,7 +8,7 @@ import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { ConversationsList } from '@/components/chat/ConversationsList';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/use-toast';
 import { MessageCircle, MessageSquare } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 

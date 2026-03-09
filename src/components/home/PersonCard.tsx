@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { useInteractionState, InteractionState } from '@/hooks/useInteractionState';
+import { InteractionState, deriveFacts, getInteractionState } from '@/lib/interactionRules';
 import { useAuth } from '@/contexts/AuthContext';
 import { PersonNearby } from '@/hooks/usePeopleNearby';
 import { NormalizedWave, NormalizedConversation, NormalizedMute, NormalizedBlock } from '@/hooks/useInteractionData';
@@ -48,15 +48,34 @@ export function PersonCard({
   const { user } = useAuth();
   const [photoOpen, setPhotoOpen] = useState(false);
 
-  const { state, button, isVisible } = useInteractionState({
-    otherUserId: person.id,
-    placeId,
-    sentWaves,
-    receivedWaves,
-    conversations,
-    activeMutes,
-    blocks,
-  });
+  // Calcular estado de interação diretamente via interactionRules (canônico)
+  const { state, button, isVisible } = useMemo(() => {
+    if (!user?.id || !placeId) {
+      return {
+        state: InteractionState.NONE,
+        button: { label: 'Acenar', disabled: true, action: 'none' as const },
+        isVisible: true,
+      };
+    }
+
+    const data = {
+      blocks: blocks.map(b => ({ user_id: b.user_id, blocked_user_id: b.blocked_user_id })),
+      mutes: activeMutes.map(m => ({ user_id: m.user_id, muted_user_id: m.muted_user_id, expira_em: m.expira_em })),
+      conversations: conversations.map(c => ({
+        id: c.id, user1_id: c.user1_id, user2_id: c.user2_id,
+        place_id: c.place_id, ativo: c.ativo,
+        encerrado_por: c.encerrado_por, reinteracao_permitida_em: c.reinteracao_permitida_em,
+      })),
+      waves: [...sentWaves, ...receivedWaves].map(w => ({
+        id: w.id, de_user_id: w.de_user_id, para_user_id: w.para_user_id,
+        place_id: w.place_id, status: w.status, expires_at: w.expires_at,
+        ignore_cooldown_until: (w as any).ignore_cooldown_until ?? null,
+      })),
+    };
+
+    const facts = deriveFacts(user.id, person.id, placeId, new Date(), data);
+    return getInteractionState(facts);
+  }, [user?.id, person.id, placeId, sentWaves, receivedWaves, conversations, activeMutes, blocks]);
 
   const isMutedByMe = activeMutes.some(
     m => m.user_id === user?.id && m.muted_user_id === person.id

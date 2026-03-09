@@ -14,7 +14,7 @@ import { Eye, Check, X, MessageCircle, Loader2, Inbox, Send } from 'lucide-react
 import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 
 

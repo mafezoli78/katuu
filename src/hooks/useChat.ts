@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConversations, ConversationWithDetails } from './useConversations';
 import { PresenceLogicalState, PresenceEndReason } from './usePresence';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/use-toast';
 
 export type ConversationEndReason = 'manual' | 'presence_end' | 'system_suspended';
 

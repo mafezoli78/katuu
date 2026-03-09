@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, Eye, EyeOff, Mail } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 
 interface AuthRegisterStepProps {
   email: string;
