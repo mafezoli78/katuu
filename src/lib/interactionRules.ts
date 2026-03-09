@@ -37,8 +37,6 @@ export enum InteractionState {
  * Derivados dos dados do banco, sem lógica de negócio.
  */
 export interface InteractionFacts {
-  /** @deprecated Use isBlockedByMe || isBlockedByOther */
-  isBlocked: boolean;
   /** A bloqueou B (eu criei o bloqueio) */
   isBlockedByMe: boolean;
   /** B bloqueou A (o outro me bloqueou) */
