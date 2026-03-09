@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
+import { usePendingAction } from '@/hooks/usePendingAction';
 import type { Gender } from '@/types/gender';
 import { GENDER_OPTIONS } from '@/types/gender';
 import { Button } from '@/components/ui/button';
