@@ -128,6 +128,9 @@ export default function Location() {
 
   const hasFetchedRef = useRef(false);
 
+  // Synchronously capture pending action BEFORE any effects run
+  const pendingRef = useRef(getPendingAction());
+
   // Check permission status on mount (without triggering prompt)
   useEffect(() => {
     if (!user) {
@@ -138,6 +141,12 @@ export default function Location() {
     if (currentPresence) {
       logger.debug('[Location] User has active presence, redirecting to home');
       navigate('/home', { replace: true });
+      return;
+    }
+
+    // If there's a pending action, skip permission flow — the restore effect handles it
+    if (pendingRef.current) {
+      setPermissionChecked(true);
       return;
     }
 
@@ -167,15 +176,17 @@ export default function Location() {
 
   // Restore pending action from sessionStorage (after returning from onboarding)
   useEffect(() => {
-    const pending = getPendingAction();
+    const pending = pendingRef.current;
     if (!pending || pending.type !== 'ACTIVATE_PRESENCE') return;
-
+    pendingRef.current = null;
     clearPendingAction();
 
     if (pending.placeId) {
       setSelectedPlaceId(pending.placeId);
       if (pending.expressionText) setExpressionText(pending.expressionText);
       setStep('expression');
+      // Silently get GPS coords without resetting step
+      handleRequestLocation();
     }
   }, []);
 
