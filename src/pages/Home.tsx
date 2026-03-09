@@ -25,7 +25,6 @@ import { useToast } from '@/hooks/use-toast';
 import { PersonCard } from '@/components/home/PersonCard';
 import { Clock, RefreshCw, LogOut, Store, Users } from 'lucide-react';
 import { TemporaryPlaceIcon } from '@/components/icons/TemporaryPlaceIcon';
-import { supabase } from '@/integrations/supabase/client';
 
 export default function Home() {
   const [openCardId, setOpenCardId] = useState<string | null>(null);
