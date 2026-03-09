@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { savePendingAction, getPendingAction, clearPendingAction } from '@/utils/pendingAction';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePresence, NearbyTemporaryPlace } from '@/hooks/usePresence';
+import { useProfileGate } from '@/hooks/useProfileGate';
 import { ProfileGateModal } from '@/components/profile/ProfileGateModal';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
