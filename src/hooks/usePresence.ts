@@ -119,12 +119,16 @@ export function usePresence() {
   const fetchNearbyPlaces = async (lat: number, lng: number) => {
     setPlacesLoading(true);
     try {
-      console.log(`[usePresence] 🔍 Searching places: lat=${lat}, lng=${lng}, radius=${SEARCH_RADIUS_METERS}m`);
+      logger.debug(
+        `[usePresence] 🔍 Searching places: lat=${lat}, lng=${lng}, radius=${SEARCH_RADIUS_METERS}m`
+      );
       const [places, temporaryPlaces] = await Promise.all([
         placesService.searchNearby({ latitude: lat, longitude: lng, radius: SEARCH_RADIUS_METERS }),
         fetchNearbyTemporaryPlaces(lat, lng),
       ]);
-      console.log(`[usePresence] ✅ ${places.length} places found, ${temporaryPlaces.length} temporary places nearby`);
+      logger.debug(
+        `[usePresence] ✅ ${places.length} places found, ${temporaryPlaces.length} temporary places nearby`
+      );
       setNearbyPlaces(places);
     } catch (error) {
       console.error('[usePresence] ❌ Error fetching places:', error);
