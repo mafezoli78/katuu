@@ -118,8 +118,8 @@ export function usePresenceGPS({
       const { latitude, longitude, accuracy } = position.coords;
       const { lat: locLat, lng: locLng } = presenceLocationRef.current;
 
-      if (accuracy && accuracy > 100) {
-        logger.debug(`[GPS] Ignoring reading with poor accuracy: ${accuracy}m`);
+      if (accuracy && accuracy > GPS_ACCURACY_THRESHOLD_METERS) {
+        logger.debug(`[GPS] Ignoring reading with poor accuracy: ${accuracy}m (threshold: ${GPS_ACCURACY_THRESHOLD_METERS}m)`);
         return;
       }
 
