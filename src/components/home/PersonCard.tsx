@@ -211,6 +211,7 @@ export function PersonCard({
 
   const ctaButton = (
     <Button
+      id={isFirst ? 'wave-button' : undefined}
       className={`w-full h-11 rounded-xl font-semibold ${getButtonStyles()}`}
       disabled={button.disabled}
       onClick={handleButtonClick}
