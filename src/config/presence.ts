@@ -26,7 +26,7 @@ export const GPS_ACCURACY_THRESHOLD_METERS = 50;
 
 // Número de leituras consecutivas fora do raio para encerrar presença
 // Evita encerramento por flutuação momentânea de GPS
-export const GPS_EXIT_THRESHOLD_COUNT = 2;
+export const GPS_EXIT_THRESHOLD_COUNT = 3;
 
 /**
  * Calcula a distância entre duas coordenadas usando a fórmula de Haversine.

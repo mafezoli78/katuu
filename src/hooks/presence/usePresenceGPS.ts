@@ -4,6 +4,7 @@ import {
   PRESENCE_RADIUS_METERS,
   GPS_CHECK_INTERVAL_MS,
   GPS_EXIT_THRESHOLD_COUNT,
+  GPS_ACCURACY_THRESHOLD_METERS,
   calculateDistanceMeters,
 } from '@/config/presence';
 import { PresenceEndReason, END_REASON_MESSAGES } from '@/types/presence';
