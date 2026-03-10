@@ -72,11 +72,12 @@ export function PeopleList({
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {people.map((person) => (
+        <div id="people-feed" className="space-y-3">
+          {people.map((person, index) => (
             <PersonCard
               key={person.id}
               person={person}
+              isFirst={index === 0}
               placeId={placeId}
               sentWaves={sentWaves}
               receivedWaves={receivedWaves}

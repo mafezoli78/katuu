@@ -423,6 +423,17 @@ export default function Profile() {
                 <Lock className="h-4 w-4 mr-2" />
                 Alterar senha
               </Button>
+              <Button 
+                variant="outline" 
+                onClick={async () => {
+                  await updateProfile({ tutorial_enabled: true } as any);
+                  toast({ title: 'Tutorial reativado', description: 'O tutorial aparecerá na próxima vez que você entrar na tela inicial.' });
+                }}
+                className="w-full justify-start h-11 rounded-xl"
+              >
+                <User className="h-4 w-4 mr-2" />
+                Mostrar tutorial novamente
+              </Button>
             </CardContent>
           </Card>
         )}

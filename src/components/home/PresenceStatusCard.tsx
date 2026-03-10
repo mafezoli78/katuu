@@ -61,7 +61,7 @@ export function PresenceStatusCard({
                     Temporário
                   </Badge>
                 )}
-                <span className="text-xs text-white/70 flex items-center gap-1">
+                <span id="presence-timer" className="text-xs text-white/70 flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   {formatRemainingTime()}
                 </span>

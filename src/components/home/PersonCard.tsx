@@ -242,6 +242,7 @@ export function PersonCard({
       />
 
       <div
+        id={isFirst ? 'card-slider' : undefined}
         style={{
           transform: `translateX(${translateX}px)`,
           transition: isAnimating ? 'transform 200ms ease-out' : 'none',

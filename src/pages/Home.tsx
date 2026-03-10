@@ -138,6 +138,7 @@ export default function Home() {
           onRefresh={handleRefreshPeople}
         />
       </div>
+      </TutorialOverlay>
     </MobileLayout>
   );
 }
