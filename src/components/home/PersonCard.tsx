@@ -44,6 +44,7 @@ export function PersonCard({
   onBlock,
   openCardId,
   onSwipeOpen,
+  isFirst,
 }: PersonCardProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
