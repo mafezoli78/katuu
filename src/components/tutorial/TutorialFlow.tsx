@@ -333,8 +333,8 @@ function StepMomento({ onNext, onBack }: { onNext: () => void; onBack: () => voi
                 maxLength={140}
                 className="resize-none h-16"
               />
-              <p className="text-right text-xs text-muted-foreground mt-1">{intention.length}/140</p>
-              <p className="text-xs italic text-muted-foreground mt-2">
+              <p className="text-right text-sm text-muted-foreground mt-1">{intention.length}/140</p>
+              <p className="text-sm italic text-muted-foreground mt-2">
                 Esta etapa é opcional, mas essencial para boas conexões — diga às pessoas como você está agora.
               </p>
             </CardContent>
