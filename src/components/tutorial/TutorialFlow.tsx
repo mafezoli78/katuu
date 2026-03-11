@@ -527,11 +527,11 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
                   </div>
                 </div>
                 <div className="flex gap-1.5">
-                  <div className="bg-white/20 text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1">
-                    <RefreshCw size={10} /> Renovar
+                  <div className="bg-white/20 text-white text-sm px-2 py-1 rounded-lg flex items-center gap-1">
+                    <RefreshCw size={14} /> Renovar
                   </div>
-                  <div className="bg-white/10 border border-white/30 text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1">
-                    <LogOut size={10} /> Sair
+                  <div className="bg-white/10 border border-white/30 text-white text-sm px-2 py-1 rounded-lg flex items-center gap-1">
+                    <LogOut size={14} /> Sair
                   </div>
                 </div>
               </div>
