@@ -636,7 +636,7 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
         <div className="flex flex-col gap-4 mt-2">
           {/* Swipe demo with CSS animation */}
           <div className="relative overflow-hidden rounded-xl shadow-sm border border-border">
-            {/* Actions background — stacked vertically, transparent, ~80px */}
+            {/* Actions background */}
             <div className="absolute right-0 top-0 bottom-0 flex flex-col" style={{ width: 80 }}>
               <button className="flex-1 flex flex-col items-center justify-center gap-1">
                 <VolumeX size={18} className="text-foreground/70" />
@@ -648,21 +648,37 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
               </button>
             </div>
 
-            {/* Card with swipe animation */}
+            {/* Card with swipe animation — matching standard card pattern */}
             <div
-              className="bg-card p-3 flex items-center gap-3"
+              className="bg-card"
               style={{
                 animation: animating ? 'tutorial-swipe 2s ease-in-out 0s 2 forwards' : 'none',
               }}
             >
-              <CharAvatar char={CHARACTERS[0]} size="md" showBadge />
-              <div className="flex-1">
-                <p className="font-semibold text-sm">{CHARACTERS[0].name}, {CHARACTERS[0].age}</p>
-                <p className="text-sm text-muted-foreground">Aqui: {CHARACTERS[0].intention}</p>
+              <div className="flex h-full">
+                <div className="w-[36%] flex items-center p-2.5">
+                  <img
+                    src={CHARACTERS[0].photo}
+                    alt={CHARACTERS[0].name}
+                    className="w-full aspect-square object-cover rounded-xl"
+                  />
+                </div>
+                <div className="flex-1 flex flex-col justify-between p-4">
+                  <div>
+                    <div className="font-semibold text-base">
+                      {CHARACTERS[0].name}<span className="text-muted-foreground font-normal">, {CHARACTERS[0].age}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                      <span className="font-medium text-foreground">Aqui:</span> {CHARACTERS[0].intention}
+                    </p>
+                  </div>
+                  <div className="mt-3">
+                    <Button className="w-full h-11 rounded-xl font-semibold bg-accent text-accent-foreground hover:bg-accent/90">
+                      <HandshakeIcon className="h-5 w-5 mr-2" /> Acenar
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <Button size="sm" className="bg-accent text-accent-foreground rounded-xl text-sm font-semibold">
-                <HandshakeIcon className="h-4 w-4 mr-1" /> Acenar
-              </Button>
             </div>
           </div>
 
