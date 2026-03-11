@@ -133,7 +133,7 @@ function StepWelcome({ onNext, onSkip }: { onNext: () => void; onSkip: () => voi
             </div>
           ))}
         </div>
-        <p className="text-sm text-white/40">Pessoas reais, presentes agora.</p>
+        
       </div>
 
       <div className="flex flex-col gap-3 w-full max-w-xs">
