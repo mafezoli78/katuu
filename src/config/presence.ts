@@ -14,7 +14,7 @@ export const SEARCH_RADIUS_METERS = 500;
 
 // Tempo padrão de duração da presença (em milissegundos)
 // 1 hora = 60 * 60 * 1000 = 3.600.000ms
-export const PRESENCE_DURATION_MS = 60 * 60 * 1000;
+export const PRESENCE_DURATION_MS = 2 * 60 * 60 * 1000;
 
 // Intervalo de verificação de GPS (em milissegundos)
 // Verifica a cada 30 segundos se o usuário ainda está no raio
