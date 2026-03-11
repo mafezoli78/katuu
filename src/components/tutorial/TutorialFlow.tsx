@@ -522,8 +522,8 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
                     <Store className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <p className="text-white font-semibold text-xs">Café do Ponto</p>
-                    <p className="text-white/60 text-xs flex items-center gap-1"><Clock size={10} /> 1:47:22</p>
+                    <p className="text-white font-semibold text-sm">Café do Ponto</p>
+                    <p className="text-white/60 text-sm flex items-center gap-1"><Clock size={12} /> 1:47:22</p>
                   </div>
                 </div>
                 <div className="flex gap-1.5">
