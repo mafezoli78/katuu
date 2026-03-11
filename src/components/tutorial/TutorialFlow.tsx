@@ -553,7 +553,7 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
                       <div className="font-semibold text-sm">
                         {char.name}<span className="text-muted-foreground font-normal">, {char.age}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-base text-muted-foreground mt-0.5">
                         <span className="font-medium text-foreground">Aqui:</span> {char.intention}
                       </p>
                       <div className="mt-2">
