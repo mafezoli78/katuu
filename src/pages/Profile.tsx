@@ -424,6 +424,18 @@ export default function Profile() {
                 <Lock className="h-4 w-4 mr-2" />
                 Alterar senha
               </Button>
+              <Button 
+                variant="outline" 
+                onClick={async () => {
+                  if (!user) return;
+                  await supabase.from('profiles').update({ tutorial_enabled: true }).eq('id', user.id);
+                  toast({ title: 'Tutorial reativado! Reinicie o app para vê-lo.' });
+                }}
+                className="w-full justify-start h-11 rounded-xl"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Mostrar tutorial novamente
+              </Button>
             </CardContent>
           </Card>
         )}
