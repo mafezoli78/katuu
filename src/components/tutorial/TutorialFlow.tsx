@@ -672,7 +672,7 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
                   <VolumeX size={18} className="text-foreground/70" />
                   <p className="font-semibold text-sm">Silenciar</p>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   Válido apenas naquela sessão e naquele local. As duas pessoas continuam se vendo, mas não conseguem interagir.
                 </p>
               </CardContent>
@@ -683,7 +683,7 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
                   <Ban size={18} className="text-destructive" />
                   <p className="font-semibold text-sm text-destructive">Bloquear</p>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   Permanente até que você desbloqueie, independente do local ou sessão. A pessoa bloqueada deixa de ver quem a bloqueou em qualquer local.
                 </p>
               </CardContent>
