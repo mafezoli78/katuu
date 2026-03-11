@@ -375,8 +375,8 @@ function StepSelfie({ onNext, onBack }: { onNext: () => void; onBack: () => void
               <Card key={item.title} className="border shadow-sm">
                 <CardContent className="p-3 flex flex-col items-center gap-1 text-center">
                   <span className="text-2xl">{item.icon}</span>
-                  <p className="text-xs font-semibold">{item.title}</p>
-                  <p className="text-xs text-muted-foreground leading-tight">{item.desc}</p>
+                  <p className="text-sm font-semibold">{item.title}</p>
+                  <p className="text-sm text-muted-foreground leading-tight">{item.desc}</p>
                 </CardContent>
               </Card>
             ))}
