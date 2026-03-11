@@ -82,7 +82,7 @@ function TooltipCallout({ text, onAction }: { text: string; onAction: () => void
   return (
     <div className="bg-primary text-primary-foreground rounded-xl p-3 shadow-lg relative">
       <p className="text-sm leading-relaxed mb-2">{text}</p>
-      <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg text-xs font-semibold" onClick={onAction}>
+      <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg text-sm font-semibold" onClick={onAction}>
         Ok
       </Button>
       <div className="absolute -top-2 right-6 w-4 h-4 bg-primary rotate-45" />
@@ -129,11 +129,11 @@ function StepWelcome({ onNext, onSkip }: { onNext: () => void; onSkip: () => voi
           {CHARACTERS.map((c) => (
             <div key={c.name} className="flex flex-col items-center gap-1">
               <CharAvatar char={c} size="md" showBadge />
-              <span className="text-xs text-white/60">{c.name}</span>
+              <span className="text-sm text-white/60">{c.name}</span>
             </div>
           ))}
         </div>
-        <p className="text-xs text-white/40">Pessoas reais, presentes agora.</p>
+        <p className="text-sm text-white/40">Pessoas reais, presentes agora.</p>
       </div>
 
       <div className="flex flex-col gap-3 w-full max-w-xs">
@@ -194,12 +194,12 @@ function StepLocais({ onNext, onBack }: { onNext: () => void; onBack: () => void
                     <h3 className="font-semibold text-sm truncate">{p.name}</h3>
                     <div className="flex items-center gap-2 mt-0.5">
                       {p.count > 0 ? (
-                        <Badge variant="secondary" className="text-xs bg-katu-green/10 text-katu-green border-0">
+                        <Badge variant="secondary" className="text-sm bg-katu-green/10 text-katu-green border-0">
                           <Users className="h-3 w-3 mr-1" />
                           {p.count} {p.count === 1 ? 'pessoa' : 'pessoas'}
                         </Badge>
                       ) : (
-                        <span className="text-xs text-muted-foreground">Ninguém por aqui ainda</span>
+                        <span className="text-sm text-muted-foreground">Ninguém por aqui ainda</span>
                       )}
                     </div>
                   </div>
@@ -302,7 +302,7 @@ function StepMomento({ onNext, onBack }: { onNext: () => void; onBack: () => voi
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg leading-tight">Café do Ponto</h3>
-                    <span className="text-xs text-white/70 flex items-center gap-1">
+                    <span className="text-sm text-white/70 flex items-center gap-1">
                       <Clock className="h-3 w-3" /> 2:00:00
                     </span>
                   </div>
@@ -323,7 +323,7 @@ function StepMomento({ onNext, onBack }: { onNext: () => void; onBack: () => voi
           <Card>
             <CardContent className="p-4">
               <p className="font-semibold text-sm mb-1">Seu momento aqui</p>
-              <p className="text-xs text-muted-foreground mb-3">
+              <p className="text-base text-muted-foreground mb-3">
                 O que as pessoas precisam saber sobre você aqui e agora? Essa mensagem aparece no seu card para quem estiver no mesmo local.
               </p>
               <Textarea
@@ -333,15 +333,15 @@ function StepMomento({ onNext, onBack }: { onNext: () => void; onBack: () => voi
                 maxLength={140}
                 className="resize-none h-16"
               />
-              <p className="text-right text-xs text-muted-foreground mt-1">{intention.length}/140</p>
-              <p className="text-xs italic text-muted-foreground mt-2">
+              <p className="text-right text-sm text-muted-foreground mt-1">{intention.length}/140</p>
+              <p className="text-sm italic text-muted-foreground mt-2">
                 Esta etapa é opcional, mas essencial para boas conexões — diga às pessoas como você está agora.
               </p>
             </CardContent>
           </Card>
 
           <div className="bg-katu-green/10 rounded-2xl p-3">
-            <p className="text-xs text-katu-green leading-relaxed">
+            <p className="text-sm text-katu-green leading-relaxed">
               ✅ Sua presença fica ativa por <strong>2 horas</strong>. Você pode renovar ou sair quando quiser.
             </p>
           </div>
@@ -375,8 +375,8 @@ function StepSelfie({ onNext, onBack }: { onNext: () => void; onBack: () => void
               <Card key={item.title} className="border shadow-sm">
                 <CardContent className="p-3 flex flex-col items-center gap-1 text-center">
                   <span className="text-2xl">{item.icon}</span>
-                  <p className="text-xs font-semibold">{item.title}</p>
-                  <p className="text-xs text-muted-foreground leading-tight">{item.desc}</p>
+                  <p className="text-sm font-semibold">{item.title}</p>
+                  <p className="text-sm text-muted-foreground leading-tight">{item.desc}</p>
                 </CardContent>
               </Card>
             ))}
@@ -384,7 +384,7 @@ function StepSelfie({ onNext, onBack }: { onNext: () => void; onBack: () => void
 
           {/* Mock PersonCard — matching real layout */}
           <div>
-            <p className="text-xs text-muted-foreground mb-2 font-medium">Como aparece no seu card:</p>
+            <p className="text-sm text-muted-foreground mb-2 font-medium">Como aparece no seu card:</p>
             <Card className="border-0 shadow-sm overflow-hidden">
               <CardContent className="p-0">
                 <div className="flex h-full">
@@ -416,7 +416,7 @@ function StepSelfie({ onNext, onBack }: { onNext: () => void; onBack: () => void
           </div>
 
           <div className="bg-primary/5 rounded-2xl p-3">
-            <p className="text-xs text-primary leading-relaxed">
+            <p className="text-sm text-primary leading-relaxed">
               📷 A foto é tirada no momento — não é possível usar fotos da galeria. Isso garante que você está realmente presente.
             </p>
           </div>
@@ -444,7 +444,7 @@ function StepPerfil({ onNext, onBack }: { onNext: () => void; onBack: () => void
           {/* Amber alert */}
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
             <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-amber-700 leading-relaxed">
+            <p className="text-sm text-amber-700 leading-relaxed">
               Esta tela só aparece se você ainda não completou seu perfil.
             </p>
           </div>
@@ -463,7 +463,7 @@ function StepPerfil({ onNext, onBack }: { onNext: () => void; onBack: () => void
               </div>
               {['Nome', 'Data de nascimento', 'Gênero (opcional)', 'Bio (opcional)'].map((f) => (
                 <div key={f} className="border border-border rounded-xl px-3 py-2">
-                  <p className="text-xs text-muted-foreground">{f}</p>
+                  <p className="text-sm text-muted-foreground">{f}</p>
                 </div>
               ))}
             </CardContent>
@@ -476,7 +476,7 @@ function StepPerfil({ onNext, onBack }: { onNext: () => void; onBack: () => void
                 <span className="text-xl mt-0.5">🏷️</span>
                 <div>
                   <p className="font-semibold text-sm">Interesses</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  <p className="text-base text-muted-foreground mt-0.5 leading-relaxed">
                     Seus interesses <strong>não aparecem no seu card</strong> para outras pessoas. Eles são usados apenas para <strong>ordenar quem aparece primeiro</strong> — pessoas com interesses em comum ficam no topo da sua lista.
                   </p>
                 </div>
@@ -485,7 +485,7 @@ function StepPerfil({ onNext, onBack }: { onNext: () => void; onBack: () => void
           </Card>
 
           <div className="bg-amber-50 rounded-2xl p-3">
-            <p className="text-xs text-amber-700 leading-relaxed">
+            <p className="text-sm text-amber-700 leading-relaxed">
               ⚠️ Sem nome, data de nascimento e interesses, você <strong>não aparece</strong> para outras pessoas nos locais.
             </p>
           </div>
@@ -522,16 +522,16 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
                     <Store className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <p className="text-white font-semibold text-xs">Café do Ponto</p>
-                    <p className="text-white/60 text-xs flex items-center gap-1"><Clock size={10} /> 1:47:22</p>
+                    <p className="text-white font-semibold text-sm">Café do Ponto</p>
+                    <p className="text-white/60 text-sm flex items-center gap-1"><Clock size={12} /> 1:47:22</p>
                   </div>
                 </div>
                 <div className="flex gap-1.5">
-                  <div className="bg-white/20 text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1">
-                    <RefreshCw size={10} /> Renovar
+                  <div className="bg-white/20 text-white text-sm px-2 py-1 rounded-lg flex items-center gap-1">
+                    <RefreshCw size={14} /> Renovar
                   </div>
-                  <div className="bg-white/10 border border-white/30 text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1">
-                    <LogOut size={10} /> Sair
+                  <div className="bg-white/10 border border-white/30 text-white text-sm px-2 py-1 rounded-lg flex items-center gap-1">
+                    <LogOut size={14} /> Sair
                   </div>
                 </div>
               </div>
@@ -553,13 +553,13 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
                       <div className="font-semibold text-sm">
                         {char.name}<span className="text-muted-foreground font-normal">, {char.age}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-base text-muted-foreground mt-0.5">
                         <span className="font-medium text-foreground">Aqui:</span> {char.intention}
                       </p>
                       <div className="mt-2">
                         {waved === char.name ? (
                           <Button
-                            className={`w-full h-9 rounded-xl font-semibold text-xs ${
+                            className={`w-full h-9 rounded-xl font-semibold text-sm ${
                               accepted ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                             }`}
                             disabled={!accepted}
@@ -574,7 +574,7 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
                         ) : (
                           <Button
                             onClick={() => setWaved(char.name)}
-                            className="w-full h-9 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-xs"
+                            className="w-full h-9 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-sm"
                             size="sm"
                           >
                             <HandshakeIcon className="h-4 w-4 mr-1" /> Acenar
@@ -591,8 +591,8 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
           {waved && !accepted && (
             <div className="bg-accent/10 rounded-2xl p-3 border border-accent/20">
               <p className="text-sm font-semibold mb-1">Aceno enviado para {waved}!</p>
-              <p className="text-xs text-muted-foreground mb-2">Agora {waved} recebe uma notificação e pode aceitar ou ignorar. Se aceitar, o chat abre automaticamente.</p>
-              <Button onClick={() => setAccepted(true)} className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-xs font-semibold" size="sm">
+              <p className="text-sm text-muted-foreground mb-2">Agora {waved} recebe uma notificação e pode aceitar ou ignorar. Se aceitar, o chat abre automaticamente.</p>
+              <Button onClick={() => setAccepted(true)} className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-sm font-semibold" size="sm">
                 Simular: {waved} aceitou! 🎉
               </Button>
             </div>
@@ -601,7 +601,7 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
           {accepted && (
             <div className="bg-katu-green/10 rounded-2xl p-3 border border-katu-green/20">
               <p className="text-sm text-katu-green font-semibold mb-1">Chat aberto com {waved}!</p>
-              <p className="text-xs text-muted-foreground">A conversa existe apenas enquanto vocês dois estiverem no mesmo local. Ao sair, o chat é encerrado.</p>
+              <p className="text-sm text-muted-foreground">A conversa existe apenas enquanto vocês dois estiverem no mesmo local. Ao sair, o chat é encerrado.</p>
             </div>
           )}
         </div>
@@ -638,11 +638,11 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
             <div className="absolute right-0 top-0 bottom-0 flex flex-col" style={{ width: 80 }}>
               <button className="flex-1 flex flex-col items-center justify-center gap-1">
                 <VolumeX size={18} className="text-foreground/70" />
-                <span className="text-xs text-foreground/70 font-medium">Silenciar</span>
+                <span className="text-sm text-foreground/70 font-medium">Silenciar</span>
               </button>
               <button className="flex-1 flex flex-col items-center justify-center gap-1">
                 <Ban size={18} className="text-foreground/70" />
-                <span className="text-xs text-foreground/70 font-medium">Bloquear</span>
+                <span className="text-sm text-foreground/70 font-medium">Bloquear</span>
               </button>
             </div>
 
@@ -656,9 +656,9 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
               <CharAvatar char={CHARACTERS[0]} size="md" showBadge />
               <div className="flex-1">
                 <p className="font-semibold text-sm">{CHARACTERS[0].name}, {CHARACTERS[0].age}</p>
-                <p className="text-xs text-muted-foreground">Aqui: {CHARACTERS[0].intention}</p>
+                <p className="text-sm text-muted-foreground">Aqui: {CHARACTERS[0].intention}</p>
               </div>
-              <Button size="sm" className="bg-accent text-accent-foreground rounded-xl text-xs font-semibold">
+              <Button size="sm" className="bg-accent text-accent-foreground rounded-xl text-sm font-semibold">
                 <HandshakeIcon className="h-4 w-4 mr-1" /> Acenar
               </Button>
             </div>
@@ -672,7 +672,7 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
                   <VolumeX size={18} className="text-foreground/70" />
                   <p className="font-semibold text-sm">Silenciar</p>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   Válido apenas naquela sessão e naquele local. As duas pessoas continuam se vendo, mas não conseguem interagir.
                 </p>
               </CardContent>
@@ -683,7 +683,7 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
                   <Ban size={18} className="text-destructive" />
                   <p className="font-semibold text-sm text-destructive">Bloquear</p>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   Permanente até que você desbloqueie, independente do local ou sessão. A pessoa bloqueada deixa de ver quem a bloqueou em qualquer local.
                 </p>
               </CardContent>
@@ -707,15 +707,6 @@ function StepFinal({ onComplete, onRestart }: { onComplete: () => void; onRestar
         <p className="text-white/70 text-base leading-relaxed max-w-xs">
           Agora você sabe como o Katuu funciona. Veja quem está aqui com você <strong className="text-white">agora</strong>.
         </p>
-      </div>
-
-      <div className="flex justify-center gap-3">
-        {CHARACTERS.map((c) => (
-          <div key={c.name} className="flex flex-col items-center gap-1">
-            <CharAvatar char={c} size="md" showBadge />
-            <span className="text-xs text-white/60">{c.name}</span>
-          </div>
-        ))}
       </div>
 
       <div className="flex flex-col gap-3 w-full max-w-xs">
