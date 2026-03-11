@@ -601,7 +601,7 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
           {accepted && (
             <div className="bg-katu-green/10 rounded-2xl p-3 border border-katu-green/20">
               <p className="text-sm text-katu-green font-semibold mb-1">Chat aberto com {waved}!</p>
-              <p className="text-xs text-muted-foreground">A conversa existe apenas enquanto vocês dois estiverem no mesmo local. Ao sair, o chat é encerrado.</p>
+              <p className="text-sm text-muted-foreground">A conversa existe apenas enquanto vocês dois estiverem no mesmo local. Ao sair, o chat é encerrado.</p>
             </div>
           )}
         </div>
