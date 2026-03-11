@@ -323,7 +323,7 @@ function StepMomento({ onNext, onBack }: { onNext: () => void; onBack: () => voi
           <Card>
             <CardContent className="p-4">
               <p className="font-semibold text-sm mb-1">Seu momento aqui</p>
-              <p className="text-xs text-muted-foreground mb-3">
+              <p className="text-base text-muted-foreground mb-3">
                 O que as pessoas precisam saber sobre você aqui e agora? Essa mensagem aparece no seu card para quem estiver no mesmo local.
               </p>
               <Textarea
