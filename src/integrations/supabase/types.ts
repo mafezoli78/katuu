@@ -439,6 +439,7 @@ export type Database = {
           gender: Database["public"]["Enums"]["gender_type"] | null
           id: string
           nome: string | null
+          tutorial_enabled: boolean | null
         }
         Insert: {
           atualizado_em?: string
@@ -449,6 +450,7 @@ export type Database = {
           gender?: Database["public"]["Enums"]["gender_type"] | null
           id: string
           nome?: string | null
+          tutorial_enabled?: boolean | null
         }
         Update: {
           atualizado_em?: string
@@ -459,6 +461,7 @@ export type Database = {
           gender?: Database["public"]["Enums"]["gender_type"] | null
           id?: string
           nome?: string | null
+          tutorial_enabled?: boolean | null
         }
         Relationships: []
       }
