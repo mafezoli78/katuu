@@ -133,7 +133,7 @@ function StepWelcome({ onNext, onSkip }: { onNext: () => void; onSkip: () => voi
             </div>
           ))}
         </div>
-        <p className="text-sm text-white/40">Pessoas reais, presentes agora.</p>
+        
       </div>
 
       <div className="flex flex-col gap-3 w-full max-w-xs">
@@ -340,8 +340,8 @@ function StepMomento({ onNext, onBack }: { onNext: () => void; onBack: () => voi
             </CardContent>
           </Card>
 
-          <div className="bg-katu-green/10 rounded-2xl p-3">
-            <p className="text-sm text-katu-green leading-relaxed">
+          <div className="bg-muted rounded-2xl p-3">
+            <p className="text-sm text-foreground leading-relaxed">
               ✅ Sua presença fica ativa por <strong>2 horas</strong>. Você pode renovar ou sair quando quiser.
             </p>
           </div>
@@ -542,42 +542,44 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
           <div className="flex flex-col gap-2">
             {CHARACTERS.map((char) => (
               <Card key={char.name} className="border-0 shadow-sm overflow-hidden">
-                <CardContent className="p-3">
-                  <div className="flex items-start gap-3">
-                    <img
-                      src={char.photo}
-                      alt={char.name}
-                      className="w-14 h-14 object-cover rounded-xl flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm">
-                        {char.name}<span className="text-muted-foreground font-normal">, {char.age}</span>
+                <CardContent className="p-0">
+                  <div className="flex h-full">
+                    <div className="w-[36%] flex items-center p-2.5">
+                      <img
+                        src={char.photo}
+                        alt={char.name}
+                        className="w-full aspect-square object-cover rounded-xl"
+                      />
+                    </div>
+                    <div className="flex-1 flex flex-col justify-between p-4">
+                      <div>
+                        <div className="font-semibold text-base">
+                          {char.name}<span className="text-muted-foreground font-normal">, {char.age}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                          <span className="font-medium text-foreground">Aqui:</span> {char.intention}
+                        </p>
                       </div>
-                      <p className="text-base text-muted-foreground mt-0.5">
-                        <span className="font-medium text-foreground">Aqui:</span> {char.intention}
-                      </p>
-                      <div className="mt-2">
+                      <div className="mt-3">
                         {waved === char.name ? (
                           <Button
-                            className={`w-full h-9 rounded-xl font-semibold text-sm ${
+                            className={`w-full h-11 rounded-xl font-semibold ${
                               accepted ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                             }`}
                             disabled={!accepted}
-                            size="sm"
                           >
                             {accepted ? (
-                              <><MessageCircle className="h-4 w-4 mr-1" /> Chat</>
+                              <><MessageCircle className="h-5 w-5 mr-2" /> Chat</>
                             ) : (
-                              <><HandshakeIcon className="h-4 w-4 mr-1" /> Aceno enviado</>
+                              <><HandshakeIcon className="h-5 w-5 mr-2" /> Aceno enviado</>
                             )}
                           </Button>
                         ) : (
                           <Button
                             onClick={() => setWaved(char.name)}
-                            className="w-full h-9 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-sm"
-                            size="sm"
+                            className="w-full h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
                           >
-                            <HandshakeIcon className="h-4 w-4 mr-1" /> Acenar
+                            <HandshakeIcon className="h-5 w-5 mr-2" /> Acenar
                           </Button>
                         )}
                       </div>
@@ -634,7 +636,7 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
         <div className="flex flex-col gap-4 mt-2">
           {/* Swipe demo with CSS animation */}
           <div className="relative overflow-hidden rounded-xl shadow-sm border border-border">
-            {/* Actions background — stacked vertically, transparent, ~80px */}
+            {/* Actions background */}
             <div className="absolute right-0 top-0 bottom-0 flex flex-col" style={{ width: 80 }}>
               <button className="flex-1 flex flex-col items-center justify-center gap-1">
                 <VolumeX size={18} className="text-foreground/70" />
@@ -646,21 +648,37 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
               </button>
             </div>
 
-            {/* Card with swipe animation */}
+            {/* Card with swipe animation — matching standard card pattern */}
             <div
-              className="bg-card p-3 flex items-center gap-3"
+              className="bg-card"
               style={{
                 animation: animating ? 'tutorial-swipe 2s ease-in-out 0s 2 forwards' : 'none',
               }}
             >
-              <CharAvatar char={CHARACTERS[0]} size="md" showBadge />
-              <div className="flex-1">
-                <p className="font-semibold text-sm">{CHARACTERS[0].name}, {CHARACTERS[0].age}</p>
-                <p className="text-sm text-muted-foreground">Aqui: {CHARACTERS[0].intention}</p>
+              <div className="flex h-full">
+                <div className="w-[36%] flex items-center p-2.5">
+                  <img
+                    src={CHARACTERS[0].photo}
+                    alt={CHARACTERS[0].name}
+                    className="w-full aspect-square object-cover rounded-xl"
+                  />
+                </div>
+                <div className="flex-1 flex flex-col justify-between p-4">
+                  <div>
+                    <div className="font-semibold text-base">
+                      {CHARACTERS[0].name}<span className="text-muted-foreground font-normal">, {CHARACTERS[0].age}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                      <span className="font-medium text-foreground">Aqui:</span> {CHARACTERS[0].intention}
+                    </p>
+                  </div>
+                  <div className="mt-3">
+                    <Button className="w-full h-11 rounded-xl font-semibold bg-accent text-accent-foreground hover:bg-accent/90">
+                      <HandshakeIcon className="h-5 w-5 mr-2" /> Acenar
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <Button size="sm" className="bg-accent text-accent-foreground rounded-xl text-sm font-semibold">
-                <HandshakeIcon className="h-4 w-4 mr-1" /> Acenar
-              </Button>
             </div>
           </div>
 
