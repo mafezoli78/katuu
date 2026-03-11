@@ -184,7 +184,7 @@ function StepLocais({ onNext, onBack }: { onNext: () => void; onBack: () => void
         <div className="space-y-2">
           {/* Places list */}
           {FICTIONAL_PLACES.map((p, i) => (
-            <Card key={p.name} className={`border shadow-sm ${tooltipStep === 0 && i === 0 ? 'relative z-[10]' : ''}`}>
+            <Card key={p.name} className={`border shadow-sm ${tooltipStep === 0 && i === 2 ? 'relative z-[10]' : ''}`}>
               <CardContent className="p-3">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
