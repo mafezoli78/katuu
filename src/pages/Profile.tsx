@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
+import { supabase } from '@/integrations/supabase/client';
 import { useInterestCategories } from '@/hooks/useInterestCategories';
 import type { Gender } from '@/types/gender';
 import { GENDER_OPTIONS } from '@/types/gender';
@@ -20,7 +21,7 @@ import { PasswordChangeDialog } from '@/components/profile/PasswordChangeDialog'
 import { DateOfBirthPicker } from '@/components/profile/DateOfBirthPicker';
 import { 
   Camera, LogOut, Check, User, Heart, Pencil, X, 
-  Mail, Lock, AlertCircle 
+  Mail, Lock, AlertCircle, RotateCcw
 } from 'lucide-react';
 
 const MIN_BIO_LENGTH = 40;
@@ -422,6 +423,18 @@ export default function Profile() {
               >
                 <Lock className="h-4 w-4 mr-2" />
                 Alterar senha
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={async () => {
+                  if (!user) return;
+                  await supabase.from('profiles').update({ tutorial_enabled: true }).eq('id', user.id);
+                  toast({ title: 'Tutorial reativado! Reinicie o app para vê-lo.' });
+                }}
+                className="w-full justify-start h-11 rounded-xl"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Mostrar tutorial novamente
               </Button>
             </CardContent>
           </Card>

@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { useTutorial } from "@/hooks/useTutorial";
+import { TutorialFlow } from "@/components/tutorial/TutorialFlow";
 
 // Lazy-loaded pages — cada página é um chunk separado no build
 const Splash = lazy(() => import("./pages/Splash"));
@@ -32,9 +34,14 @@ function PageLoader() {
 
 function AppRoutes() {
   const { user, loading } = useAuth();
+  const { shouldShowTutorial, loading: tutorialLoading, dismissTutorial } = useTutorial();
 
-  if (loading) {
+  if (loading || tutorialLoading) {
     return null;
+  }
+
+  if (user && shouldShowTutorial) {
+    return <TutorialFlow onComplete={dismissTutorial} />;
   }
 
   return (
