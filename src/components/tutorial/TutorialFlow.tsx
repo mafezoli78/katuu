@@ -656,9 +656,9 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
               <CharAvatar char={CHARACTERS[0]} size="md" showBadge />
               <div className="flex-1">
                 <p className="font-semibold text-sm">{CHARACTERS[0].name}, {CHARACTERS[0].age}</p>
-                <p className="text-xs text-muted-foreground">Aqui: {CHARACTERS[0].intention}</p>
+                <p className="text-sm text-muted-foreground">Aqui: {CHARACTERS[0].intention}</p>
               </div>
-              <Button size="sm" className="bg-accent text-accent-foreground rounded-xl text-xs font-semibold">
+              <Button size="sm" className="bg-accent text-accent-foreground rounded-xl text-sm font-semibold">
                 <HandshakeIcon className="h-4 w-4 mr-1" /> Acenar
               </Button>
             </div>
