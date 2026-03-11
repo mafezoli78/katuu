@@ -384,7 +384,7 @@ function StepSelfie({ onNext, onBack }: { onNext: () => void; onBack: () => void
 
           {/* Mock PersonCard — matching real layout */}
           <div>
-            <p className="text-xs text-muted-foreground mb-2 font-medium">Como aparece no seu card:</p>
+            <p className="text-sm text-muted-foreground mb-2 font-medium">Como aparece no seu card:</p>
             <Card className="border-0 shadow-sm overflow-hidden">
               <CardContent className="p-0">
                 <div className="flex h-full">
