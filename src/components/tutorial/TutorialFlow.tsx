@@ -15,6 +15,7 @@ import {
 import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
 import { TemporaryPlaceIcon } from '@/components/icons/TemporaryPlaceIcon';
 import katuuLogo from '@/assets/logo-katuu-oficial.png';
+import { TUTORIAL_CHARACTERS } from './tutorialCharacters';
 
 // ---------------------------------------------------------------------------
 // TYPES
@@ -31,33 +32,14 @@ interface Character {
 }
 
 // ---------------------------------------------------------------------------
-// FICTIONAL DATA — photos are base64-embedded, DO NOT REMOVE
+// FICTIONAL DATA
 // ---------------------------------------------------------------------------
-const CHARACTERS: Character[] = [
-  {
-    name: 'Ana',
-    age: 27,
-    photo: 'data:image/png;base64,...', // Base64 photo for Ana
-    intention: 'Aberta a conversar',
-  },
-  {
-    name: 'Carlos',
-    age: 38,
-    photo: 'data:image/png;base64,...', // Base64 photo for Carlos
-    intention: 'Aqui para relaxar',
-  },
-  {
-    name: 'Marina',
-    age: 24,
-    photo: 'data:image/png;base64,...', // Base64 photo for Marina
-    intention: 'Boa conversa sempre',
-  },
-];
+const CHARACTERS: Character[] = TUTORIAL_CHARACTERS;
 
 const FICTIONAL_PLACES = [
-  { name: 'Café do Ponto', icon: '☕', count: 3 },
-  { name: 'Parque da Juventude', icon: '🌳', count: 1 },
-  { name: 'Biblioteca Central', icon: '📚', count: 0 },
+  { name: 'Café do Ponto', count: 3 },
+  { name: 'Parque da Juventude', count: 1 },
+  { name: 'Biblioteca Central', count: 0 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -79,12 +61,12 @@ function StepDots({ total, current }: { total: number; current: number }) {
 }
 
 // ---------------------------------------------------------------------------
-// CHARACTER AVATAR
+// CHARACTER AVATAR — square with rounded corners
 // ---------------------------------------------------------------------------
 function CharAvatar({ char, size = 'md', showBadge = false }: { char: Character; size?: 'sm' | 'md' | 'lg'; showBadge?: boolean }) {
   const sizes = { sm: 'w-10 h-10', md: 'w-14 h-14', lg: 'w-20 h-20' };
   return (
-    <div className={`relative ${sizes[size]} rounded-full overflow-hidden border-2 border-white shadow`}>
+    <div className={`relative ${sizes[size]} rounded-xl overflow-hidden border-2 border-white shadow`}>
       <img src={char.photo} alt={char.name} className="w-full h-full object-cover" />
       {showBadge && (
         <div className="absolute bottom-0 right-0 w-3 h-3 bg-katu-green rounded-full border-2 border-white" />
@@ -94,16 +76,32 @@ function CharAvatar({ char, size = 'md', showBadge = false }: { char: Character;
 }
 
 // ---------------------------------------------------------------------------
-// TOOLTIP CALLOUT for Step 1
+// TOOLTIP CALLOUT for Step 1 — arrow points up-right
 // ---------------------------------------------------------------------------
-function TooltipCallout({ text, buttonLabel, onAction }: { text: string; buttonLabel: string; onAction: () => void }) {
+function TooltipCallout({ text, onAction }: { text: string; onAction: () => void }) {
   return (
     <div className="bg-primary text-primary-foreground rounded-xl p-3 shadow-lg relative">
       <p className="text-sm leading-relaxed mb-2">{text}</p>
       <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg text-xs font-semibold" onClick={onAction}>
-        {buttonLabel}
+        Ok
       </Button>
-      <div className="absolute -top-2 left-6 w-4 h-4 bg-primary rotate-45" />
+      <div className="absolute -top-2 right-6 w-4 h-4 bg-primary rotate-45" />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// STANDARD FOOTER for intermediate steps
+// ---------------------------------------------------------------------------
+function StepFooter({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
+  return (
+    <div className="px-6 py-4 flex gap-3">
+      <Button variant="outline" onClick={onBack} className="flex-1 h-11 rounded-xl">
+        Voltar
+      </Button>
+      <Button onClick={onNext} className="flex-1 h-11 bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl font-semibold">
+        Continuar
+      </Button>
     </div>
   );
 }
@@ -153,17 +151,33 @@ function StepWelcome({ onNext, onSkip }: { onNext: () => void; onSkip: () => voi
 // Step 1 — Locais (tooltip/callout sequential flow)
 function StepLocais({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const [tooltipStep, setTooltipStep] = useState(0);
+  const showOverlay = tooltipStep < 4;
 
   return (
     <div className="flex flex-col h-full relative">
       {/* Dark overlay */}
-      <div className="fixed inset-0 bg-black/50 z-[9] pointer-events-none" style={{ opacity: tooltipStep < 4 ? 1 : 0, transition: 'opacity 300ms' }} />
+      <div
+        className="fixed inset-0 bg-black/50 z-[9] pointer-events-none transition-opacity duration-300"
+        style={{ opacity: showOverlay ? 1 : 0 }}
+      />
 
-      <div className="px-6 pt-4 pb-3 relative z-[11]">
-        <h2 className="text-xl font-bold text-foreground">Onde você está agora?</h2>
-        <p className="text-muted-foreground text-sm mt-1">
-          O Katuu detecta sua localização e mostra os estabelecimentos próximos.
-        </p>
+      {/* Header: title left, List/Map icons right */}
+      <div className="px-6 pt-4 pb-3 relative z-[11] flex items-start justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Onde você está agora?</h2>
+          <p className="text-muted-foreground text-sm mt-1">
+            O Katuu detecta sua localização e mostra os estabelecimentos próximos.
+          </p>
+        </div>
+        {/* List/Map toggle — icons only, top-right */}
+        <div className={`flex items-center gap-0.5 bg-muted rounded-lg p-0.5 ml-3 flex-shrink-0 ${tooltipStep === 3 ? 'relative z-[10]' : ''}`}>
+          <div className="rounded-md p-2 bg-card shadow-sm">
+            <List className="h-4 w-4 text-foreground" />
+          </div>
+          <div className="rounded-md p-2">
+            <Map className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 px-6 overflow-y-auto">
@@ -174,7 +188,7 @@ function StepLocais({ onNext, onBack }: { onNext: () => void; onBack: () => void
               <CardContent className="p-3">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl">{p.icon}</span>
+                    <Store className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-sm truncate">{p.name}</h3>
@@ -202,7 +216,6 @@ function StepLocais({ onNext, onBack }: { onNext: () => void; onBack: () => void
             <div className="relative z-[11] mt-2">
               <TooltipCallout
                 text="Toque aqui para registrar sua presença neste local."
-                buttonLabel="Próximo"
                 onAction={() => setTooltipStep(1)}
               />
             </div>
@@ -223,7 +236,6 @@ function StepLocais({ onNext, onBack }: { onNext: () => void; onBack: () => void
             <div className="relative z-[11] mt-2">
               <TooltipCallout
                 text="Não encontrou seu local? Busque pelo nome."
-                buttonLabel="Próximo"
                 onAction={() => setTooltipStep(2)}
               />
             </div>
@@ -242,7 +254,6 @@ function StepLocais({ onNext, onBack }: { onNext: () => void; onBack: () => void
             <div className="relative z-[11] mt-2">
               <TooltipCallout
                 text="Use para locais não cadastrados, eventos corporativos e festas privadas."
-                buttonLabel="Próximo"
                 onAction={() => setTooltipStep(3)}
               />
             </div>
@@ -250,47 +261,18 @@ function StepLocais({ onNext, onBack }: { onNext: () => void; onBack: () => void
         </div>
       </div>
 
-      {/* Map toggle at bottom */}
-      <div className="px-6 py-3 flex items-center justify-between">
-        <div className={`${tooltipStep === 3 ? 'relative z-[10]' : ''}`}>
-          <div className="bg-muted rounded-lg p-0.5 flex">
-            <div className="rounded-md px-3 py-1.5 bg-card shadow-sm flex items-center gap-1 text-sm">
-              <List className="h-4 w-4" /> Lista
-            </div>
-            <div className="rounded-md px-3 py-1.5 flex items-center gap-1 text-sm text-muted-foreground">
-              <Map className="h-4 w-4" /> Mapa
-            </div>
-          </div>
-        </div>
-        <div>
-          {tooltipStep < 4 ? null : (
-            <Button onClick={onNext} className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl font-semibold flex items-center gap-1">
-              Entendi <ChevronRight size={16} />
-            </Button>
-          )}
-        </div>
-      </div>
-
+      {/* Tooltip 3 — map toggle (positioned below header) */}
       {tooltipStep === 3 && (
-        <div className="px-6 pb-4 relative z-[11]">
+        <div className="absolute top-24 right-6 z-[11] w-64">
           <TooltipCallout
             text="Prefere ver no mapa? Toque aqui para alternar a visualização."
-            buttonLabel="Entendi"
             onAction={() => setTooltipStep(4)}
           />
         </div>
       )}
 
-      {tooltipStep >= 4 && (
-        <div className="px-6 pb-4 flex gap-3">
-          <Button variant="outline" onClick={onBack} className="flex-1 rounded-xl">
-            Voltar
-          </Button>
-          <Button onClick={onNext} className="flex-[2] bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl font-semibold flex items-center gap-1">
-            Entendi <ChevronRight size={16} />
-          </Button>
-        </div>
-      )}
+      {/* Footer — only shown after all tooltips */}
+      {tooltipStep >= 4 && <StepFooter onBack={onBack} onNext={onNext} />}
     </div>
   );
 }
@@ -366,12 +348,7 @@ function StepMomento({ onNext, onBack }: { onNext: () => void; onBack: () => voi
         </div>
       </div>
 
-      <div className="px-6 py-4 flex gap-3">
-        <Button variant="outline" onClick={onBack} className="flex-1 rounded-xl">Voltar</Button>
-        <Button onClick={onNext} className="flex-[2] bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl font-semibold flex items-center gap-1">
-          Continuar <ChevronRight size={16} />
-        </Button>
-      </div>
+      <StepFooter onBack={onBack} onNext={onNext} />
     </div>
   );
 }
@@ -399,7 +376,7 @@ function StepSelfie({ onNext, onBack }: { onNext: () => void; onBack: () => void
                 <CardContent className="p-3 flex flex-col items-center gap-1 text-center">
                   <span className="text-2xl">{item.icon}</span>
                   <p className="text-xs font-semibold">{item.title}</p>
-                  <p className="text-[10px] text-muted-foreground leading-tight">{item.desc}</p>
+                  <p className="text-xs text-muted-foreground leading-tight">{item.desc}</p>
                 </CardContent>
               </Card>
             ))}
@@ -415,7 +392,7 @@ function StepSelfie({ onNext, onBack }: { onNext: () => void; onBack: () => void
                     <img
                       src={CHARACTERS[1].photo}
                       alt={CHARACTERS[1].name}
-                      className="w-full aspect-square object-cover rounded-lg"
+                      className="w-full aspect-square object-cover rounded-xl"
                     />
                   </div>
                   <div className="flex-1 flex flex-col justify-between p-4">
@@ -446,12 +423,7 @@ function StepSelfie({ onNext, onBack }: { onNext: () => void; onBack: () => void
         </div>
       </div>
 
-      <div className="px-6 py-4 flex gap-3">
-        <Button variant="outline" onClick={onBack} className="flex-1 rounded-xl">Voltar</Button>
-        <Button onClick={onNext} className="flex-[2] bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl font-semibold flex items-center gap-1">
-          Entendi <ChevronRight size={16} />
-        </Button>
-      </div>
+      <StepFooter onBack={onBack} onNext={onNext} />
     </div>
   );
 }
@@ -491,7 +463,7 @@ function StepPerfil({ onNext, onBack }: { onNext: () => void; onBack: () => void
               </div>
               {['Nome', 'Data de nascimento', 'Gênero (opcional)', 'Bio (opcional)'].map((f) => (
                 <div key={f} className="border border-border rounded-xl px-3 py-2">
-                  <p className="text-[10px] text-muted-foreground">{f}</p>
+                  <p className="text-xs text-muted-foreground">{f}</p>
                 </div>
               ))}
             </CardContent>
@@ -520,12 +492,7 @@ function StepPerfil({ onNext, onBack }: { onNext: () => void; onBack: () => void
         </div>
       </div>
 
-      <div className="px-6 py-4 flex gap-3">
-        <Button variant="outline" onClick={onBack} className="flex-1 rounded-xl">Voltar</Button>
-        <Button onClick={onNext} className="flex-[2] bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl font-semibold flex items-center gap-1">
-          Entendi <ChevronRight size={16} />
-        </Button>
-      </div>
+      <StepFooter onBack={onBack} onNext={onNext} />
     </div>
   );
 }
@@ -556,39 +523,39 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
                   </div>
                   <div>
                     <p className="text-white font-semibold text-xs">Café do Ponto</p>
-                    <p className="text-white/60 text-[10px] flex items-center gap-1"><Clock size={9} /> 1:47:22</p>
+                    <p className="text-white/60 text-xs flex items-center gap-1"><Clock size={10} /> 1:47:22</p>
                   </div>
                 </div>
                 <div className="flex gap-1.5">
-                  <div className="bg-white/20 text-white text-[10px] px-2 py-1 rounded-lg flex items-center gap-1">
-                    <RefreshCw size={9} /> Renovar
+                  <div className="bg-white/20 text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1">
+                    <RefreshCw size={10} /> Renovar
                   </div>
-                  <div className="bg-white/10 border border-white/30 text-white text-[10px] px-2 py-1 rounded-lg flex items-center gap-1">
-                    <LogOut size={9} /> Sair
+                  <div className="bg-white/10 border border-white/30 text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1">
+                    <LogOut size={10} /> Sair
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* People list — matching PersonCard layout */}
+          {/* People list — compact row layout */}
           <div className="flex flex-col gap-2">
             {CHARACTERS.map((char) => (
               <Card key={char.name} className="border-0 shadow-sm overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="flex h-full">
-                    <div className="w-[36%] flex items-center p-2.5">
-                      <img src={char.photo} alt={char.name} className="w-full aspect-square object-cover rounded-lg" />
-                    </div>
-                    <div className="flex-1 flex flex-col justify-between p-3">
-                      <div>
-                        <div className="font-semibold text-sm">
-                          {char.name}<span className="text-muted-foreground font-normal">, {char.age}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          <span className="font-medium text-foreground">Aqui:</span> {char.intention}
-                        </p>
+                <CardContent className="p-3">
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={char.photo}
+                      alt={char.name}
+                      className="w-14 h-14 object-cover rounded-xl flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm">
+                        {char.name}<span className="text-muted-foreground font-normal">, {char.age}</span>
                       </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        <span className="font-medium text-foreground">Aqui:</span> {char.intention}
+                      </p>
                       <div className="mt-2">
                         {waved === char.name ? (
                           <Button
@@ -623,7 +590,7 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
 
           {waved && !accepted && (
             <div className="bg-accent/10 rounded-2xl p-3 border border-accent/20">
-              <p className="text-xs font-semibold mb-1">Aceno enviado para {waved}!</p>
+              <p className="text-sm font-semibold mb-1">Aceno enviado para {waved}!</p>
               <p className="text-xs text-muted-foreground mb-2">Agora {waved} recebe uma notificação e pode aceitar ou ignorar. Se aceitar, o chat abre automaticamente.</p>
               <Button onClick={() => setAccepted(true)} className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-xs font-semibold" size="sm">
                 Simular: {waved} aceitou! 🎉
@@ -633,19 +600,14 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
 
           {accepted && (
             <div className="bg-katu-green/10 rounded-2xl p-3 border border-katu-green/20">
-              <p className="text-xs text-katu-green font-semibold mb-1">Chat aberto com {waved}!</p>
+              <p className="text-sm text-katu-green font-semibold mb-1">Chat aberto com {waved}!</p>
               <p className="text-xs text-muted-foreground">A conversa existe apenas enquanto vocês dois estiverem no mesmo local. Ao sair, o chat é encerrado.</p>
             </div>
           )}
         </div>
       </div>
 
-      <div className="px-6 py-4 flex gap-3">
-        <Button variant="outline" onClick={onBack} className="flex-1 rounded-xl">Voltar</Button>
-        <Button onClick={onNext} className="flex-[2] bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl font-semibold flex items-center gap-1">
-          Continuar <ChevronRight size={16} />
-        </Button>
-      </div>
+      <StepFooter onBack={onBack} onNext={onNext} />
     </div>
   );
 }
@@ -672,16 +634,16 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
         <div className="flex flex-col gap-4 mt-2">
           {/* Swipe demo with CSS animation */}
           <div className="relative overflow-hidden rounded-xl shadow-sm border border-border">
-            {/* Actions background */}
-            <div className="absolute right-0 top-0 bottom-0 flex" style={{ width: 140 }}>
-              <div className="flex-1 flex flex-col items-center justify-center gap-1 bg-muted">
+            {/* Actions background — stacked vertically, transparent, ~80px */}
+            <div className="absolute right-0 top-0 bottom-0 flex flex-col" style={{ width: 80 }}>
+              <button className="flex-1 flex flex-col items-center justify-center gap-1">
                 <VolumeX size={18} className="text-foreground/70" />
-                <span className="text-[10px] text-foreground/70 font-medium">Silenciar</span>
-              </div>
-              <div className="flex-1 flex flex-col items-center justify-center gap-1 bg-destructive/10">
-                <Ban size={18} className="text-destructive" />
-                <span className="text-[10px] text-destructive font-medium">Bloquear</span>
-              </div>
+                <span className="text-xs text-foreground/70 font-medium">Silenciar</span>
+              </button>
+              <button className="flex-1 flex flex-col items-center justify-center gap-1">
+                <Ban size={18} className="text-foreground/70" />
+                <span className="text-xs text-foreground/70 font-medium">Bloquear</span>
+              </button>
             </div>
 
             {/* Card with swipe animation */}
@@ -730,12 +692,7 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
         </div>
       </div>
 
-      <div className="px-6 py-4 flex gap-3">
-        <Button variant="outline" onClick={onBack} className="flex-1 rounded-xl">Voltar</Button>
-        <Button onClick={onNext} className="flex-[2] bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl font-semibold flex items-center gap-1">
-          Quase lá! <ChevronRight size={16} />
-        </Button>
-      </div>
+      <StepFooter onBack={onBack} onNext={onNext} />
     </div>
   );
 }
