@@ -235,7 +235,6 @@ export function useChat(options?: UseChatOptions) {
     try {
       // RPC ATÔMICA: encerra conversa + deleta mensagens + aplica cooldown
       const { error } = await supabase.rpc('end_conversation', {
-        p_user_id: user.id,
         p_conversation_id: conversationId,
         p_motivo: reason,
       });
