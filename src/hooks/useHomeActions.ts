@@ -90,7 +90,6 @@ export function useHomeActions({
       }
     } else {
       const { error } = await supabase.rpc('block_user', {
-        p_user_id: user.id,
         p_blocked_user_id: targetUserId,
       });
       if (error) {
