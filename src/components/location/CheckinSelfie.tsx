@@ -212,6 +212,19 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
                 style={{ transform: 'scaleX(-1)' }}
               />
             )}
+
+            {/* Face detection indicator overlay */}
+            {!cameraError && modelsLoaded && (
+              <div className="absolute bottom-3 left-0 right-0 flex justify-center">
+                <div className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  faceDetected
+                    ? 'bg-green-500/90 text-white'
+                    : 'bg-black/60 text-white/70'
+                }`}>
+                  {faceDetected ? '✓ Rosto detectado' : 'Posicione seu rosto'}
+                </div>
+              </div>
+            )}
           </div>
 
           <canvas ref={canvasRef} className="hidden" />
@@ -220,10 +233,11 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
             <Button
               onClick={handleCapture}
               variant="secondary"
-              className="w-full h-12 rounded-xl font-semibold text-base"
+              disabled={!faceDetected || !modelsLoaded}
+              className="w-full h-12 rounded-xl font-semibold text-base disabled:opacity-50"
             >
               <Camera className="h-5 w-5 mr-2" />
-              Capturar
+              {!modelsLoaded ? 'Carregando...' : !faceDetected ? 'Posicione seu rosto' : 'Capturar'}
             </Button>
           )}
         </>
