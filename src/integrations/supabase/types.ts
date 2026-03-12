@@ -44,6 +44,39 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_reads: {
+        Row: {
+          conversation_id: string
+          last_read_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          last_read_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          last_read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_reads_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           ativo: boolean
@@ -718,6 +751,13 @@ export type Database = {
       get_active_mute_for_pair: {
         Args: { p_muted_user_id: string; p_user_id: string }
         Returns: string
+      }
+      get_unread_counts: {
+        Args: { p_conversation_ids: string[]; p_user_id: string }
+        Returns: {
+          conversation_id: string
+          unread_count: number
+        }[]
       }
       get_user_active_location_id: { Args: never; Returns: string }
       get_user_active_place_id: { Args: never; Returns: string }
