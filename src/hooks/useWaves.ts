@@ -97,6 +97,7 @@ export function useWaves() {
         const validReceived = filterValidWaves(receivedResult.data as Wave[] || []);
         setReceivedWaves(validReceived);
         setUnreadCount(validReceived.filter(w => !w.visualizado).length);
+        setPendingReceivedCount(validReceived.length);
       }
     } catch (error) {
       console.error('Error fetching waves:', error);
