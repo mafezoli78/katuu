@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Camera, RefreshCw, Loader2, Upload, ImageOff } from 'lucide-react';
+import * as faceapi from 'face-api.js';
 import * as cameraService from '@/services/cameraService';
 
 type Step = 'capture' | 'preview' | 'fallback-upload';
