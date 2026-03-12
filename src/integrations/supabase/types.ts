@@ -698,10 +698,7 @@ export type Database = {
         }
         Returns: string
       }
-      block_user: {
-        Args: { p_blocked_user_id: string; p_user_id: string }
-        Returns: undefined
-      }
+      block_user: { Args: { p_blocked_user_id: string }; Returns: undefined }
       can_auto_end_presence: {
         Args: { p_place_id: string; p_user_id: string }
         Returns: boolean
@@ -714,11 +711,7 @@ export type Database = {
         Returns: boolean
       }
       end_conversation: {
-        Args: {
-          p_conversation_id: string
-          p_motivo?: string
-          p_user_id: string
-        }
+        Args: { p_conversation_id: string; p_motivo?: string }
         Returns: undefined
       }
       end_presence_cascade:
@@ -805,11 +798,7 @@ export type Database = {
         Returns: undefined
       }
       send_wave: {
-        Args: {
-          p_from_user_id: string
-          p_place_id: string
-          p_to_user_id: string
-        }
+        Args: { p_place_id: string; p_to_user_id: string }
         Returns: string
       }
       unblock_user: {
