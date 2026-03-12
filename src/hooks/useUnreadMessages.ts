@@ -102,7 +102,20 @@ export function useUnreadMessages(conversationIds: string[]) {
         (payload) => {
           const msg = payload.new as any;
           if (conversationIds.includes(msg.conversation_id) && msg.sender_id !== user.id) {
-            fetchUnreadCounts();
+            // Otimistic update: increment immediately without waiting for DB round-trip
+            setUnread(prev => {
+              const current = prev.byConversation[msg.conversation_id] || 0;
+              const wasZero = current === 0;
+              return {
+                byConversation: {
+                  ...prev.byConversation,
+                  [msg.conversation_id]: current + 1,
+                },
+                totalConversationsWithUnread: wasZero
+                  ? prev.totalConversationsWithUnread + 1
+                  : prev.totalConversationsWithUnread,
+              };
+            });
           }
         }
       )
