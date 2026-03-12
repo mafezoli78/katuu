@@ -408,12 +408,8 @@ export default function Location() {
         return;
       }
 
-      const { data: urlData } = supabase.storage.
-      from('checkin-selfies').
-      getPublicUrl(fileName);
-
-      // Activate presence with selfie URL and source metadata
-      await handleActivatePresence(urlData.publicUrl, source);
+      // Store file path (not full URL) — bucket is private, signed URLs are generated on read
+      await handleActivatePresence(fileName, source);
     } catch (err) {
       toast({ variant: 'destructive', title: 'Erro inesperado' });
       setActivating(false);

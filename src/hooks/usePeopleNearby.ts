@@ -3,6 +3,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Profile } from './useProfile';
+import { getSignedSelfieUrls } from '@/lib/storage';
 
 export interface PersonNearby {
   id: string;
@@ -77,6 +78,19 @@ export function usePeopleNearby(placeId: string | null) {
         assuntoAtual: row.assunto_atual || null,
         checkinSelfieUrl: row.checkin_selfie_url || null,
       }));
+
+      // Resolve signed URLs for selfie file paths (bucket is private)
+      const selfiePaths = mapped
+        .map(p => p.checkinSelfieUrl)
+        .filter((p): p is string => !!p && !p.startsWith('http'));
+      if (selfiePaths.length > 0) {
+        const signedUrls = await getSignedSelfieUrls(selfiePaths);
+        mapped.forEach(p => {
+          if (p.checkinSelfieUrl && signedUrls.has(p.checkinSelfieUrl)) {
+            p.checkinSelfieUrl = signedUrls.get(p.checkinSelfieUrl)!;
+          }
+        });
+      }
 
       setPeople(mapped);
     } catch (error) {
