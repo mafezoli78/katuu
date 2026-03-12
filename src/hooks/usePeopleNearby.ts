@@ -79,6 +79,19 @@ export function usePeopleNearby(placeId: string | null) {
         checkinSelfieUrl: row.checkin_selfie_url || null,
       }));
 
+      // Resolve signed URLs for selfie file paths (bucket is private)
+      const selfiePaths = mapped
+        .map(p => p.checkinSelfieUrl)
+        .filter((p): p is string => !!p && !p.startsWith('http'));
+      if (selfiePaths.length > 0) {
+        const signedUrls = await getSignedSelfieUrls(selfiePaths);
+        mapped.forEach(p => {
+          if (p.checkinSelfieUrl && signedUrls.has(p.checkinSelfieUrl)) {
+            p.checkinSelfieUrl = signedUrls.get(p.checkinSelfieUrl)!;
+          }
+        });
+      }
+
       setPeople(mapped);
     } catch (error) {
       console.error('[usePeopleNearby] Error:', error);

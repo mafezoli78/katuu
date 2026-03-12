@@ -97,9 +97,21 @@ export function useConversations() {
           presences?.map(p => [p.user_id, p.checkin_selfie_url])
         );
 
+        // Resolve signed URLs for private bucket selfie paths
+        const selfiePaths = (presences || [])
+          .map(p => p.checkin_selfie_url)
+          .filter((p): p is string => !!p && !p.startsWith('http'));
+        const signedUrls = selfiePaths.length > 0
+          ? await getSignedSelfieUrls(selfiePaths)
+          : new Map<string, string>();
+
         conversationsWithDetails.forEach(c => {
-          c.otherUser.checkin_selfie_url =
-            presenceMap.get(c.otherUser.id) || null;
+          const rawPath = presenceMap.get(c.otherUser.id) || null;
+          if (rawPath && signedUrls.has(rawPath)) {
+            c.otherUser.checkin_selfie_url = signedUrls.get(rawPath)!;
+          } else {
+            c.otherUser.checkin_selfie_url = rawPath;
+          }
         });
       }
 
