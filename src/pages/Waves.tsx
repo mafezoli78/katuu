@@ -223,6 +223,11 @@ export default function Waves() {
             >
               <Send className="h-4 w-4 mr-1.5" />
               Enviados
+              {sentWaves.length > 0 && (
+                <Badge variant="secondary" className="ml-1.5 bg-muted text-muted-foreground h-5 min-w-5 text-xs">
+                  {sentWaves.length}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 

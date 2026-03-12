@@ -327,6 +327,7 @@ export function useWaves() {
     sentWaves,
     receivedWaves,
     unreadCount,
+    pendingReceivedCount,
     loading,
     sendWave,
     acceptWave,

@@ -17,7 +17,7 @@ export function BottomNav() {
   const navItems = [
     { icon: Home, label: 'Home', path: '/home' },
     { icon: MessageCircle, label: 'Chat', path: '/chat', badge: conversations.length > 0 ? conversations.length : undefined },
-    { icon: HandshakeIcon, label: 'Acenos', path: '/waves', badge: unreadCount },
+    { icon: HandshakeIcon, label: 'Acenos', path: '/waves', badge: pendingReceivedCount > 0 ? pendingReceivedCount : undefined },
     { icon: User, label: 'Perfil', path: '/profile' },
   ];
 
