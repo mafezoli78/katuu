@@ -46,6 +46,7 @@ export function useWaves() {
   const [receivedWaves, setReceivedWaves] = useState<Wave[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingReceivedCount, setPendingReceivedCount] = useState(0);
 
   // Filter valid waves (pending and not expired by time or status)
   const filterValidWaves = useCallback((waves: Wave[]) => {
