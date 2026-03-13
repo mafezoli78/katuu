@@ -104,12 +104,6 @@ export default function Onboarding() {
       }
       if (!validateAge(dataNascimento)) return;
       setStep(2);
-    } else if (step === 2) {
-      if (selectedInterests.length < 3) {
-        toast({ variant: 'destructive', title: 'Selecione pelo menos 3 interesses' });
-        return;
-      }
-      setStep(3);
     }
   };
 
