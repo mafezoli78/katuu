@@ -145,6 +145,7 @@ export default function Onboarding() {
     }
   };
 
+  return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-primary p-6 flex items-center justify-center">
