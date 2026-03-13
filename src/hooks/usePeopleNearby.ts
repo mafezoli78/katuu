@@ -50,7 +50,6 @@ export function usePeopleNearby(placeId: string | null) {
 
     try {
       const { data, error } = await supabase.rpc('get_users_at_place_feed', {
-        p_user_id: user.id,
         p_place_id: placeId,
       });
 

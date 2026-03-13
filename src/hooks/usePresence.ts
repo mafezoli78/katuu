@@ -263,7 +263,7 @@ export function usePresence() {
           p_place_id: placeId,
           p_motivo: reason,
           p_force: true,
-        });
+        } as any);
         if (error) {
           console.error('[Presence] Error in cascade cleanup:', error);
         } else {
@@ -340,7 +340,6 @@ export function usePresence() {
     const promise = (async () => {
       try {
         const { data: newPresenceId, error } = await supabase.rpc('activate_presence', {
-          p_user_id: user.id,
           p_place_id: placeId,
           p_intention_id: intentionId,
           p_assunto_atual: assuntoAtual?.trim() || null,

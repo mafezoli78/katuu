@@ -42,7 +42,6 @@ export function useHomeActions({
 
     if (existingMute) {
       const { error } = await supabase.rpc('unmute_user', {
-        p_user_id: user.id,
         p_muted_user_id: targetUserId,
       });
       if (error) {
@@ -53,7 +52,6 @@ export function useHomeActions({
       }
     } else {
       const { error } = await supabase.rpc('mute_user', {
-        p_user_id: user.id,
         p_muted_user_id: targetUserId,
         p_place_id: placeId,
       });
@@ -79,7 +77,6 @@ export function useHomeActions({
 
     if (existingBlock) {
       const { error } = await supabase.rpc('unblock_user', {
-        p_user_id: user.id,
         p_blocked_user_id: targetUserId,
       });
       if (error) {

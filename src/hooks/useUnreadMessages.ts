@@ -27,7 +27,6 @@ export function useUnreadMessages(conversationIds: string[]) {
     }
 
     const { data, error } = await supabase.rpc('get_unread_counts', {
-      p_user_id: user.id,
       p_conversation_ids: conversationIds,
     });
 

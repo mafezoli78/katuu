@@ -190,7 +190,6 @@ export function useWaves() {
     try {
       const { data: conversationId, error: rpcError } = await supabase.rpc('accept_wave', {
         p_wave_id: waveId,
-        p_user_id: user.id,
       });
 
       if (rpcError) {

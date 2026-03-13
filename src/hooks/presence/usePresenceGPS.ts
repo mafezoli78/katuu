@@ -59,7 +59,6 @@ export function usePresenceGPS({
 
     try {
       const { data, error } = await supabase.rpc('confirm_presence', {
-        p_user_id: uid,
         p_place_id: place.id,
       });
 
@@ -91,7 +90,7 @@ export function usePresenceGPS({
         p_place_id: place.id,
         p_motivo: 'gps_exit',
         p_force: false,
-      });
+      } as any);
 
       if (error) {
         console.error('[GPS] Backend rejected GPS exit:', error);

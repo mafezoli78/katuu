@@ -29,7 +29,6 @@ export function usePendingAction() {
 
     try {
       const { data: presenceId, error } = await supabase.rpc('activate_presence', {
-        p_user_id: user.id,
         p_place_id: pending.placeId,
         p_intention_id: DEFAULT_INTENTION_ID,
         p_assunto_atual: pending.expressionText?.trim() || null,

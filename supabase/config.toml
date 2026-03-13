@@ -1,1 +1,7 @@
 project_id = "jhpxfvwhcxakzajioxiz"
+
+[functions.search-places]
+verify_jwt = false
+
+[functions.cleanup-expired-presences]
+verify_jwt = false
