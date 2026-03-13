@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PersonCard } from '@/components/home/PersonCard';
 import { RefreshCw, Users } from 'lucide-react';
+import { useState, useCallback } from 'react';
 import type { PersonNearby } from '@/hooks/usePeopleNearby';
 import type { NormalizedWave, NormalizedConversation, NormalizedMute, NormalizedBlock } from '@/hooks/useInteractionData';
 
@@ -38,6 +39,14 @@ export function PeopleList({
   onBlock,
   onRefresh,
 }: PeopleListProps) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    await onRefresh();
+    setTimeout(() => setIsRefreshing(false), 600);
+  }, [isRefreshing, onRefresh]);
   return (
     <>
       {/* Header */}
@@ -51,10 +60,11 @@ export function PeopleList({
         <Button
           variant="ghost"
           size="sm"
-          onClick={onRefresh}
+          onClick={handleRefresh}
+          disabled={isRefreshing}
           className="h-9 w-9 p-0 rounded-lg"
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className={`h-4 w-4 transition-transform ${isRefreshing ? 'animate-spin' : ''}`} />
         </Button>
       </div>
 
