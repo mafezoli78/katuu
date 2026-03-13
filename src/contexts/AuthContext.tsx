@@ -74,8 +74,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
+const signOut = async () => {
+    try {
+      const { data: presence } = await supabase
+        .from('presence')
+        .select('place_id')
+        .eq('user_id', user?.id)
+        .eq('ativo', true)
+        .maybeSingle();
+
+      if (presence?.place_id && user?.id) {
+        await supabase.rpc('end_presence_cascade', {
+          p_user_id: user.id,
+          p_place_id: presence.place_id,
+          p_motivo: 'manual',
+          p_force: true,
+        } as any);
+      }
+    } catch (err) {
+      console.error('[Auth] Error cleaning up presence on signOut:', err);
+    } finally {
+      await supabase.auth.signOut();
+    }
   };
 
   return (
