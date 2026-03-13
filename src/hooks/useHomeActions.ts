@@ -52,7 +52,6 @@ export function useHomeActions({
       }
     } else {
       const { error } = await supabase.rpc('mute_user', {
-        p_user_id: user.id,
         p_muted_user_id: targetUserId,
         p_place_id: placeId,
       });
