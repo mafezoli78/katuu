@@ -153,7 +153,7 @@ export default function Onboarding() {
 
       {/* Progress indicator */}
       <div className="flex justify-center gap-2 py-4">
-        {[1, 2, 3].map((s) => (
+        {[1, 2].map((s) => (
           <div
             key={s}
             className={`h-2 w-12 rounded-full transition-colors ${
