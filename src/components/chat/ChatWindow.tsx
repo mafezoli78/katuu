@@ -4,7 +4,6 @@ import { useMessages } from '@/hooks/useMessages';
 import { ConversationWithDetails } from '@/hooks/useConversations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowLeft, Send, Loader2, AlertCircle, MoreVertical, Flag } from 'lucide-react';
 import {
@@ -16,66 +15,67 @@ import {
 import { ReportModal } from '@/components/shared/ReportModal';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
 interface ChatWindowProps {
   conversation: ConversationWithDetails;
   onClose: () => void;
   onEndChat: () => void;
+  showNav?: boolean;
 }
+
 export function ChatWindow({
   conversation,
   onClose,
-  onEndChat
+  onEndChat,
+  showNav = true,
 }: ChatWindowProps) {
-  const {
-    user
-  } = useAuth();
-  const {
-    messages,
-    loading,
-    sending,
-    sendMessage
-  } = useMessages(conversation.id);
+  const { user } = useAuth();
+  const { messages, loading, sending, sendMessage } = useMessages(conversation.id);
   const [inputValue, setInputValue] = useState('');
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
   const handleSend = async () => {
     if (!inputValue.trim() || sending) return;
     const content = inputValue;
     setInputValue('');
-    const {
-      error
-    } = await sendMessage(content);
+    const { error } = await sendMessage(content);
     if (error) {
-      setInputValue(content); // Restore on error
+      setInputValue(content);
     }
   };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
+
   const handleEndChat = () => {
     if (showEndConfirm) {
       onEndChat();
     } else {
       setShowEndConfirm(true);
-      // Reset confirm after 3 seconds
       setTimeout(() => setShowEndConfirm(false), 3000);
     }
   };
-  // Foto do momento: apenas checkin_selfie_url
+
   const momentPhoto = conversation.otherUser.checkin_selfie_url;
 
-  return <div className="flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
-      {/* Header - always visible at top */}
+  // Desconta a altura do BottomNav (80px = pb-20) quando ele está visível
+  const heightStyle = showNav
+    ? { height: 'calc(100dvh - 80px)' }
+    : { height: '100dvh' };
+
+  return (
+    <div className="flex flex-col overflow-hidden" style={heightStyle}>
+      {/* Header */}
       <div className="flex-shrink-0 flex items-center justify-between p-4 border-b bg-card">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-9 w-9 -ml-2" onClick={onClose}>
@@ -89,17 +89,23 @@ export function ChatWindow({
           </Avatar>
           <div>
             <p className="font-medium">{conversation.otherUser.nome || 'Usuário'}</p>
-            <p className="text-xs text-muted-foreground">
-              {conversation.place.nome}
-            </p>
+            <p className="text-xs text-muted-foreground">{conversation.place.nome}</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant={showEndConfirm ? "destructive" : "ghost"} size="sm" onClick={handleEndChat}>
-            {showEndConfirm ? <>
+          <Button
+            variant={showEndConfirm ? 'destructive' : 'ghost'}
+            size="sm"
+            onClick={handleEndChat}
+          >
+            {showEndConfirm ? (
+              <>
                 <AlertCircle className="h-4 w-4 mr-1" />
                 Confirmar
-              </> : 'Encerrar'}
+              </>
+            ) : (
+              'Encerrar'
+            )}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -120,40 +126,61 @@ export function ChatWindow({
         </div>
       </div>
 
-      {/* Messages - only this area scrolls */}
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-4">
-        {loading ? <div className="flex items-center justify-center h-32">
+      {/* Messages */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-4">
+        {loading ? (
+          <div className="flex items-center justify-center h-32">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div> : messages.length === 0 ? <div className="flex flex-col items-center justify-center h-32 text-center">
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-32 text-center">
             <p className="text-muted-foreground">Nenhuma mensagem ainda</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Diga olá para iniciar a conversa! 👋
-            </p>
-          </div> : <div className="space-y-3">
-            {messages.map(message => {
-          const isOwn = message.sender_id === user?.id;
-          return <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${isOwn ? 'bg-primary/80 text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm'}`}>
-                    <p className="text-sm whitespace-pre-wrap break-words">
-                      {message.conteudo}
-                    </p>
-                    <p className={`text-xs mt-1 ${isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+            <p className="text-sm text-muted-foreground mt-1">Diga olá para iniciar a conversa! 👋</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {messages.map((message) => {
+              const isOwn = message.sender_id === user?.id;
+              return (
+                <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                      isOwn
+                        ? 'bg-primary/80 text-primary-foreground rounded-br-sm'
+                        : 'bg-muted rounded-bl-sm'
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-wrap break-words">{message.conteudo}</p>
+                    <p
+                      className={`text-xs mt-1 ${
+                        isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                      }`}
+                    >
                       {formatDistanceToNow(new Date(message.criado_em), {
-                  addSuffix: true,
-                  locale: ptBR
-                })}
+                        addSuffix: true,
+                        locale: ptBR,
+                      })}
                     </p>
                   </div>
-                </div>;
-        })}
+                </div>
+              );
+            })}
             <div ref={bottomRef} />
-          </div>}
+          </div>
+        )}
       </div>
 
-      {/* Input - fixed at bottom, above nav */}
+      {/* Input */}
       <div className="flex-shrink-0 p-4 border-t bg-card">
         <div className="flex items-center gap-2">
-          <Input value={inputValue} onChange={e => setInputValue(e.target.value)} onKeyPress={handleKeyPress} placeholder="Digite sua mensagem..." disabled={sending} className="flex-1" />
+          <Input
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Digite sua mensagem..."
+            disabled={sending}
+            className="flex-1"
+          />
           <Button size="icon" onClick={handleSend} disabled={!inputValue.trim() || sending}>
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
@@ -168,5 +195,6 @@ export function ChatWindow({
         contexto="chat"
         conversationId={conversation.id}
       />
-    </div>;
+    </div>
+  );
 }
