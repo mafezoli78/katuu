@@ -31,12 +31,11 @@ export function ChatWindow({
   const [inputValue, setInputValue] = useState('');
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
   const handleSend = async () => {
     if (!inputValue.trim() || sending) return;
@@ -67,7 +66,7 @@ export function ChatWindow({
   // Foto do momento: apenas checkin_selfie_url
   const momentPhoto = conversation.otherUser.checkin_selfie_url;
 
-  return <div className="flex flex-col h-full overflow-hidden">
+  return <div className="flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
       {/* Header - always visible at top */}
       <div className="flex-shrink-0 flex items-center justify-between p-4 border-b bg-card">
         <div className="flex items-center gap-3">
@@ -108,7 +107,7 @@ export function ChatWindow({
             {messages.map(message => {
           const isOwn = message.sender_id === user?.id;
           return <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${isOwn ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm'}`}>
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${isOwn ? 'bg-primary/80 text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm'}`}>
                     <p className="text-sm whitespace-pre-wrap break-words">
                       {message.conteudo}
                     </p>
@@ -121,6 +120,7 @@ export function ChatWindow({
                   </div>
                 </div>;
         })}
+            <div ref={bottomRef} />
           </div>}
       </div>
 
