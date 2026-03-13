@@ -42,7 +42,6 @@ export function useHomeActions({
 
     if (existingMute) {
       const { error } = await supabase.rpc('unmute_user', {
-        p_user_id: user.id,
         p_muted_user_id: targetUserId,
       });
       if (error) {
