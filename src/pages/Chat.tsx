@@ -11,6 +11,7 @@ import { ConversationsList } from '@/components/chat/ConversationsList';
 import { toast } from '@/components/ui/use-toast';
 import { MessageCircle, MessageSquare } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { BottomNav } from '@/components/layout/BottomNav';
 
 export default function Chat() {
   const { user } = useAuth();
@@ -18,10 +19,9 @@ export default function Chat() {
   const [searchParams, setSearchParams] = useSearchParams();
   const isKeyboardVisible = useKeyboardVisible();
   const conversationIdParam = searchParams.get('conversationId');
-  
-  // Get presence state to pass to useChat
+
   const { presenceState, currentPresence } = usePresence();
-  
+
   const {
     chatState,
     activeConversations,
@@ -31,8 +31,7 @@ export default function Chat() {
     clearEndedReason,
   } = useChat({ presenceState, currentPresence });
 
-  // Unread message tracking
-  const conversationIds = activeConversations.map(c => c.id);
+  const conversationIds = activeConversations.map((c) => c.id);
   const { unreadCounts, markAsRead } = useUnreadMessages(conversationIds);
 
   useEffect(() => {
@@ -41,37 +40,39 @@ export default function Chat() {
     }
   }, [user, navigate]);
 
-  // Auto-open conversation from query param
   useEffect(() => {
     if (!conversationIdParam || chatState.isActive) return;
-    
+
     const targetConversation = activeConversations.find(
-      c => c.id === conversationIdParam
+      (c) => c.id === conversationIdParam
     );
-    
+
     if (targetConversation) {
       markAsRead(targetConversation.id);
       openChat(targetConversation);
-      // Clear query param to prevent re-triggering
       setSearchParams({}, { replace: true });
     }
   }, [conversationIdParam, activeConversations, chatState.isActive, openChat, setSearchParams, markAsRead]);
 
-  // R3: Show toast when chat ends - transition guard prevents duplicates
   const previousEndedRef = useRef<string | null>(null);
-  
+
   useEffect(() => {
     const currentReason = chatState.endedReason;
-    
-    if (previousEndedRef.current === null && currentReason && currentReason !== 'system_suspended' && chatState.wasEndedByMe) {
+
+    if (
+      previousEndedRef.current === null &&
+      currentReason &&
+      currentReason !== 'system_suspended' &&
+      chatState.wasEndedByMe
+    ) {
       toast({
         title: 'Conversa encerrada por você',
         description: 'As mensagens foram apagadas',
       });
     }
-    
+
     previousEndedRef.current = currentReason;
-    
+
     if (currentReason === null) {
       previousEndedRef.current = null;
     }
@@ -93,21 +94,30 @@ export default function Chat() {
     openChat(conversation);
   };
 
-  // Show chat within MobileLayout when active
-if (chatState.isActive && chatState.conversation) {
-  return (
-    <ChatWindow
-      conversation={chatState.conversation}
-      onClose={closeChat}
-      onEndChat={handleEndChat}
-    />
-  );
-}
+  // Chat ativo: renderiza fora do MobileLayout, mas com BottomNav visível
+  // exceto quando o teclado está aberto
+  if (chatState.isActive && chatState.conversation) {
+    const showNav = !isKeyboardVisible;
+    return (
+      <>
+        <ChatWindow
+          conversation={chatState.conversation}
+          onClose={closeChat}
+          onEndChat={handleEndChat}
+          showNav={showNav}
+        />
+        {showNav && (
+          <div className="fixed bottom-0 left-0 right-0 z-50">
+            <BottomNav />
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <MobileLayout>
       <div className="p-4 page-fade">
-        {/* Header */}
         <div className="flex items-center gap-2 mb-4">
           <MessageCircle className="h-5 w-5 text-katu-blue" />
           <h1 className="text-xl font-bold">Conversas</h1>
