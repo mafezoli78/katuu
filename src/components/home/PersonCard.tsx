@@ -10,6 +10,14 @@ import { NormalizedWave, NormalizedConversation, NormalizedMute, NormalizedBlock
 import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
 import { SwipeActions } from '@/components/home/SwipeActions';
 import { calculateAge } from '@/utils/date';
+import { MoreVertical, Flag } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ReportModal } from '@/components/shared/ReportModal';
 
 const BUTTON_WIDTH = 140;
 const DIRECTION_THRESHOLD = 15;
@@ -47,6 +55,7 @@ export function PersonCard({
   const navigate = useNavigate();
   const { user } = useAuth();
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Calcular estado de interação diretamente via interactionRules (canônico)
   const { state, button, isVisible } = useMemo(() => {
@@ -274,9 +283,30 @@ export function PersonCard({
               {/* CONTEÚDO */}
               <div className="flex-1 flex flex-col justify-between p-4">
                 <div>
-                  <div className="font-semibold text-base">
-                    {person.profile.nome?.split(' ')[0] || person.profile.nome}
-                    {age !== null && <span className="text-muted-foreground font-normal">, {age}</span>}
+                  <div className="flex items-start justify-between">
+                    <div className="font-semibold text-base">
+                      {person.profile.nome?.split(' ')[0] || person.profile.nome}
+                      {age !== null && <span className="text-muted-foreground font-normal">, {age}</span>}
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 -mt-1 -mr-2">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowReportModal(true);
+                          }}
+                        >
+                          <Flag className="h-4 w-4 mr-2" />
+                          Denunciar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
                   {person.assuntoAtual ? (
@@ -312,6 +342,14 @@ export function PersonCard({
           )}
         </DialogContent>
       </Dialog>
+
+      <ReportModal
+        open={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        reportedUserId={person.id}
+        reportedUserName={person.profile.nome?.split(' ')[0] || 'Usuário'}
+        contexto="home"
+      />
     </div>
   );
 }

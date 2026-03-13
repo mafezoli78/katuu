@@ -6,7 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Send, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, AlertCircle, MoreVertical, Flag } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ReportModal } from '@/components/shared/ReportModal';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 interface ChatWindowProps {
@@ -30,6 +37,7 @@ export function ChatWindow({
   } = useMessages(conversation.id);
   const [inputValue, setInputValue] = useState('');
   const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -86,12 +94,30 @@ export function ChatWindow({
             </p>
           </div>
         </div>
-        <Button variant={showEndConfirm ? "destructive" : "ghost"} size="sm" onClick={handleEndChat}>
-          {showEndConfirm ? <>
-              <AlertCircle className="h-4 w-4 mr-1" />
-              Confirmar
-            </> : 'Encerrar'}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant={showEndConfirm ? "destructive" : "ghost"} size="sm" onClick={handleEndChat}>
+            {showEndConfirm ? <>
+                <AlertCircle className="h-4 w-4 mr-1" />
+                Confirmar
+              </> : 'Encerrar'}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setShowReportModal(true)}
+              >
+                <Flag className="h-4 w-4 mr-2" />
+                Denunciar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Messages - only this area scrolls */}
@@ -133,5 +159,14 @@ export function ChatWindow({
           </Button>
         </div>
       </div>
+
+      <ReportModal
+        open={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        reportedUserId={conversation.otherUser.id}
+        reportedUserName={conversation.otherUser.nome || 'Usuário'}
+        contexto="chat"
+        conversationId={conversation.id}
+      />
     </div>;
 }

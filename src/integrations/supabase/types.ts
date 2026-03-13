@@ -498,6 +498,44 @@ export type Database = {
         }
         Relationships: []
       }
+      reports: {
+        Row: {
+          contexto: string | null
+          conversation_id: string | null
+          criado_em: string
+          id: string
+          motivo: string
+          reported_user_id: string
+          reporter_id: string
+        }
+        Insert: {
+          contexto?: string | null
+          conversation_id?: string | null
+          criado_em?: string
+          id?: string
+          motivo: string
+          reported_user_id: string
+          reporter_id: string
+        }
+        Update: {
+          contexto?: string | null
+          conversation_id?: string | null
+          criado_em?: string
+          id?: string
+          motivo?: string
+          reported_user_id?: string
+          reporter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_blocks: {
         Row: {
           blocked_user_id: string
