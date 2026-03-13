@@ -685,31 +685,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_wave: {
-        Args: { p_user_id: string; p_wave_id: string }
-        Returns: string
-      }
+      accept_wave: { Args: { p_wave_id: string }; Returns: string }
       activate_presence: {
         Args: {
           p_assunto_atual?: string
           p_intention_id: string
           p_place_id: string
-          p_user_id: string
         }
         Returns: string
       }
       block_user: { Args: { p_blocked_user_id: string }; Returns: undefined }
-      can_auto_end_presence: {
-        Args: { p_place_id: string; p_user_id: string }
-        Returns: boolean
-      }
+      can_auto_end_presence: { Args: { p_place_id: string }; Returns: boolean }
       check_email_exists: { Args: { p_email: string }; Returns: boolean }
       cleanup_expired_presences: { Args: never; Returns: number }
       close_conversations_without_presence: { Args: never; Returns: undefined }
-      confirm_presence: {
-        Args: { p_place_id: string; p_user_id: string }
-        Returns: boolean
-      }
+      confirm_presence: { Args: { p_place_id: string }; Returns: boolean }
       end_conversation: {
         Args: { p_conversation_id: string; p_motivo?: string }
         Returns: undefined
@@ -746,7 +736,7 @@ export type Database = {
         Returns: string
       }
       get_unread_counts: {
-        Args: { p_conversation_ids: string[]; p_user_id: string }
+        Args: { p_conversation_ids: string[] }
         Returns: {
           conversation_id: string
           unread_count: number
@@ -755,7 +745,7 @@ export type Database = {
       get_user_active_location_id: { Args: never; Returns: string }
       get_user_active_place_id: { Args: never; Returns: string }
       get_users_at_place_feed: {
-        Args: { p_place_id: string; p_user_id: string }
+        Args: { p_place_id: string }
         Returns: {
           assunto_atual: string
           bio: string
@@ -790,25 +780,15 @@ export type Database = {
         Returns: undefined
       }
       mute_user: {
-        Args: {
-          p_muted_user_id: string
-          p_place_id?: string
-          p_user_id: string
-        }
+        Args: { p_muted_user_id: string; p_place_id?: string }
         Returns: undefined
       }
       send_wave: {
         Args: { p_place_id: string; p_to_user_id: string }
         Returns: string
       }
-      unblock_user: {
-        Args: { p_blocked_user_id: string; p_user_id: string }
-        Returns: undefined
-      }
-      unmute_user: {
-        Args: { p_muted_user_id: string; p_user_id: string }
-        Returns: undefined
-      }
+      unblock_user: { Args: { p_blocked_user_id: string }; Returns: undefined }
+      unmute_user: { Args: { p_muted_user_id: string }; Returns: undefined }
     }
     Enums: {
       gender_type:
