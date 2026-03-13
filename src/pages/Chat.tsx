@@ -94,17 +94,15 @@ export default function Chat() {
   };
 
   // Show chat within MobileLayout when active
-  if (chatState.isActive && chatState.conversation) {
-    return (
-      <MobileLayout showHeader={false} showNav={!isKeyboardVisible} fixedHeight>
-        <ChatWindow
-          conversation={chatState.conversation}
-          onClose={closeChat}
-          onEndChat={handleEndChat}
-        />
-      </MobileLayout>
-    );
-  }
+if (chatState.isActive && chatState.conversation) {
+  return (
+    <ChatWindow
+      conversation={chatState.conversation}
+      onClose={closeChat}
+      onEndChat={handleEndChat}
+    />
+  );
+}
 
   return (
     <MobileLayout>
