@@ -159,5 +159,14 @@ export function ChatWindow({
           </Button>
         </div>
       </div>
+
+      <ReportModal
+        open={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        reportedUserId={conversation.otherUser.id}
+        reportedUserName={conversation.otherUser.nome || 'Usuário'}
+        contexto="chat"
+        conversationId={conversation.id}
+      />
     </div>;
 }

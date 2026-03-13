@@ -342,6 +342,14 @@ export function PersonCard({
           )}
         </DialogContent>
       </Dialog>
+
+      <ReportModal
+        open={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        reportedUserId={person.id}
+        reportedUserName={person.profile.nome?.split(' ')[0] || 'Usuário'}
+        contexto="home"
+      />
     </div>
   );
 }
