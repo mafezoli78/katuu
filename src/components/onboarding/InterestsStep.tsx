@@ -11,7 +11,6 @@ interface InterestsStepProps {
   onBack: () => void;
 }
 
-const NONE_ID = '__none__';
 
 export function InterestsStep({ selectedInterests, onToggleInterest, onNext, onBack }: InterestsStepProps) {
   const { categories, loading } = useInterestCategories();
@@ -33,9 +32,7 @@ export function InterestsStep({ selectedInterests, onToggleInterest, onNext, onB
     previousInCategory.forEach(id => onToggleInterest(id));
 
     // If not "none", select the new tag
-    if (interestId !== NONE_ID) {
-      onToggleInterest(interestId);
-    }
+    onToggleInterest(interestId);
 
     // Advance after brief delay for visual feedback
     setTimeout(() => {
@@ -84,7 +81,13 @@ export function InterestsStep({ selectedInterests, onToggleInterest, onNext, onB
         {/* Category title */}
         <div>
           <h2 className="text-lg font-semibold text-foreground">{currentCategory.name}</h2>
-          <p className="text-sm text-muted-foreground">Escolha o que mais combina com você</p>
+{categoryIndex === 0 ? (
+  <p className="text-sm text-muted-foreground">
+    Suas escolhas ajudam a encontrar pessoas com interesses parecidos — ninguém verá essas informações no seu perfil.
+  </p>
+) : (
+  <p className="text-sm text-muted-foreground">Escolha o que mais combina com você</p>
+)}
         </div>
 
         {/* Tags */}
@@ -105,16 +108,6 @@ export function InterestsStep({ selectedInterests, onToggleInterest, onNext, onB
               </button>
             );
           })}
-          <button
-            onClick={() => handleSelectTag(NONE_ID)}
-            className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-              selectedInCurrent.length === 0
-                ? 'bg-accent text-accent-foreground'
-                : 'bg-muted text-foreground hover:bg-muted/80'
-            }`}
-          >
-            Nenhuma delas
-          </button>
         </div>
 
         {/* Back button */}
