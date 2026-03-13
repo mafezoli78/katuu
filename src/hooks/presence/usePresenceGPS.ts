@@ -59,7 +59,6 @@ export function usePresenceGPS({
 
     try {
       const { data, error } = await supabase.rpc('confirm_presence', {
-        p_user_id: uid,
         p_place_id: place.id,
       });
 
