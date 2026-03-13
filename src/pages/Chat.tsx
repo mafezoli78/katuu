@@ -11,7 +11,6 @@ import { ConversationsList } from '@/components/chat/ConversationsList';
 import { toast } from '@/components/ui/use-toast';
 import { MessageCircle, MessageSquare } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { BottomNav } from '@/components/layout/BottomNav';
 
 export default function Chat() {
   const { user } = useAuth();
@@ -35,18 +34,12 @@ export default function Chat() {
   const { unreadCounts, markAsRead } = useUnreadMessages(conversationIds);
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth', { replace: true });
-    }
+    if (!user) navigate('/auth', { replace: true });
   }, [user, navigate]);
 
   useEffect(() => {
     if (!conversationIdParam || chatState.isActive) return;
-
-    const targetConversation = activeConversations.find(
-      (c) => c.id === conversationIdParam
-    );
-
+    const targetConversation = activeConversations.find((c) => c.id === conversationIdParam);
     if (targetConversation) {
       markAsRead(targetConversation.id);
       openChat(targetConversation);
@@ -58,7 +51,6 @@ export default function Chat() {
 
   useEffect(() => {
     const currentReason = chatState.endedReason;
-
     if (
       previousEndedRef.current === null &&
       currentReason &&
@@ -70,12 +62,8 @@ export default function Chat() {
         description: 'As mensagens foram apagadas',
       });
     }
-
     previousEndedRef.current = currentReason;
-
-    if (currentReason === null) {
-      previousEndedRef.current = null;
-    }
+    if (currentReason === null) previousEndedRef.current = null;
   }, [chatState.endedReason, chatState.wasEndedByMe]);
 
   const handleEndChat = async () => {
@@ -94,24 +82,17 @@ export default function Chat() {
     openChat(conversation);
   };
 
-  // Chat ativo: renderiza fora do MobileLayout, mas com BottomNav visível
-  // exceto quando o teclado está aberto
+  // Chat ativo: sem header do app, nav visível (some com teclado)
+  // ChatWindow usa position:fixed para header, messages e input — independente do layout
   if (chatState.isActive && chatState.conversation) {
-    const showNav = !isKeyboardVisible;
     return (
-      <>
+      <MobileLayout showHeader={false} showNav={!isKeyboardVisible}>
         <ChatWindow
           conversation={chatState.conversation}
           onClose={closeChat}
           onEndChat={handleEndChat}
-          showNav={showNav}
         />
-        {showNav && (
-          <div className="fixed bottom-0 left-0 right-0 z-50">
-            <BottomNav />
-          </div>
-        )}
-      </>
+      </MobileLayout>
     );
   }
 
