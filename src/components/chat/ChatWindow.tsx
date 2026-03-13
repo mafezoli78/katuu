@@ -70,8 +70,8 @@ export function ChatWindow({
 
   // Desconta a altura do BottomNav (80px = pb-20) quando ele está visível
   const heightStyle = showNav
-    ? { height: 'calc(100dvh - 80px)' }
-    : { height: '100dvh' };
+  ? { height: 'calc(100dvh - 4rem - env(safe-area-inset-bottom, 0px))' }
+  : { height: '100dvh' };
 
   return (
     <div className="flex flex-col overflow-hidden" style={heightStyle}>
