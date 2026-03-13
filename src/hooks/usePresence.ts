@@ -339,11 +339,27 @@ export function usePresence() {
 
     const promise = (async () => {
       try {
-        const { data: newPresenceId, error } = await supabase.rpc('activate_presence', {
-          p_place_id: placeId,
-          p_intention_id: intentionId,
-          p_assunto_atual: assuntoAtual?.trim() || null,
-        });
+        const callActivateRPC = async (attempt = 1): Promise<{ data: any; error: any }> => {
+          const result = await supabase.rpc('activate_presence', {
+            p_place_id: placeId,
+            p_intention_id: intentionId,
+            p_assunto_atual: assuntoAtual?.trim() || null,
+          });
+
+          // Schema cache error — retry up to 3 times with increasing delay
+          const isSchemaCacheError = result.error?.message?.includes('schema cache') ||
+            result.error?.message?.includes('Could not find the function');
+
+          if (isSchemaCacheError && attempt < 3) {
+            logger.debug(`[Presence] Schema cache miss — retrying (attempt ${attempt + 1}/3)...`);
+            await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+            return callActivateRPC(attempt + 1);
+          }
+
+          return result;
+        };
+
+        const { data: newPresenceId, error } = await callActivateRPC();
 
         if (error) {
           console.error('[Presence] ❌ Error in activate_presence RPC:', error);
