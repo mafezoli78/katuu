@@ -94,12 +94,30 @@ export function ChatWindow({
             </p>
           </div>
         </div>
-        <Button variant={showEndConfirm ? "destructive" : "ghost"} size="sm" onClick={handleEndChat}>
-          {showEndConfirm ? <>
-              <AlertCircle className="h-4 w-4 mr-1" />
-              Confirmar
-            </> : 'Encerrar'}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant={showEndConfirm ? "destructive" : "ghost"} size="sm" onClick={handleEndChat}>
+            {showEndConfirm ? <>
+                <AlertCircle className="h-4 w-4 mr-1" />
+                Confirmar
+              </> : 'Encerrar'}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setShowReportModal(true)}
+              >
+                <Flag className="h-4 w-4 mr-2" />
+                Denunciar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Messages - only this area scrolls */}
