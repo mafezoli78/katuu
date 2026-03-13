@@ -55,6 +55,7 @@ export function PersonCard({
   const navigate = useNavigate();
   const { user } = useAuth();
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Calcular estado de interação diretamente via interactionRules (canônico)
   const { state, button, isVisible } = useMemo(() => {
