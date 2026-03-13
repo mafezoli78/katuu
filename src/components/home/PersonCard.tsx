@@ -10,6 +10,14 @@ import { NormalizedWave, NormalizedConversation, NormalizedMute, NormalizedBlock
 import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
 import { SwipeActions } from '@/components/home/SwipeActions';
 import { calculateAge } from '@/utils/date';
+import { MoreVertical, Flag } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ReportModal } from '@/components/shared/ReportModal';
 
 const BUTTON_WIDTH = 140;
 const DIRECTION_THRESHOLD = 15;
