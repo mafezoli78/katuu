@@ -67,15 +67,10 @@ export const placesService = {
     }
     currentSearchController = new AbortController();
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const { data, error } = await supabase.functions.invoke('search-places', {
-        body: { latitude, longitude, radius, limit, query },
-        headers: session?.access_token
-          ? { Authorization: `Bearer ${session.access_token}` }
-          : undefined,
-      });
+try {
+  const { data, error } = await supabase.functions.invoke('search-places', {
+    body: { latitude, longitude, radius, limit, query },
+  });
 
       if (error) {
         console.error('Error searching places:', error);
@@ -116,9 +111,6 @@ const { data, error } = await supabase.functions.invoke('search-places', {
     limit,
     query 
   },
-  headers: session?.access_token
-    ? { Authorization: `Bearer ${session.access_token}` }
-    : undefined,
 });
 
     if (error) {
