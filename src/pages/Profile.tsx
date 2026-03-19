@@ -450,8 +450,8 @@ export default function Profile() {
               </Button>
 
               {/* Notificações — só aparece se o dispositivo suporta */}
-              {permission !== 'denied' && (
-            <Button ...>
+              {supported && permission !== 'denied' && (
+                <Button
                   variant="outline"
                   onClick={handlePushToggle}
                   disabled={pushLoading}
@@ -473,7 +473,7 @@ export default function Profile() {
               )}
 
               {/* Mensagem se notificações foram bloqueadas pelo usuário */}
-             {permission === 'denied' && (
+              {supported && permission === 'denied' && (
                 <p className="text-xs text-muted-foreground px-1">
                   🔕 Notificações bloqueadas. Para ativar, acesse as configurações do navegador.
                 </p>
