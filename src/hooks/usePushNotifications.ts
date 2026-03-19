@@ -19,29 +19,41 @@ export function usePushNotifications() {
   const [supported, setSupported] = useState(false);
 
   useEffect(() => {
-    const isSupported =
-      'serviceWorker' in navigator &&
-      'PushManager' in window &&
-      'Notification' in window;
-    setSupported(isSupported);
-    if (isSupported) {
-      setPermission(Notification.permission);
-    }
+    // Verifica suporte após montagem — garante que o SW já foi registrado
+    const checkSupport = async () => {
+      const isSupported =
+        'serviceWorker' in navigator &&
+        'PushManager' in window &&
+        'Notification' in window;
+
+      if (!isSupported) {
+        setSupported(false);
+        return;
+      }
+
+      // Aguarda o SW estar pronto antes de confirmar suporte
+      try {
+        await navigator.serviceWorker.ready;
+        setSupported(true);
+        setPermission(Notification.permission);
+      } catch {
+        setSupported(false);
+      }
+    };
+
+    checkSupport();
   }, []);
 
   const subscribe = async (): Promise<boolean> => {
     if (!supported || !user) return false;
 
     try {
-      // Pede permissão ao usuário
       const result = await Notification.requestPermission();
       setPermission(result);
       if (result !== 'granted') return false;
 
-      // Registra o service worker
       const registration = await navigator.serviceWorker.ready;
 
-      // Cria a subscription no navegador
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
@@ -50,7 +62,6 @@ export function usePushNotifications() {
       const sub = subscription.toJSON();
       if (!sub.keys) return false;
 
-      // Salva no Supabase
       const { error } = await (supabase
         .from('push_subscriptions' as any)
         .upsert({
