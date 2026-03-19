@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { useInterestCategories } from '@/hooks/useInterestCategories';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import type { Gender } from '@/types/gender';
 import { GENDER_OPTIONS } from '@/types/gender';
 import { MobileLayout } from '@/components/layout/MobileLayout';
@@ -21,7 +22,7 @@ import { PasswordChangeDialog } from '@/components/profile/PasswordChangeDialog'
 import { DateOfBirthPicker } from '@/components/profile/DateOfBirthPicker';
 import { 
   Camera, LogOut, Check, User, Heart, Pencil, X, 
-  Mail, Lock, AlertCircle, RotateCcw
+  Mail, Lock, AlertCircle, RotateCcw, Bell, BellOff
 } from 'lucide-react';
 
 const MIN_BIO_LENGTH = 40;
@@ -33,6 +34,7 @@ export default function Profile() {
   const { user, signOut } = useAuth();
   const { profile, interests, updateProfile, updateInterests, uploadAvatar, calculateAge, refetch } = useProfile();
   const { categories } = useInterestCategories();
+  const { permission, supported, subscribe, unsubscribe } = usePushNotifications();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -43,19 +45,15 @@ export default function Profile() {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [gender, setGender] = useState<Gender | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
 
-  // Image cropper state
   const [cropperOpen, setCropperOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
-
-  // Dialogs state
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth', { replace: true });
-    }
+    if (!user) navigate('/auth', { replace: true });
   }, [user, navigate]);
 
   useEffect(() => {
@@ -150,7 +148,6 @@ export default function Profile() {
 
   const handleSave = async () => {
     if (!validateForm()) return;
-
     setLoading(true);
     try {
       await updateProfile({ 
@@ -172,6 +169,29 @@ export default function Profile() {
   const handleLogout = async () => {
     await signOut();
     navigate('/auth', { replace: true });
+  };
+
+  const handlePushToggle = async () => {
+    setPushLoading(true);
+    try {
+      if (permission === 'granted') {
+        await unsubscribe();
+        toast({ title: 'Notificações desativadas' });
+      } else {
+        const success = await subscribe();
+        if (success) {
+          toast({ title: 'Notificações ativadas! 🔔' });
+        } else if (permission === 'denied') {
+          toast({
+            variant: 'destructive',
+            title: 'Notificações bloqueadas',
+            description: 'Habilite nas configurações do navegador.',
+          });
+        }
+      }
+    } finally {
+      setPushLoading(false);
+    }
   };
 
   const age = profile?.data_nascimento ? calculateAge(profile.data_nascimento) : null;
@@ -239,7 +259,6 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* Photo required warning */}
             {!profile?.foto_url && editing && (
               <div className="flex items-center gap-2 text-destructive text-sm mb-4 justify-center">
                 <AlertCircle className="h-4 w-4" />
@@ -249,7 +268,6 @@ export default function Profile() {
 
             {editing ? (
               <div className="space-y-4">
-                {/* Name */}
                 <div>
                   <Label className="text-sm font-medium">Nome *</Label>
                   <Input 
@@ -260,8 +278,6 @@ export default function Profile() {
                     placeholder="Seu nome"
                   />
                 </div>
-
-                {/* Birth date */}
                 <div>
                   <Label className="text-sm font-medium">Data de nascimento *</Label>
                   <div className="mt-1.5">
@@ -276,8 +292,6 @@ export default function Profile() {
                     </p>
                   )}
                 </div>
-
-                {/* Bio */}
                 <div>
                   <Label className="text-sm font-medium">Bio *</Label>
                   <Textarea 
@@ -292,8 +306,6 @@ export default function Profile() {
                     {bioStatus.message}
                   </p>
                 </div>
-
-                {/* Gender */}
                 <div>
                   <Label className="text-sm font-medium">Gênero</Label>
                   <Select value={gender ?? ''} onValueChange={(v) => setGender(v as Gender)}>
@@ -436,6 +448,36 @@ export default function Profile() {
                 <RotateCcw className="h-4 w-4 mr-2" />
                 Mostrar tutorial novamente
               </Button>
+
+              {/* Notificações — só aparece se o dispositivo suporta */}
+              {supported && permission !== 'denied' && (
+                <Button
+                  variant="outline"
+                  onClick={handlePushToggle}
+                  disabled={pushLoading}
+                  className="w-full justify-start h-11 rounded-xl"
+                >
+                  {permission === 'granted' ? (
+                    <>
+                      <BellOff className="h-4 w-4 mr-2" />
+                      Desativar notificações
+                      <span className="ml-auto text-xs text-katu-green">Ativas</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bell className="h-4 w-4 mr-2" />
+                      Ativar notificações
+                    </>
+                  )}
+                </Button>
+              )}
+
+              {/* Mensagem se notificações foram bloqueadas pelo usuário */}
+              {supported && permission === 'denied' && (
+                <p className="text-xs text-muted-foreground px-1">
+                  🔕 Notificações bloqueadas. Para ativar, acesse as configurações do navegador.
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
@@ -482,7 +524,6 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Image Cropper Dialog */}
       {imageToCrop && (
         <ImageCropper
           open={cropperOpen}
@@ -495,14 +536,12 @@ export default function Profile() {
         />
       )}
 
-      {/* Email Change Dialog */}
       <EmailChangeDialog
         open={emailDialogOpen}
         onClose={() => setEmailDialogOpen(false)}
         currentEmail={user?.email || ''}
       />
 
-      {/* Password Change Dialog */}
       <PasswordChangeDialog
         open={passwordDialogOpen}
         onClose={() => setPasswordDialogOpen(false)}
