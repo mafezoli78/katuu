@@ -22,17 +22,20 @@ export function useReport() {
     motivo,
     contexto,
     conversationId,
+    onChatEnd,
   }: {
     reportedUserId: string;
     motivo: string;
     contexto: 'chat' | 'home';
     conversationId?: string;
+    onChatEnd?: () => void;
   }) => {
     if (!user) return { error: new Error('Not authenticated') };
 
     setLoading(true);
     try {
-      const { error } = await supabase
+      // 1. Salva a denúncia
+      const { error: reportError } = await supabase
         .from('reports')
         .insert({
           reporter_id: user.id,
@@ -42,11 +45,25 @@ export function useReport() {
           conversation_id: conversationId || null,
         });
 
-      if (error) throw error;
+      if (reportError) throw reportError;
+
+      // 2. Bloqueia o usuário automaticamente
+      await supabase.rpc('block_user', {
+        p_blocked_user_id: reportedUserId,
+      });
+
+      // 3. Se veio do chat, encerra a conversa
+      if (contexto === 'chat' && conversationId) {
+        await supabase.rpc('end_conversation', {
+          p_conversation_id: conversationId,
+          p_motivo: 'report',
+        });
+        onChatEnd?.();
+      }
 
       toast({
         title: 'Denúncia enviada',
-        description: 'Agradecemos pelo aviso. Vamos analisar em breve.',
+        description: 'Usuário bloqueado e denúncia registrada.',
       });
 
       return { error: null };
