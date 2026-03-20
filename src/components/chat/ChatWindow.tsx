@@ -32,7 +32,7 @@ export function ChatWindow({ conversation, onClose, onEndChat }: ChatWindowProps
   const { messages, loading, sending, sendMessage } = useMessages(conversation.id);
   const [inputValue, setInputValue] = useState('');
   const [showEndConfirm, setShowEndConfirm] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
+  const [show, setShow] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -111,7 +111,7 @@ export function ChatWindow({ conversation, onClose, onEndChat }: ChatWindowProps
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
-                onClick={() => setShowReportModal(true)}
+                onClick={() => setShow(true)}
               >
                 <Flag className="h-4 w-4 mr-2" />
                 Denunciar
@@ -191,13 +191,14 @@ export function ChatWindow({ conversation, onClose, onEndChat }: ChatWindowProps
       </div>
 
       <ReportModal
-        open={showReportModal}
-        onClose={() => setShowReportModal(false)}
-        reportedUserId={conversation.otherUser.id}
-        reportedUserName={conversation.otherUser.nome || 'Usuário'}
-        contexto="chat"
-        conversationId={conversation.id}
-      />
+  open={showReportModal}
+  onClose={() => setShowReportModal(false)}
+  reportedUserId={conversation.otherUser.id}
+  reportedUserName={conversation.otherUser.nome || 'Usuário'}
+  contexto="chat"
+  conversationId={conversation.id}
+  onChatEnd={onEndChat}
+/>
     </>
   );
 }
