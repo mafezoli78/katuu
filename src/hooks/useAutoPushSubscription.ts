@@ -1,6 +1,5 @@
 // src/hooks/useAutoPushSubscription.ts
-// Solicita permissão de notificação automaticamente após login
-// Deve ser chamado uma vez no App.tsx ou num componente raiz
+// Solicita permissão e registra subscription a cada login
 
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,31 +16,17 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 async function subscribeUser(userId: string) {
   try {
-    // Verifica suporte
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
 
-    // Aguarda SW estar pronto
     const registration = await navigator.serviceWorker.ready;
 
-    // Verifica se já tem subscription ativa
-    const existing = await registration.pushManager.getSubscription();
-    if (existing) {
-      // Garante que está salva no banco
-      const sub = existing.toJSON();
-      if (sub.keys) {
-        await (supabase.from('push_subscriptions' as any).upsert({
-          user_id: userId,
-          endpoint: sub.endpoint,
-          p256dh: sub.keys.p256dh,
-          auth: sub.keys.auth,
-        } as any, { onConflict: 'endpoint' }));
-      }
-      return;
-    }
-
-    // Pede permissão ao usuário
+    // Pede permissão — se já foi concedida, retorna 'granted' sem mostrar diálogo
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return;
+
+    // Remove subscription antiga se existir (garante chave VAPID atualizada)
+    const existing = await registration.pushManager.getSubscription();
+    if (existing) await existing.unsubscribe();
 
     // Cria nova subscription
     const subscription = await registration.pushManager.subscribe({
@@ -52,6 +37,7 @@ async function subscribeUser(userId: string) {
     const sub = subscription.toJSON();
     if (!sub.keys) return;
 
+    // Salva no banco vinculada ao usuário atual
     await (supabase.from('push_subscriptions' as any).upsert({
       user_id: userId,
       endpoint: sub.endpoint,
@@ -70,7 +56,6 @@ export function useAutoPushSubscription() {
   useEffect(() => {
     if (!user?.id) return;
 
-    // Pequeno delay para garantir que o SW está registrado
     const timer = setTimeout(() => {
       subscribeUser(user.id);
     }, 2000);
