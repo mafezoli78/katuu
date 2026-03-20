@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useTutorial } from "@/hooks/useTutorial";
 import { TutorialFlow } from "@/components/tutorial/TutorialFlow";
+import { useAutoPushSubscription } from "@/hooks/useAutoPushSubscription";
 
 // Lazy-loaded pages — cada página é um chunk separado no build
 const Splash = lazy(() => import("./pages/Splash"));
@@ -23,7 +24,6 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
 const queryClient = new QueryClient();
 
-/** Fallback mínimo durante carregamento de chunk */
 function PageLoader() {
   return (
     <div className="flex items-center justify-center min-h-screen">
@@ -36,6 +36,9 @@ function AppRoutes() {
   const { user, loading } = useAuth();
   const { shouldShowTutorial, loading: tutorialLoading, dismissTutorial } = useTutorial();
 
+  // Solicita permissão de push automaticamente após login
+  useAutoPushSubscription();
+
   if (loading || tutorialLoading) {
     return null;
   }
@@ -47,7 +50,6 @@ function AppRoutes() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-        {/* Public routes — always accessible */}
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/reset-password" element={<ResetPassword />} />
