@@ -48,9 +48,12 @@ export function useReport() {
       if (reportError) throw reportError;
 
       // 2. Bloqueia o usuário automaticamente
-      await supabase.rpc('block_user', {
-        p_blocked_user_id: reportedUserId,
-      });
+      const { error: blockError } = await supabase.rpc('block_user', {
+  p_blocked_user_id: reportedUserId,
+});
+if (blockError) {
+  console.error('[useReport] block_user error:', blockError);
+}
 
       // 3. Se veio do chat, encerra a conversa
       if (contexto === 'chat' && conversationId) {
