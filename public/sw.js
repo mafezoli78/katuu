@@ -1,12 +1,45 @@
 // public/sw.js
-// Service Worker do Katuu — gerencia Push Notifications
+// Service Worker do Katuu — Push Notifications + Cache Management
 
+const CACHE_VERSION = 'katuu-v2';
+const CACHE_URLS = ['/'];
+
+// Instala e limpa caches antigos imediatamente
 self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_VERSION).then((cache) => {
+      return cache.addAll(CACHE_URLS);
+    })
+  );
   self.skipWaiting();
 });
 
+// Ativa e remove caches de versões anteriores
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_VERSION)
+          .map((name) => {
+            console.log('[SW] Deleting old cache:', name);
+            return caches.delete(name);
+          })
+      );
+    }).then(() => self.clients.claim())
+  );
+});
+
+// Fetch — network first, cache fallback apenas para navegação
+self.addEventListener('fetch', (event) => {
+  // Só intercepta navegação (não assets, não API)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match('/');
+      })
+    );
+  }
 });
 
 // Recebe push do servidor e exibe notificação
@@ -31,7 +64,7 @@ self.addEventListener('push', (event) => {
     data: { url: data.url || '/' },
     vibrate: [200, 100, 200],
     requireInteraction: false,
-    tag: 'katuu-notification', // Agrupa notificações do mesmo app
+    tag: 'katuu-notification',
     renotify: true,
   };
 
@@ -50,7 +83,6 @@ self.addEventListener('notificationclick', (event) => {
     self.clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then((clients) => {
-        // Se o app já estiver aberto, foca e navega
         for (const client of clients) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
             client.focus();
@@ -58,7 +90,6 @@ self.addEventListener('notificationclick', (event) => {
             return;
           }
         }
-        // Se não estiver aberto, abre uma nova janela
         if (self.clients.openWindow) {
           return self.clients.openWindow(url);
         }
