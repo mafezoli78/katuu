@@ -11,6 +11,7 @@ interface ReportModalProps {
   reportedUserName: string;
   contexto: 'chat' | 'home';
   conversationId?: string;
+  onChatEnd?: () => void;
 }
 
 export function ReportModal({
@@ -20,6 +21,7 @@ export function ReportModal({
   reportedUserName,
   contexto,
   conversationId,
+  onChatEnd,
 }: ReportModalProps) {
   const [selectedMotivo, setSelectedMotivo] = useState<string | null>(null);
   const { sendReport, loading } = useReport();
@@ -31,6 +33,7 @@ export function ReportModal({
       motivo: selectedMotivo,
       contexto,
       conversationId,
+      onChatEnd,
     });
     setSelectedMotivo(null);
     onClose();
