@@ -10,19 +10,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { DateOfBirthPicker } from '@/components/profile/DateOfBirthPicker';
 import { InterestsStep } from '@/components/onboarding/InterestsStep';
-import { useInterestCategories } from '@/hooks/useInterestCategories';
-import { Camera } from 'lucide-react';
 import logoKatu from '@/assets/logo-katuu-oficial.png';
 
 export default function Onboarding() {
   const { user } = useAuth();
-  const { profile, updateProfile, updateInterests, uploadAvatar, isProfileComplete } = useProfile();
-  const { categories } = useInterestCategories();
+  const { profile, updateProfile, updateInterests, isProfileComplete } = useProfile();
   const { executePendingOrNavigate } = usePendingAction();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -33,8 +29,6 @@ export default function Onboarding() {
   const [bio, setBio] = useState('');
   const [gender, setGender] = useState<Gender | ''>('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [ageError, setAgeError] = useState('');
 
@@ -52,7 +46,6 @@ export default function Onboarding() {
       if (profile.data_nascimento) setDataNascimento(profile.data_nascimento);
       if (profile.bio) setBio(profile.bio);
       if (profile.gender) setGender(profile.gender);
-      if (profile.foto_url) setAvatarPreview(profile.foto_url);
     }
   }, [profile]);
 
@@ -61,27 +54,13 @@ export default function Onboarding() {
     const birth = new Date(birthDate);
     let age = today.getFullYear() - birth.getFullYear();
     const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
     if (age < 18) {
-      setAgeError('Você precisa ter pelo menos 18 anos para usar o Katu');
+      setAgeError('Você precisa ter pelo menos 18 anos para usar o Katuu');
       return false;
     }
     setAgeError('');
     return true;
-  };
-
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setAvatarFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
   const toggleInterest = (interestId: string) => {
@@ -103,6 +82,10 @@ export default function Onboarding() {
         return;
       }
       if (!validateAge(dataNascimento)) return;
+      if (!gender) {
+        toast({ variant: 'destructive', title: 'Por favor, selecione seu gênero' });
+        return;
+      }
       setStep(2);
     }
   };
@@ -110,15 +93,11 @@ export default function Onboarding() {
   const handleComplete = async () => {
     setLoading(true);
     try {
-      if (avatarFile) {
-        await uploadAvatar(avatarFile);
-      }
-
       const { error: profileError } = await updateProfile({
         nome: nome.trim(),
         data_nascimento: dataNascimento,
         bio: bio.trim() || null,
-        gender: gender || null,
+        gender: gender as Gender,
       });
 
       if (profileError) {
@@ -149,7 +128,7 @@ export default function Onboarding() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-primary p-6 flex items-center justify-center">
-        <img src={logoKatu} alt="Katu" className="w-20 h-auto" />
+        <img src={logoKatu} alt="Katuu" className="w-20 h-auto" />
       </div>
 
       {/* Progress indicator */}
@@ -175,30 +154,6 @@ export default function Onboarding() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Avatar upload */}
-              <div className="flex justify-center">
-                <div className="relative">
-                  <div className="h-24 w-24 rounded-lg overflow-hidden bg-primary flex items-center justify-center">
-                    {avatarPreview ? (
-                      <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="text-primary-foreground text-2xl font-semibold">
-                        {nome ? nome[0].toUpperCase() : '?'}
-                      </span>
-                    )}
-                  </div>
-                  <label className="absolute bottom-0 right-0 bg-accent text-accent-foreground rounded-full p-2 cursor-pointer hover:bg-accent/90 transition-colors">
-                    <Camera className="h-4 w-4" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarChange}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="nome">Nome <span className="text-destructive">*</span></Label>
                 <Input
@@ -225,7 +180,7 @@ export default function Onboarding() {
               </div>
 
               <div className="space-y-2">
-                <Label>Gênero (opcional)</Label>
+                <Label>Gênero <span className="text-destructive">*</span></Label>
                 <Select value={gender} onValueChange={(v) => setGender(v as Gender)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione seu gênero" />

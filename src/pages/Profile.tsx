@@ -16,13 +16,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { ImageCropper } from '@/components/profile/ImageCropper';
 import { EmailChangeDialog } from '@/components/profile/EmailChangeDialog';
 import { PasswordChangeDialog } from '@/components/profile/PasswordChangeDialog';
 import { DateOfBirthPicker } from '@/components/profile/DateOfBirthPicker';
 import { 
-  Camera, LogOut, Check, User, Heart, Pencil, X, 
-  Mail, Lock, AlertCircle, RotateCcw, Bell, BellOff
+  LogOut, Check, User, Heart, Pencil, X, 
+  Mail, Lock, RotateCcw, Bell, BellOff
 } from 'lucide-react';
 
 const MIN_BIO_LENGTH = 40;
@@ -32,7 +31,7 @@ const MAX_PER_CATEGORY = 4;
 
 export default function Profile() {
   const { user, signOut } = useAuth();
-  const { profile, interests, updateProfile, updateInterests, uploadAvatar, calculateAge, refetch } = useProfile();
+  const { profile, interests, updateProfile, updateInterests, calculateAge } = useProfile();
   const { categories } = useInterestCategories();
   const { permission, supported, subscribe, unsubscribe } = usePushNotifications();
   const navigate = useNavigate();
@@ -47,8 +46,6 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
 
-  const [cropperOpen, setCropperOpen] = useState(false);
-  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
@@ -65,31 +62,6 @@ export default function Profile() {
     }
     setSelectedInterests(interests.map(i => i.interest_id));
   }, [profile, interests]);
-
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setImageToCrop(reader.result as string);
-        setCropperOpen(true);
-      };
-      reader.readAsDataURL(file);
-    }
-    e.target.value = '';
-  };
-
-  const handleCropComplete = async (croppedBlob: Blob) => {
-    const file = new File([croppedBlob], 'avatar.jpg', { type: 'image/jpeg' });
-    const { error } = await uploadAvatar(file);
-    if (error) {
-      toast({ variant: 'destructive', title: 'Erro ao atualizar foto' });
-    } else {
-      toast({ title: 'Foto atualizada!' });
-      refetch();
-    }
-    setImageToCrop(null);
-  };
 
   const getCategoryCount = (categoryId: string) => {
     const category = categories.find(c => c.id === categoryId);
@@ -119,16 +91,16 @@ export default function Profile() {
   };
 
   const validateForm = (): boolean => {
-    if (!profile?.foto_url) {
-      toast({ variant: 'destructive', title: 'Foto de perfil é obrigatória' });
-      return false;
-    }
     if (!nome.trim()) {
       toast({ variant: 'destructive', title: 'Nome é obrigatório' });
       return false;
     }
     if (!dataNascimento) {
       toast({ variant: 'destructive', title: 'Data de nascimento é obrigatória' });
+      return false;
+    }
+    if (!gender) {
+      toast({ variant: 'destructive', title: 'Gênero é obrigatório' });
       return false;
     }
     if (!bio.trim()) {
@@ -231,40 +203,14 @@ export default function Profile() {
         <Card className="border-0 shadow-sm overflow-hidden">
           <div className="h-20 katu-gradient" />
           <CardContent className="relative pt-0 pb-6">
-            {/* Avatar */}
+            {/* Avatar — inicial do nome */}
             <div className="flex justify-center -mt-12 mb-4">
-              <div className="relative inline-block">
-                <div className="h-24 w-24 rounded-lg ring-4 ring-card shadow-lg overflow-hidden bg-katu-blue">
-                  {profile?.foto_url ? (
-                    <img
-                      src={profile.foto_url}
-                      alt={profile.nome || ''}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="h-full w-full flex items-center justify-center text-white text-2xl font-bold">
-                      {profile?.nome?.[0]?.toUpperCase() || '?'}
-                    </div>
-                  )}
-                </div>
-                <label className="absolute bottom-0 right-0 bg-accent text-accent-foreground rounded-full p-2 cursor-pointer hover:bg-accent/90 shadow-lg transition-transform hover:scale-105">
-                  <Camera className="h-4 w-4" />
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={handleImageSelect} 
-                    className="hidden" 
-                  />
-                </label>
+              <div className="h-24 w-24 rounded-lg ring-4 ring-card shadow-lg overflow-hidden bg-katu-blue flex items-center justify-center">
+                <span className="text-white text-3xl font-bold">
+                  {profile?.nome?.[0]?.toUpperCase() || '?'}
+                </span>
               </div>
             </div>
-
-            {!profile?.foto_url && editing && (
-              <div className="flex items-center gap-2 text-destructive text-sm mb-4 justify-center">
-                <AlertCircle className="h-4 w-4" />
-                <span>Foto de perfil é obrigatória</span>
-              </div>
-            )}
 
             {editing ? (
               <div className="space-y-4">
@@ -293,21 +239,7 @@ export default function Profile() {
                   )}
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Bio *</Label>
-                  <Textarea 
-                    value={bio} 
-                    onChange={(e) => setBio(e.target.value)} 
-                    maxLength={MAX_BIO_LENGTH} 
-                    rows={3}
-                    className="mt-1.5 rounded-xl resize-none"
-                    placeholder="Conte um pouco sobre você..."
-                  />
-                  <p className={`text-xs text-right mt-1 ${bioStatus.color}`}>
-                    {bioStatus.message}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Gênero</Label>
+                  <Label className="text-sm font-medium">Gênero *</Label>
                   <Select value={gender ?? ''} onValueChange={(v) => setGender(v as Gender)}>
                     <SelectTrigger className="mt-1.5 rounded-xl">
                       <SelectValue placeholder="Selecione seu gênero" />
@@ -320,6 +252,20 @@ export default function Profile() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Bio *</Label>
+                  <Textarea 
+                    value={bio} 
+                    onChange={(e) => setBio(e.target.value)} 
+                    maxLength={MAX_BIO_LENGTH} 
+                    rows={3}
+                    className="mt-1.5 rounded-xl resize-none"
+                    placeholder="Conte um pouco sobre você..."
+                  />
+                  <p className={`text-xs text-right mt-1 ${bioStatus.color}`}>
+                    {bioStatus.message}
+                  </p>
                 </div>
               </div>
             ) : (
@@ -407,7 +353,7 @@ export default function Profile() {
           </CardContent>
         </Card>
 
-        {/* Account Settings Card - Only in view mode */}
+        {/* Account Settings */}
         {!editing && (
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-3">
@@ -449,7 +395,6 @@ export default function Profile() {
                 Mostrar tutorial novamente
               </Button>
 
-              {/* Notificações — só aparece se o dispositivo suporta */}
               {permission !== 'denied' && (
                 <Button
                   variant="outline"
@@ -472,7 +417,6 @@ export default function Profile() {
                 </Button>
               )}
 
-              {/* Mensagem se notificações foram bloqueadas pelo usuário */}
               {permission === 'denied' && (
                 <p className="text-xs text-muted-foreground px-1">
                   🔕 Notificações bloqueadas. Para ativar, acesse as configurações do navegador.
@@ -523,18 +467,6 @@ export default function Profile() {
           )}
         </div>
       </div>
-
-      {imageToCrop && (
-        <ImageCropper
-          open={cropperOpen}
-          onClose={() => {
-            setCropperOpen(false);
-            setImageToCrop(null);
-          }}
-          imageSrc={imageToCrop}
-          onCropComplete={handleCropComplete}
-        />
-      )}
 
       <EmailChangeDialog
         open={emailDialogOpen}
