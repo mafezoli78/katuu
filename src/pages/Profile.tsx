@@ -376,7 +376,7 @@ export default function Profile() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {user?.app_metadata?.provider === 'email' && (
+              {user?.app_metadata?.provider === 'email' ? (
                 <Button
                   variant="outline"
                   onClick={() => setPasswordDialogOpen(true)}
@@ -385,6 +385,11 @@ export default function Profile() {
                   <Lock className="h-4 w-4 mr-2" />
                   Alterar senha
                 </Button>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Login efetuado via Google com a conta{' '}
+                  <span className="font-medium text-foreground">{user?.email}</span>
+                </p>
               )}
             </CardContent>
           </Card>
