@@ -32,13 +32,15 @@ export default function Onboarding() {
   const [loading, setLoading] = useState(false);
   const [ageError, setAgeError] = useState('');
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/auth', { replace: true });
-    } else if (isProfileComplete()) {
-      navigate('/location', { replace: true });
-    }
-  }, [user, isProfileComplete, navigate]);
+  const { loading } = useProfile(); // já está importado
+
+useEffect(() => {
+  if (!user) {
+    navigate('/auth', { replace: true });
+  } else if (!loading && isProfileComplete()) {
+    navigate('/location', { replace: true });
+  }
+}, [user, loading, isProfileComplete, navigate]);
 
   useEffect(() => {
     if (profile) {
