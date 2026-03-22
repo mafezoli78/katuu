@@ -191,12 +191,6 @@ export default function Profile() {
     <MobileLayout>
       <div className="p-4 space-y-4 page-fade pb-24">
 
-        {/* Header */}
-        <div className="flex items-center gap-2 mb-2">
-          <User className="h-5 w-5 text-katu-blue" />
-          <h1 className="text-xl font-bold">Meu Perfil</h1>
-        </div>
-
         {/* BLOCO 1 — Perfil */}
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-3">
@@ -382,14 +376,16 @@ export default function Profile() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Button
-                variant="outline"
-                onClick={() => setPasswordDialogOpen(true)}
-                className="w-full justify-start h-11 rounded-xl"
-              >
-                <Lock className="h-4 w-4 mr-2" />
-                Alterar senha
-              </Button>
+              {user?.app_metadata?.provider === 'email' && (
+                <Button
+                  variant="outline"
+                  onClick={() => setPasswordDialogOpen(true)}
+                  className="w-full justify-start h-11 rounded-xl"
+                >
+                  <Lock className="h-4 w-4 mr-2" />
+                  Alterar senha
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
