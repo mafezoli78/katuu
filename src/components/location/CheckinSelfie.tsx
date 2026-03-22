@@ -4,7 +4,7 @@ import { ArrowLeft, Camera, RefreshCw, Loader2, Upload, ImageOff } from 'lucide-
 import * as faceapi from 'face-api.js';
 import * as cameraService from '@/services/cameraService';
 
-type Step = 'capture' | 'preview' | 'fallback-upload';
+type Step = 'capture' | 'preview' | 'fallback-upload' | 'native-capture';
 
 interface CheckinSelfieProps {
   onConfirm: (imageBlob: Blob, source: 'camera' | 'upload') => void;
@@ -13,7 +13,9 @@ interface CheckinSelfieProps {
 }
 
 export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieProps) {
-  const [step, setStep] = useState<Step>('capture');
+  const isNative = cameraService.isNative();
+
+  const [step, setStep] = useState<Step>(isNative ? 'native-capture' : 'capture');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -21,19 +23,59 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const [selfieSource, setSelfieSource] = useState<'camera' | 'upload'>('camera');
   const [faceDetected, setFaceDetected] = useState(false);
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [nativeLoading, setNativeLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Load face detection models once
+  // Câmera nativa — abre automaticamente ao montar
   useEffect(() => {
+    if (!isNative) return;
+    handleNativeCapture();
+  }, []);
+
+  const handleNativeCapture = async () => {
+    setNativeLoading(true);
+    try {
+      const photo = await cameraService.takeSelfie();
+      setCapturedBlob(photo.blob);
+      setCapturedImage(URL.createObjectURL(photo.blob));
+      setSelfieSource(photo.source);
+      setStep('preview');
+    } catch (err: any) {
+      console.error('[CheckinSelfie] Native camera error:', err);
+      setCameraError('Não foi possível acessar a câmera.');
+      setStep('fallback-upload');
+    } finally {
+      setNativeLoading(false);
+    }
+  };
+
+  const handleNativeGallery = async () => {
+    setNativeLoading(true);
+    try {
+      const photo = await cameraService.pickFromGallery();
+      setCapturedBlob(photo.blob);
+      setCapturedImage(URL.createObjectURL(photo.blob));
+      setSelfieSource(photo.source);
+      setStep('preview');
+    } catch (err) {
+      console.error('[CheckinSelfie] Gallery error:', err);
+    } finally {
+      setNativeLoading(false);
+    }
+  };
+
+  // --- Lógica browser (mantida para web) ---
+
+  useEffect(() => {
+    if (isNative) return;
     const loadModels = async () => {
       try {
         await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
         setModelsLoaded(true);
-      } catch (err) {
-        console.error('[FaceDetect] Failed to load models:', err);
+      } catch {
         setModelsLoaded(true);
         setFaceDetected(true);
       }
@@ -41,8 +83,8 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     loadModels();
   }, []);
 
-  // Cleanup camera on unmount
   useEffect(() => {
+    if (isNative) return;
     return () => {
       cameraService.stopCamera();
       if (detectionIntervalRef.current) {
@@ -52,25 +94,21 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     };
   }, []);
 
-  // Attach stream to video element when on capture step
   useEffect(() => {
-    if (step !== 'capture') return;
-
+    if (isNative || step !== 'capture') return;
     const stream = cameraService.getStream();
     if (stream && videoRef.current) {
       videoRef.current.srcObject = stream;
       videoRef.current.play().catch(() => {});
       setCameraError(null);
     } else {
-      setCameraError('Não foi possível acessar a câmera. Verifique as permissões.');
+      setCameraError('Não foi possível acessar a câmera.');
       setCameraFailCount((c) => c + 1);
     }
-  }, [step]);
+  }, [step, isNative]);
 
-  // Run face detection loop when camera is active
   useEffect(() => {
-    if (step !== 'capture' || !modelsLoaded || !videoRef.current || cameraError) return;
-
+    if (isNative || step !== 'capture' || !modelsLoaded || !videoRef.current || cameraError) return;
     detectionIntervalRef.current = setInterval(async () => {
       if (!videoRef.current) return;
       try {
@@ -79,11 +117,8 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
           new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 })
         );
         setFaceDetected(!!detection);
-      } catch {
-        // Silently ignore detection errors
-      }
+      } catch {}
     }, 400);
-
     return () => {
       if (detectionIntervalRef.current) {
         clearInterval(detectionIntervalRef.current);
@@ -91,36 +126,28 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
       }
       setFaceDetected(false);
     };
-  }, [step, modelsLoaded, cameraError]);
+  }, [step, modelsLoaded, cameraError, isNative]);
 
-  // Watch failure count → trigger fallback
   useEffect(() => {
-    if (cameraFailCount >= 2) {
-      setStep('fallback-upload');
-    }
-  }, [cameraFailCount]);
+    if (!isNative && cameraFailCount >= 2) setStep('fallback-upload');
+  }, [cameraFailCount, isNative]);
 
   const handleCapture = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
-
     const size = Math.min(video.videoWidth, video.videoHeight);
     canvas.width = size;
     canvas.height = size;
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
     const offsetX = (video.videoWidth - size) / 2;
     const offsetY = (video.videoHeight - size) / 2;
-
     ctx.save();
     ctx.translate(size, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(video, offsetX, offsetY, size, size, 0, 0, size, size);
     ctx.restore();
-
     canvas.toBlob((blob) => {
       if (blob) {
         cameraService.stopCamera();
@@ -133,6 +160,10 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   };
 
   const handleRetake = async () => {
+    if (isNative) {
+      await handleNativeCapture();
+      return;
+    }
     try {
       await cameraService.requestCamera();
       setCapturedImage(null);
@@ -140,54 +171,105 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
       setCameraError(null);
       setSelfieSource('camera');
       setStep('capture');
-    } catch (err) {
-      console.error('[Selfie] Camera retry failed:', err);
-      setCameraError('Não foi possível acessar a câmera. Verifique as permissões.');
+    } catch {
+      setCameraError('Não foi possível acessar a câmera.');
       setCameraFailCount((c) => c + 1);
     }
   };
 
   const handleUsePhoto = () => {
     if (capturedBlob) {
-      if (selfieSource === 'camera') {
-        cameraService.stopCamera();
-      }
+      if (!isNative && selfieSource === 'camera') cameraService.stopCamera();
       onConfirm(capturedBlob, selfieSource);
     }
   };
 
   const handleCancel = () => {
-    cameraService.stopCamera();
+    if (!isNative) cameraService.stopCamera();
     onCancel();
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setCapturedBlob(file);
     setCapturedImage(URL.createObjectURL(file));
     setSelfieSource('upload');
     setStep('preview');
   };
 
+  // Tela de loading para câmera nativa
+  if (isNative && nativeLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+        <p className="text-muted-foreground text-sm">Abrindo câmera...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Camera capture step */}
-      {step === 'capture' && (
+      {/* Fallback upload */}
+      {step === 'fallback-upload' && (
         <>
           <div className="flex items-center gap-3 mb-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-xl"
-              onClick={handleCancel}
-            >
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={handleCancel}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h2 className="text-xl font-bold">Envie uma foto</h2>
+          </div>
+          <div className="flex flex-col items-center justify-center py-8 gap-6">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <ImageOff className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div className="text-center max-w-[280px]">
+              <p className="text-base font-medium mb-1">Câmera indisponível</p>
+              <p className="text-sm text-muted-foreground">
+                Não conseguimos acessar sua câmera. Envie uma foto para continuar.
+              </p>
+            </div>
+            {isNative ? (
+              <Button
+                onClick={handleNativeGallery}
+                disabled={nativeLoading}
+                className="w-full max-w-[280px] h-12 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
+              >
+                <Upload className="h-5 w-5 mr-2" />
+                Escolher da galeria
+              </Button>
+            ) : (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full max-w-[280px] h-12 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
+                >
+                  <Upload className="h-5 w-5 mr-2" />
+                  Escolher foto
+                </Button>
+              </>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Browser camera capture */}
+      {step === 'capture' && !isNative && (
+        <>
+          <div className="flex items-center gap-3 mb-2">
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={handleCancel}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h2 className="text-xl font-bold">Tire sua selfie</h2>
           </div>
-
           <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-black">
             {cameraError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-6 gap-4">
@@ -212,23 +294,17 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
                 style={{ transform: 'scaleX(-1)' }}
               />
             )}
-
-            {/* Face detection indicator overlay */}
             {!cameraError && modelsLoaded && (
               <div className="absolute bottom-3 left-0 right-0 flex justify-center">
                 <div className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  faceDetected
-                    ? 'bg-green-500/90 text-white'
-                    : 'bg-black/60 text-white/70'
+                  faceDetected ? 'bg-green-500/90 text-white' : 'bg-black/60 text-white/70'
                 }`}>
                   {faceDetected ? '✓ Rosto detectado' : 'Posicione seu rosto'}
                 </div>
               </div>
             )}
           </div>
-
           <canvas ref={canvasRef} className="hidden" />
-
           {!cameraError && (
             <Button
               onClick={handleCapture}
@@ -243,53 +319,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
         </>
       )}
 
-      {/* Fallback upload step */}
-      {step === 'fallback-upload' && (
-        <>
-          <div className="flex items-center gap-3 mb-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-xl"
-              onClick={handleCancel}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h2 className="text-xl font-bold">Envie uma foto</h2>
-          </div>
-
-          <div className="flex flex-col items-center justify-center py-8 gap-6">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-              <ImageOff className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <div className="text-center max-w-[280px]">
-              <p className="text-base font-medium mb-1">Câmera indisponível</p>
-              <p className="text-sm text-muted-foreground">
-                Não conseguimos acessar sua câmera. Você pode enviar uma foto da galeria para continuar.
-              </p>
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="user"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full max-w-[280px] h-12 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-base"
-            >
-              <Upload className="h-5 w-5 mr-2" />
-              Escolher foto
-            </Button>
-          </div>
-        </>
-      )}
-
-      {/* Preview step */}
+      {/* Preview */}
       {step === 'preview' && capturedImage && (
         <>
           <div className="flex items-center gap-3 mb-2">
@@ -304,15 +334,9 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
             </Button>
             <h2 className="text-xl font-bold">Ficou boa?</h2>
           </div>
-
           <div className="w-full aspect-square rounded-2xl overflow-hidden">
-            <img
-              src={capturedImage}
-              alt="Selfie capturada"
-              className="w-full h-full object-cover"
-            />
+            <img src={capturedImage} alt="Selfie" className="w-full h-full object-cover" />
           </div>
-
           <div className="flex flex-col gap-2">
             <Button
               onClick={handleUsePhoto}
@@ -320,10 +344,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
               className="w-full h-12 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-base"
             >
               {uploading ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Entrando...
-                </>
+                <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Entrando...</>
               ) : (
                 'Usar esta foto'
               )}
