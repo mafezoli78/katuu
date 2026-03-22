@@ -73,17 +73,55 @@ export default function Profile() {
     return category.interests.filter(i => selectedInterests.includes(i.id)).length;
   };
 
+  const isNoneTag = (interestId: string): boolean => {
+    for (const cat of categories) {
+      const found = cat.interests.find(i => i.id === interestId);
+      if (found) return found.name === 'Nenhuma delas';
+    }
+    return false;
+  };
+
+  const getCategoryInterestIds = (categoryId: string): string[] => {
+    const category = categories.find(c => c.id === categoryId);
+    return category ? category.interests.map(i => i.id) : [];
+  };
+
   const toggleInterest = (interestId: string, categoryId: string) => {
     const isSelected = selectedInterests.includes(interestId);
+    const categoryIds = getCategoryInterestIds(categoryId);
+
+    if (isNoneTag(interestId)) {
+      // Clicou em "Nenhuma delas" — desseleciona tudo da categoria e seleciona/desseleciona ela
+      if (isSelected) {
+        setSelectedInterests(prev => prev.filter(i => !categoryIds.includes(i)));
+      } else {
+        setSelectedInterests(prev => [
+          ...prev.filter(i => !categoryIds.includes(i)),
+          interestId,
+        ]);
+      }
+      return;
+    }
+
+    // Clicou em tag normal — remove "Nenhuma delas" da categoria se estiver selecionada
+    const noneId = categoryIds.find(id => {
+      for (const cat of categories) {
+        const found = cat.interests.find(i => i.id === id);
+        if (found && found.name === 'Nenhuma delas') return true;
+      }
+      return false;
+    });
+
     if (!isSelected) {
       if (selectedInterests.length >= MAX_INTERESTS) return;
       if (getCategoryCount(categoryId) >= MAX_PER_CATEGORY) return;
+      setSelectedInterests(prev => [
+        ...prev.filter(i => i !== noneId),
+        interestId,
+      ]);
+    } else {
+      setSelectedInterests(prev => prev.filter(i => i !== interestId));
     }
-    setSelectedInterests(prev =>
-      prev.includes(interestId)
-        ? prev.filter(i => i !== interestId)
-        : [...prev, interestId]
-    );
   };
 
   const getInterestName = (interestId: string): string => {
@@ -341,23 +379,25 @@ export default function Profile() {
                   <p className="text-sm text-muted-foreground">{profile.bio}</p>
                 )}
 
-                {/* Interesses no modo visualização */}
-                {interests.length > 0 && (
+                {/* Interesses no modo visualização — filtra "Nenhuma delas" */}
+                {interests.filter(i => getInterestName(i.interest_id) !== 'Nenhuma delas').length > 0 && (
                   <div>
                     <p className="text-sm font-semibold mb-2 flex items-center gap-1.5">
                       <Heart className="h-4 w-4 text-accent" />
                       Interesses
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {interests.map((i) => (
-                        <Badge
-                          key={i.interest_id}
-                          variant="secondary"
-                          className="py-1.5 px-3 rounded-lg bg-katu-green/10 text-katu-green"
-                        >
-                          {getInterestName(i.interest_id)}
-                        </Badge>
-                      ))}
+                      {interests
+                        .filter(i => getInterestName(i.interest_id) !== 'Nenhuma delas')
+                        .map((i) => (
+                          <Badge
+                            key={i.interest_id}
+                            variant="secondary"
+                            className="py-1.5 px-3 rounded-lg bg-katu-green/10 text-katu-green"
+                          >
+                            {getInterestName(i.interest_id)}
+                          </Badge>
+                        ))}
                     </div>
                   </div>
                 )}
