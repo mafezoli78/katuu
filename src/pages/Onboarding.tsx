@@ -29,18 +29,16 @@ export default function Onboarding() {
   const [bio, setBio] = useState('');
   const [gender, setGender] = useState<Gender | ''>('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [ageError, setAgeError] = useState('');
 
-  const { loading } = useProfile(); // já está importado
-
-useEffect(() => {
-  if (!user) {
-    navigate('/auth', { replace: true });
-  } else if (!loading && isProfileComplete()) {
-    navigate('/location', { replace: true });
-  }
-}, [user, loading, isProfileComplete, navigate]);
+  useEffect(() => {
+    if (!user) {
+      navigate('/auth', { replace: true });
+    } else if (!loading && isProfileComplete()) {
+      navigate('/location', { replace: true });
+    }
+  }, [user, loading, isProfileComplete, navigate]);
 
   useEffect(() => {
     if (profile) {
@@ -93,7 +91,7 @@ useEffect(() => {
   };
 
   const handleComplete = async () => {
-    setLoading(true);
+    setSaving(true);
     try {
       const { error: profileError } = await updateProfile({
         nome: nome.trim(),
@@ -107,7 +105,7 @@ useEffect(() => {
         if (msg.includes('MINIMUM_AGE')) {
           setAgeError('Você precisa ter pelo menos 18 anos');
           setStep(1);
-          setLoading(false);
+          setSaving(false);
           return;
         }
         throw profileError;
@@ -122,7 +120,7 @@ useEffect(() => {
       console.error('Error completing onboarding:', error);
       toast({ variant: 'destructive', title: 'Erro ao salvar perfil' });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
