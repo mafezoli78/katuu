@@ -16,12 +16,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { EmailChangeDialog } from '@/components/profile/EmailChangeDialog';
 import { PasswordChangeDialog } from '@/components/profile/PasswordChangeDialog';
 import { DateOfBirthPicker } from '@/components/profile/DateOfBirthPicker';
-import { 
-  LogOut, Check, User, Heart, Pencil, X, 
-  Mail, Lock, RotateCcw, Bell, BellOff
+import {
+  LogOut, Check, User, Heart, Pencil, X,
+  Lock, RotateCcw, Bell, BellOff, Settings,
 } from 'lucide-react';
 
 const MIN_BIO_LENGTH = 40;
@@ -29,11 +28,18 @@ const MAX_BIO_LENGTH = 150;
 const MAX_INTERESTS = 10;
 const MAX_PER_CATEGORY = 4;
 
+const GENDER_LABEL: Record<string, string> = {
+  man: 'Homem',
+  woman: 'Mulher',
+  non_binary: 'Não-binário',
+  other: 'Outro',
+};
+
 export default function Profile() {
   const { user, signOut } = useAuth();
   const { profile, interests, updateProfile, updateInterests, calculateAge } = useProfile();
   const { categories } = useInterestCategories();
-  const { permission, supported, subscribe, unsubscribe } = usePushNotifications();
+  const { permission, subscribe, unsubscribe } = usePushNotifications();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -45,8 +51,6 @@ export default function Profile() {
   const [gender, setGender] = useState<Gender | null>(null);
   const [loading, setLoading] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
-
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -122,11 +126,11 @@ export default function Profile() {
     if (!validateForm()) return;
     setLoading(true);
     try {
-      await updateProfile({ 
-        nome: nome.trim(), 
+      await updateProfile({
+        nome: nome.trim(),
         bio: bio.trim(),
         data_nascimento: dataNascimento,
-        gender: gender,
+        gender,
       });
       await updateInterests(selectedInterests);
       toast({ title: 'Perfil atualizado!' });
@@ -138,9 +142,15 @@ export default function Profile() {
     }
   };
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/auth', { replace: true });
+  const handleCancel = () => {
+    setEditing(false);
+    if (profile) {
+      setNome(profile.nome || '');
+      setBio(profile.bio || '');
+      setDataNascimento(profile.data_nascimento || '');
+      setGender(profile.gender ?? null);
+    }
+    setSelectedInterests(interests.map(i => i.interest_id));
   };
 
   const handlePushToggle = async () => {
@@ -157,7 +167,7 @@ export default function Profile() {
           toast({
             variant: 'destructive',
             title: 'Notificações bloqueadas',
-            description: 'Habilite nas configurações do navegador.',
+            description: 'Habilite nas configurações do dispositivo.',
           });
         }
       }
@@ -180,46 +190,38 @@ export default function Profile() {
   return (
     <MobileLayout>
       <div className="p-4 space-y-4 page-fade pb-24">
+
         {/* Header */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <User className="h-5 w-5 text-katu-blue" />
-            <h1 className="text-xl font-bold">Meu Perfil</h1>
-          </div>
-          {!editing && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setEditing(true)}
-              className="h-9 rounded-lg"
-            >
-              <Pencil className="h-4 w-4 mr-1.5" />
-              Editar
-            </Button>
-          )}
+        <div className="flex items-center gap-2 mb-2">
+          <User className="h-5 w-5 text-katu-blue" />
+          <h1 className="text-xl font-bold">Meu Perfil</h1>
         </div>
 
-        {/* Profile Card */}
-        <Card className="border-0 shadow-sm overflow-hidden">
-          <div className="h-20 katu-gradient" />
-          <CardContent className="relative pt-0 pb-6">
-            {/* Avatar — inicial do nome */}
-            <div className="flex justify-center -mt-12 mb-4">
-              <div className="h-24 w-24 rounded-lg ring-4 ring-card shadow-lg overflow-hidden bg-katu-blue flex items-center justify-center">
-                <span className="text-white text-3xl font-bold">
-                  {profile?.nome?.[0]?.toUpperCase() || '?'}
-                </span>
-              </div>
+        {/* BLOCO 1 — Perfil */}
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <User className="h-4 w-4 text-katu-blue" />
+                Perfil
+              </CardTitle>
+              {!editing && (
+                <Button variant="ghost" size="sm" onClick={() => setEditing(true)} className="h-8 rounded-lg">
+                  <Pencil className="h-4 w-4 mr-1.5" />
+                  Editar
+                </Button>
+              )}
             </div>
-
+          </CardHeader>
+          <CardContent className="space-y-4">
             {editing ? (
-              <div className="space-y-4">
+              <>
                 <div>
                   <Label className="text-sm font-medium">Nome *</Label>
-                  <Input 
-                    value={nome} 
-                    onChange={(e) => setNome(e.target.value)} 
-                    maxLength={50} 
+                  <Input
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    maxLength={50}
                     className="mt-1.5 h-11 rounded-xl"
                     placeholder="Seu nome"
                   />
@@ -227,10 +229,7 @@ export default function Profile() {
                 <div>
                   <Label className="text-sm font-medium">Data de nascimento *</Label>
                   <div className="mt-1.5">
-                    <DateOfBirthPicker
-                      value={dataNascimento}
-                      onChange={setDataNascimento}
-                    />
+                    <DateOfBirthPicker value={dataNascimento} onChange={setDataNascimento} />
                   </div>
                   {dataNascimento && !dataNascimento.includes('00') && (
                     <p className="text-xs text-muted-foreground mt-1">
@@ -255,10 +254,10 @@ export default function Profile() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Bio *</Label>
-                  <Textarea 
-                    value={bio} 
-                    onChange={(e) => setBio(e.target.value)} 
-                    maxLength={MAX_BIO_LENGTH} 
+                  <Textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    maxLength={MAX_BIO_LENGTH}
                     rows={3}
                     className="mt-1.5 rounded-xl resize-none"
                     placeholder="Conte um pouco sobre você..."
@@ -267,93 +266,113 @@ export default function Profile() {
                     {bioStatus.message}
                   </p>
                 </div>
-              </div>
+
+                {/* Interesses no modo edição */}
+                <div>
+                  <Label className="text-sm font-medium">
+                    Interesses <span className="text-muted-foreground font-normal">(3–{MAX_INTERESTS})</span>
+                  </Label>
+                  <div className="space-y-4 mt-2">
+                    {categories.map((category) => {
+                      const catCount = getCategoryCount(category.id);
+                      return (
+                        <div key={category.id}>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-semibold">{category.name}</p>
+                            {catCount > 0 && (
+                              <span className="text-xs text-muted-foreground">{catCount}/{MAX_PER_CATEGORY}</span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {category.interests.map((interest) => {
+                              const isSelected = selectedInterests.includes(interest.id);
+                              const categoryFull = catCount >= MAX_PER_CATEGORY && !isSelected;
+                              const maxReached = selectedInterests.length >= MAX_INTERESTS && !isSelected;
+                              const disabled = categoryFull || maxReached;
+                              return (
+                                <Badge
+                                  key={interest.id}
+                                  variant={isSelected ? 'default' : 'outline'}
+                                  className={`cursor-pointer py-1.5 px-3 rounded-lg transition-all ${
+                                    isSelected
+                                      ? 'bg-katu-green text-white hover:bg-katu-green/90'
+                                      : disabled
+                                        ? 'opacity-40 cursor-not-allowed'
+                                        : 'hover:bg-muted'
+                                  }`}
+                                  onClick={() => !disabled && toggleInterest(interest.id, category.id)}
+                                >
+                                  {interest.name}
+                                  {isSelected && <Check className="ml-1.5 h-3 w-3" />}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Botões salvar/cancelar */}
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" onClick={handleCancel} className="flex-1 h-11 rounded-xl">
+                    <X className="h-4 w-4 mr-1.5" />
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="flex-1 h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
+                  >
+                    {loading ? 'Salvando...' : 'Salvar'}
+                  </Button>
+                </div>
+              </>
             ) : (
-              <div className="text-center">
-                <h2 className="text-xl font-bold">
-                  {profile?.nome}
-                  {age && <span className="text-muted-foreground font-normal">, {age}</span>}
-                </h2>
+              <>
+                {/* Visualização do perfil */}
+                <div>
+                  <p className="text-xl font-bold">
+                    {profile?.nome}
+                    {age !== null && <span className="text-muted-foreground font-normal">, {age}</span>}
+                  </p>
+                  {gender && (
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      {GENDER_LABEL[gender] || gender}
+                    </p>
+                  )}
+                </div>
                 {profile?.bio && (
-                  <p className="text-muted-foreground mt-2 text-sm">{profile.bio}</p>
+                  <p className="text-sm text-muted-foreground">{profile.bio}</p>
                 )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Interests Card */}
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Heart className="h-4 w-4 text-accent" />
-              Interesses
-              {editing && <span className="text-xs text-muted-foreground font-normal">(3–{MAX_INTERESTS})</span>}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {editing ? (
-              <div className="space-y-4">
-                {categories.map((category) => {
-                  const catCount = getCategoryCount(category.id);
-                  return (
-                    <div key={category.id}>
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-semibold text-foreground">{category.name}</h3>
-                        {catCount > 0 && (
-                          <span className="text-xs text-muted-foreground">{catCount}/{MAX_PER_CATEGORY}</span>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {category.interests.map((interest) => {
-                          const isSelected = selectedInterests.includes(interest.id);
-                          const categoryFull = catCount >= MAX_PER_CATEGORY && !isSelected;
-                          const maxReached = selectedInterests.length >= MAX_INTERESTS && !isSelected;
-                          const disabled = categoryFull || maxReached;
-                          return (
-                            <Badge
-                              key={interest.id}
-                              variant={isSelected ? 'default' : 'outline'}
-                              className={`cursor-pointer py-1.5 px-3 rounded-lg transition-all ${
-                                isSelected
-                                  ? 'bg-katu-green text-white hover:bg-katu-green/90'
-                                  : disabled
-                                    ? 'opacity-40 cursor-not-allowed'
-                                    : 'hover:bg-muted'
-                              }`}
-                              onClick={() => !disabled && toggleInterest(interest.id, category.id)}
-                            >
-                              {interest.name}
-                              {isSelected && <Check className="ml-1.5 h-3 w-3" />}
-                            </Badge>
-                          );
-                        })}
-                      </div>
+                {/* Interesses no modo visualização */}
+                {interests.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+                      <Heart className="h-4 w-4 text-accent" />
+                      Interesses
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {interests.map((i) => (
+                        <Badge
+                          key={i.interest_id}
+                          variant="secondary"
+                          className="py-1.5 px-3 rounded-lg bg-katu-green/10 text-katu-green"
+                        >
+                          {getInterestName(i.interest_id)}
+                        </Badge>
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {interests.length > 0 ? (
-                  interests.map((i) => (
-                    <Badge 
-                      key={i.interest_id} 
-                      variant="secondary"
-                      className="py-1.5 px-3 rounded-lg bg-katu-green/10 text-katu-green"
-                    >
-                      {getInterestName(i.interest_id)}
-                    </Badge>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">Nenhum interesse selecionado</p>
+                  </div>
                 )}
-              </div>
+              </>
             )}
           </CardContent>
         </Card>
 
-        {/* Account Settings */}
+        {/* BLOCO 2 — Conta */}
         {!editing && (
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-3">
@@ -362,39 +381,29 @@ export default function Profile() {
                 Conta
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <Button 
-                variant="outline" 
-                onClick={() => setEmailDialogOpen(true)}
-                className="w-full justify-start h-11 rounded-xl"
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                Alterar email
-                <span className="ml-auto text-xs text-muted-foreground truncate max-w-[140px]">
-                  {user?.email}
-                </span>
-              </Button>
-              <Button 
-                variant="outline" 
+            <CardContent>
+              <Button
+                variant="outline"
                 onClick={() => setPasswordDialogOpen(true)}
                 className="w-full justify-start h-11 rounded-xl"
               >
                 <Lock className="h-4 w-4 mr-2" />
                 Alterar senha
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={async () => {
-                  if (!user) return;
-                  await supabase.from('profiles').update({ tutorial_enabled: true }).eq('id', user.id);
-                  toast({ title: 'Tutorial reativado! Reinicie o app para vê-lo.' });
-                }}
-                className="w-full justify-start h-11 rounded-xl"
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Mostrar tutorial novamente
-              </Button>
+            </CardContent>
+          </Card>
+        )}
 
+        {/* BLOCO 3 — Configurações */}
+        {!editing && (
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Settings className="h-4 w-4 text-muted-foreground" />
+                Configurações
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
               {permission !== 'denied' && (
                 <Button
                   variant="outline"
@@ -416,63 +425,42 @@ export default function Profile() {
                   )}
                 </Button>
               )}
-
               {permission === 'denied' && (
                 <p className="text-xs text-muted-foreground px-1">
-                  🔕 Notificações bloqueadas. Para ativar, acesse as configurações do navegador.
+                  🔕 Notificações bloqueadas. Ative nas configurações do dispositivo.
                 </p>
               )}
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  if (!user) return;
+                  await supabase.from('profiles').update({ tutorial_enabled: true }).eq('id', user.id);
+                  toast({ title: 'Tutorial reativado! Reinicie o app para vê-lo.' });
+                }}
+                className="w-full justify-start h-11 rounded-xl"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Mostrar tutorial novamente
+              </Button>
             </CardContent>
           </Card>
         )}
 
-        {/* Action Buttons */}
-        <div className="space-y-2 pt-2">
-          {editing ? (
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setEditing(false);
-                  if (profile) {
-                    setNome(profile.nome || '');
-                    setBio(profile.bio || '');
-                    setDataNascimento(profile.data_nascimento || '');
-                    setGender(profile.gender ?? null);
-                  }
-                  setSelectedInterests(interests.map(i => i.interest_id));
-                }} 
-                className="flex-1 h-11 rounded-xl"
-              >
-                <X className="h-4 w-4 mr-1.5" />
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleSave} 
-                disabled={loading} 
-                className="flex-1 h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
-              >
-                {loading ? 'Salvando...' : 'Salvar'}
-              </Button>
-            </div>
-          ) : (
-            <Button 
-              variant="outline" 
-              onClick={handleLogout} 
-              className="w-full h-11 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sair da conta
-            </Button>
-          )}
-        </div>
+        {/* Sair */}
+        {!editing && (
+          <Button
+            variant="outline"
+            onClick={async () => {
+              await signOut();
+              navigate('/auth', { replace: true });
+            }}
+            className="w-full h-11 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sair da conta
+          </Button>
+        )}
       </div>
-
-      <EmailChangeDialog
-        open={emailDialogOpen}
-        onClose={() => setEmailDialogOpen(false)}
-        currentEmail={user?.email || ''}
-      />
 
       <PasswordChangeDialog
         open={passwordDialogOpen}
