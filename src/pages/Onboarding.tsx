@@ -18,7 +18,7 @@ import logoKatu from '@/assets/logo-katuu-oficial.png';
 
 export default function Onboarding() {
   const { user } = useAuth();
-  const { profile, updateProfile, updateInterests, isProfileComplete } = useProfile();
+  const { profile, updateProfile, updateInterests, isProfileComplete, loading } = useProfile();
   const { executePendingOrNavigate } = usePendingAction();
   const navigate = useNavigate();
   const { toast } = useToast();
