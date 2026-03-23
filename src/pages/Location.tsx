@@ -652,18 +652,7 @@ export default function Location() {
 
                 <Button
                 disabled={cameraRequesting}
-                onClick={async () => {
-                  setCameraRequesting(true);
-                  try {
-                    await cameraService.requestCamera();
-                  } catch (err) {
-                    console.error('[Location] Camera request failed:', err);
-                    // Don't block — let CheckinSelfie manage the fallback
-                  } finally {
-                    setCameraRequesting(false);
-                    setStep('selfie');  // Always navigate, with or without stream
-                  }
-                }}
+                onClick={() => setStep('selfie')}
                 className="w-full h-12 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-base">
 
                   {cameraRequesting ? (
