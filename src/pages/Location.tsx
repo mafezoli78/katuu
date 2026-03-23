@@ -16,14 +16,13 @@ import { Place, placesService, PROXIMITY_THRESHOLD_METERS, INITIAL_SEARCH_RADIUS
 import { PlaceSelector } from '@/components/location/PlaceSelector';
 import { CheckinSelfie } from '@/components/location/CheckinSelfie';
 import { supabase } from '@/integrations/supabase/client';
-import * as cameraService from '@/services/cameraService';
 import { logger } from '@/lib/logger';
 
 export default function Location() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  
   const { toast } = useToast();
+
   const {
     intentions,
     nearbyTemporaryPlaces,
@@ -32,106 +31,62 @@ export default function Location() {
     createTemporaryPlace,
     loading,
     presenceRadiusMeters,
-    currentPresence
+    currentPresence,
   } = usePresence();
+
   const [showProfileGate, setShowProfileGate] = useState(false);
   const [step, setStep] = useState<'permission' | 'detecting' | 'select' | 'create_temp' | 'confirm_temp' | 'expression' | 'selfie'>('detecting');
   const [permissionChecked, setPermissionChecked] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<'prompt' | 'granted' | 'denied' | 'blocked'>('prompt');
   const [isRequestingPermission, setIsRequestingPermission] = useState(false);
-  const [userCoords, setUserCoords] = useState<{lat: number;lng: number;} | null>(null);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [newPlaceName, setNewPlaceName] = useState('');
   const [activating, setActivating] = useState(false);
   const [expressionText, setExpressionText] = useState('');
-  const [cameraRequesting, setCameraRequesting] = useState(false);
-
-  // Default intention: "Livre" (aberto a qualquer interação)
-  const DEFAULT_INTENTION_ID = 'fe9396db-a8d8-4064-a5f5-c1220e6722f1';
   const [nearbyTempToConfirm, setNearbyTempToConfirm] = useState<NearbyTemporaryPlace | null>(null);
-
-  // New states for optimized flow
   const [places, setPlaces] = useState<Place[]>([]);
   const [placesLoading, setPlacesLoading] = useState(false);
   const [closestPlace, setClosestPlace] = useState<Place | null>(null);
   const [searchingByName, setSearchingByName] = useState(false);
 
-  // Search for places - called explicitly after user grants geolocation
-  // Progressive radius expansion: 300m → 600m → 800m (max)
+  const DEFAULT_INTENTION_ID = 'fe9396db-a8d8-4064-a5f5-c1220e6722f1';
+
   const fetchPlacesRef = useRef<((lat: number, lng: number) => Promise<void>) | null>(null);
   const fetchPlaces = useCallback(async (lat: number, lng: number) => {
     setPlacesLoading(true);
-
     try {
-      // Fetch temporary places first
       await fetchNearbyTemporaryPlaces(lat, lng);
 
-      // Step 1: Initial search with 300m radius
-      logger.debug(`[Location] 🔍 Searching with initial radius: ${INITIAL_SEARCH_RADIUS_METERS}m`);
-      let results = await placesService.searchNearby({
-        latitude: lat,
-        longitude: lng,
-        radius: INITIAL_SEARCH_RADIUS_METERS,
-        limit: 20
-      });
-      logger.debug(`[Location] Found ${results.length} places at ${INITIAL_SEARCH_RADIUS_METERS}m`);
+      let results = await placesService.searchNearby({ latitude: lat, longitude: lng, radius: INITIAL_SEARCH_RADIUS_METERS, limit: 20 });
 
-      // Step 2: If fewer than MIN_RESULTS_FOR_EXPANSION, expand to 600m
       if (results.length < MIN_RESULTS_FOR_EXPANSION) {
-        logger.debug(`[Location] 🔍 Expanding to ${EXPANDED_SEARCH_RADIUS_METERS}m (found < ${MIN_RESULTS_FOR_EXPANSION})`);
-        results = await placesService.searchNearby({
-          latitude: lat,
-          longitude: lng,
-          radius: EXPANDED_SEARCH_RADIUS_METERS,
-          limit: 20
-        });
-        logger.debug(`[Location] Found ${results.length} places at ${EXPANDED_SEARCH_RADIUS_METERS}m`);
-
-        // Step 3: If still fewer than MIN_RESULTS_FOR_EXPANSION, expand to max 800m
+        results = await placesService.searchNearby({ latitude: lat, longitude: lng, radius: EXPANDED_SEARCH_RADIUS_METERS, limit: 20 });
         if (results.length < MIN_RESULTS_FOR_EXPANSION) {
-          logger.debug(`[Location] 🔍 Expanding to max radius: ${MAX_SEARCH_RADIUS_METERS}m`);
-          results = await placesService.searchNearby({
-            latitude: lat,
-            longitude: lng,
-            radius: MAX_SEARCH_RADIUS_METERS,
-            limit: 20
-          });
-          logger.debug(`[Location] Found ${results.length} places at ${MAX_SEARCH_RADIUS_METERS}m (max)`);
+          results = await placesService.searchNearby({ latitude: lat, longitude: lng, radius: MAX_SEARCH_RADIUS_METERS, limit: 20 });
         }
       }
 
       setPlaces(results);
 
-      // Check for very close place
       if (results.length > 0 && results[0].distance_meters !== undefined) {
         if (results[0].distance_meters <= PROXIMITY_THRESHOLD_METERS) {
           setClosestPlace(results[0]);
-          logger.debug(`[Location] Found very close place: ${results[0].nome} (${results[0].distance_meters}m)`);
         }
       }
-
-      logger.debug(`[Location] ✅ Final result: ${results.length} places`);
     } catch (error) {
       console.error('[Location] Error fetching places:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao buscar locais',
-        description: 'Tente novamente'
-      });
+      toast({ variant: 'destructive', title: 'Erro ao buscar locais', description: 'Tente novamente' });
     } finally {
       setPlacesLoading(false);
     }
   }, [fetchNearbyTemporaryPlaces, toast]);
 
-  // Keep ref in sync with latest fetchPlaces
   fetchPlacesRef.current = fetchPlaces;
 
   const hasFetchedRef = useRef(false);
-
-  // Synchronously capture pending action BEFORE any effects run
   const pendingRef = useRef(getPendingAction());
 
-  // Check permission status on mount (without triggering prompt)
   useEffect(() => {
     if (!user) {
       navigate('/auth', { replace: true });
@@ -139,18 +94,14 @@ export default function Location() {
     }
     if (loading) return;
     if (currentPresence) {
-      logger.debug('[Location] User has active presence, redirecting to home');
       navigate('/home', { replace: true });
       return;
     }
-
-    // If there's a pending action, skip permission flow — the restore effect handles it
     if (pendingRef.current) {
       setPermissionChecked(true);
       return;
     }
 
-    // Passive check only — never trigger a prompt or navigate automatically
     if (navigator.permissions) {
       navigator.permissions.query({ name: 'geolocation' }).then((result) => {
         setPermissionChecked(true);
@@ -174,7 +125,6 @@ export default function Location() {
     }
   }, [user, navigate, loading, currentPresence]);
 
-  // Restore pending action from sessionStorage (after returning from onboarding)
   useEffect(() => {
     const pending = pendingRef.current;
     if (!pending || pending.type !== 'ACTIVATE_PRESENCE') return;
@@ -185,12 +135,10 @@ export default function Location() {
       setSelectedPlaceId(pending.placeId);
       if (pending.expressionText) setExpressionText(pending.expressionText);
       setStep('expression');
-      // Silently get GPS coords without resetting step
       handleRequestLocation();
     }
   }, []);
 
-  // Explicit handler: user taps "Permitir localização"
   const handleRequestLocation = useCallback(() => {
     if (isRequestingPermission || hasFetchedRef.current) return;
 
@@ -209,29 +157,17 @@ export default function Location() {
         hasFetchedRef.current = true;
         setIsRequestingPermission(false);
         setPermissionStatus('granted');
-
         const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
-        logger.debug(`[Location] 📍 Got user coordinates: lat=${coords.lat}, lng=${coords.lng}`);
         setUserCoords(coords);
         fetchPlacesRef.current?.(coords.lat, coords.lng);
-        // Don't override step if restoring a pending action
-        if (!pendingRef.current) {
-          setStep('select');
-        }
+        if (!pendingRef.current) setStep('select');
       },
       (error) => {
         setIsRequestingPermission(false);
-        console.error('Geolocation error:', error);
-
         if (error.code === error.PERMISSION_DENIED) {
-          // Check if permanently blocked via Permissions API
           if (navigator.permissions) {
             navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-              if (result.state === 'denied') {
-                setPermissionStatus('blocked');
-              } else {
-                setPermissionStatus('denied');
-              }
+              setPermissionStatus(result.state === 'denied' ? 'blocked' : 'denied');
             }).catch(() => setPermissionStatus('denied'));
           } else {
             setPermissionStatus('denied');
@@ -239,11 +175,7 @@ export default function Location() {
         }
         setStep('permission');
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 30000
-      }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );
   }, [isRequestingPermission, toast]);
 
@@ -254,24 +186,13 @@ export default function Location() {
 
   const handleSearchByName = async (query: string) => {
     if (!userCoords) return;
-
     setSearchingByName(true);
     try {
-      const results = await placesService.searchByName({
-        latitude: userCoords.lat,
-        longitude: userCoords.lng,
-        query,
-        limit: 20
-      });
+      const results = await placesService.searchByName({ latitude: userCoords.lat, longitude: userCoords.lng, query, limit: 20 });
       setPlaces(results);
-      setClosestPlace(null); // Reset closest place suggestion
-    } catch (error) {
-      console.error('[Location] Error searching by name:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Erro na busca',
-        description: 'Tente novamente'
-      });
+      setClosestPlace(null);
+    } catch {
+      toast({ variant: 'destructive', title: 'Erro na busca', description: 'Tente novamente' });
     } finally {
       setSearchingByName(false);
     }
@@ -282,18 +203,12 @@ export default function Location() {
       toast({ variant: 'destructive', title: 'Preencha o nome do local' });
       return;
     }
-
-    // Check for nearby temporary places first
     const nearbyTemp = await fetchNearbyTemporaryPlaces(userCoords.lat, userCoords.lng);
-
     if (nearbyTemp.length > 0) {
-      // Found nearby temporary place - ask user to confirm
-      setNearbyTempToConfirm(nearbyTemp[0]); // Show the closest one
+      setNearbyTempToConfirm(nearbyTemp[0]);
       setStep('confirm_temp');
       return;
     }
-
-    // No nearby temporary places, proceed to expression
     setStep('expression');
   };
 
@@ -305,35 +220,25 @@ export default function Location() {
   };
 
   const handleConfirmCreateNewTemp = () => {
-    // User wants to create new place even though one exists nearby
     setNearbyTempToConfirm(null);
     setStep('expression');
   };
 
   const handleActivatePresence = async (selfieUrl: string, selfieSource: 'camera' | 'upload') => {
-    if (!user) return;
-    if (!selfieUrl) {
-      throw new Error('Presence activation requires selfieUrl');
-    }
+    if (!user || !selfieUrl) return;
     setActivating(true);
 
     try {
       let error: Error | null = null;
       let presenceId: string | null = null;
       const trimmedExpression = expressionText.trim() || undefined;
-      
+
       try {
         let result;
         if (selectedPlaceId) {
           result = await activatePresenceAtPlace(selectedPlaceId, DEFAULT_INTENTION_ID, trimmedExpression);
         } else if (newPlaceName.trim() && userCoords) {
-          result = await createTemporaryPlace(
-            newPlaceName.trim(),
-            userCoords.lat,
-            userCoords.lng,
-            DEFAULT_INTENTION_ID,
-            trimmedExpression
-          );
+          result = await createTemporaryPlace(newPlaceName.trim(), userCoords.lat, userCoords.lng, DEFAULT_INTENTION_ID, trimmedExpression);
         } else {
           error = new Error('Nenhum local selecionado');
           return;
@@ -341,50 +246,33 @@ export default function Location() {
         error = result.error;
         presenceId = result.presenceId;
       } catch (err: any) {
-        if (err.message === 'PROFILE_LOADING') {
-          return; // Silencia, spinner continua
-        }
+        if (err.message === 'PROFILE_LOADING') return;
         if (err?.message === 'PROFILE_INCOMPLETE' || err?.code === 'PROFILE_INCOMPLETE') {
-          savePendingAction({
-            type: 'ACTIVATE_PRESENCE',
-            placeId: selectedPlaceId || '',
-            expressionText: expressionText?.trim() || undefined,
-          });
+          savePendingAction({ type: 'ACTIVATE_PRESENCE', placeId: selectedPlaceId || '', expressionText: expressionText?.trim() || undefined });
           setShowProfileGate(true);
           return;
         }
-        throw err; // Outros erros são reais
+        throw err;
       }
 
       if (error) {
         if (error?.message === 'PROFILE_INCOMPLETE' || (error as any)?.code === 'PROFILE_INCOMPLETE') {
-          savePendingAction({
-            type: 'ACTIVATE_PRESENCE',
-            placeId: selectedPlaceId || '',
-            expressionText: expressionText?.trim() || undefined,
-          });
+          savePendingAction({ type: 'ACTIVATE_PRESENCE', placeId: selectedPlaceId || '', expressionText: expressionText?.trim() || undefined });
           setShowProfileGate(true);
           return;
         }
         toast({ variant: 'destructive', title: 'Erro ao ativar presença', description: error.message });
       } else {
-        if (!presenceId) {
-          throw new Error('Presence ID not returned after activation');
-        }
-
-        await supabase
-          .from('presence')
-          .update({
-            checkin_selfie_url: selfieUrl,
-            checkin_selfie_created_at: new Date().toISOString(),
-            selfie_provided: selfieSource === 'camera',
-            selfie_source: selfieSource,
-          })
-          .eq('id', presenceId);
-
+        if (!presenceId) throw new Error('Presence ID not returned after activation');
+        await supabase.from('presence').update({
+          checkin_selfie_url: selfieUrl,
+          checkin_selfie_created_at: new Date().toISOString(),
+          selfie_provided: selfieSource === 'camera',
+          selfie_source: selfieSource,
+        }).eq('id', presenceId);
         navigate('/home', { replace: true });
       }
-    } catch (err) {
+    } catch {
       toast({ variant: 'destructive', title: 'Erro inesperado' });
     } finally {
       setActivating(false);
@@ -394,47 +282,43 @@ export default function Location() {
   const handleSelfieConfirm = async (blob: Blob, source: 'camera' | 'upload') => {
     if (!user) return;
     setActivating(true);
-
     try {
-      // Upload selfie to storage
       const fileName = `${user.id}/${Date.now()}.jpg`;
-      const { error: uploadError } = await supabase.storage.
-      from('checkin-selfies').
-      upload(fileName, blob, { contentType: blob.type || 'image/jpeg', upsert: true });
+      const { error: uploadError } = await supabase.storage
+        .from('checkin-selfies')
+        .upload(fileName, blob, { contentType: blob.type || 'image/jpeg', upsert: true });
 
       if (uploadError) {
         toast({ variant: 'destructive', title: 'Erro ao enviar foto' });
         setActivating(false);
         return;
       }
-
-      // Store file path (not full URL) — bucket is private, signed URLs are generated on read
       await handleActivatePresence(fileName, source);
-    } catch (err) {
+    } catch {
       toast({ variant: 'destructive', title: 'Erro inesperado' });
       setActivating(false);
     }
   };
 
   const handleSelfieCancel = () => {
-    cameraService.stopCamera();
     setStep('expression');
   };
 
   return (
     <MobileLayout>
       <div className="p-4 space-y-4 page-fade">
-        {/* Show loader until permission status is checked */}
-        {!permissionChecked &&
-        <div className="flex flex-col items-center justify-center py-16">
+
+        {/* Loader inicial */}
+        {!permissionChecked && (
+          <div className="flex flex-col items-center justify-center py-16">
             <Loader2 className="h-12 w-12 text-katu-blue mx-auto mb-4 animate-spin" />
             <p className="text-muted-foreground">Carregando...</p>
           </div>
-        }
+        )}
 
-        {/* Permission request step */}
-        {permissionChecked && step === 'permission' &&
-        <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
+        {/* Permissão de localização */}
+        {permissionChecked && step === 'permission' && (
+          <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
             <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-6">
               <MapPin className="h-8 w-8 text-accent" />
             </div>
@@ -442,126 +326,101 @@ export default function Location() {
               {permissionStatus === 'blocked' ? 'Localização bloqueada' : 'Precisamos da sua localização'}
             </h2>
             <p className="text-sm text-muted-foreground text-center mb-8 max-w-[280px]">
-              {permissionStatus === 'blocked' ?
-            'A permissão foi negada permanentemente. Abra as configurações do navegador para permitir o acesso à localização.' :
-            'Para encontrar locais perto de você, precisamos acessar sua localização.'}
+              {permissionStatus === 'blocked'
+                ? 'A permissão foi negada. Abra as configurações do dispositivo e permita o acesso à localização.'
+                : 'Para encontrar locais perto de você, precisamos acessar sua localização.'}
             </p>
-
-            {permissionStatus === 'blocked' ?
-          <Button
-            onClick={() => {
-              // On web, we can't open system settings directly.
-              // Guide the user instead.
-              toast({
-                title: 'Abra as configurações',
-                description: 'No navegador, toque no ícone de cadeado/configurações ao lado da barra de endereço e permita a localização.'
-              });
-            }}
-            className="w-full max-w-[280px] h-12 rounded-xl font-semibold text-base"
-            variant="outline">
-
+            {permissionStatus === 'blocked' ? (
+              <Button
+                onClick={() => toast({ title: 'Abra as configurações', description: 'Permita o acesso à localização nas configurações do dispositivo.' })}
+                className="w-full max-w-[280px] h-12 rounded-xl font-semibold text-base"
+                variant="outline"
+              >
                 Como permitir
-              </Button> :
-
-          <Button
-            onClick={handleRequestLocation}
-            disabled={isRequestingPermission}
-            className="w-full max-w-[280px] h-12 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-base">
-
-                {isRequestingPermission ?
-            <>
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Solicitando...
-                  </> :
-
-            <>
-                    <MapPin className="h-5 w-5 mr-2" />
-                    Permitir localização
-                  </>
-            }
               </Button>
-          }
+            ) : (
+              <Button
+                onClick={handleRequestLocation}
+                disabled={isRequestingPermission}
+                className="w-full max-w-[280px] h-12 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-base"
+              >
+                {isRequestingPermission ? (
+                  <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Solicitando...</>
+                ) : (
+                  <><MapPin className="h-5 w-5 mr-2" />Permitir localização</>
+                )}
+              </Button>
+            )}
           </div>
-        }
+        )}
 
-        {/* Detecting location */}
-        {step === 'detecting' &&
-        <div className="flex flex-col items-center justify-center py-16">
+        {/* Detectando localização */}
+        {step === 'detecting' && (
+          <div className="flex flex-col items-center justify-center py-16">
             <Loader2 className="h-12 w-12 text-katu-blue mx-auto mb-4 animate-spin" />
             <p className="text-muted-foreground">Detectando sua localização...</p>
           </div>
-        }
+        )}
 
-        {/* Select location - New optimized component */}
-        {step === 'select' &&
-        <PlaceSelector
-          loading={loading || placesLoading}
-          places={places}
-          temporaryPlaces={nearbyTemporaryPlaces}
-          closestPlace={closestPlace}
-          onSelectPlace={handleSelectPlace}
-          onCreateTemporary={() => setStep('create_temp')}
-          onSearchByName={handleSearchByName}
-          searchingByName={searchingByName}
-          presenceRadius={presenceRadiusMeters}
-          userCoords={userCoords} />
+        {/* Seleção de local */}
+        {step === 'select' && (
+          <PlaceSelector
+            loading={loading || placesLoading}
+            places={places}
+            temporaryPlaces={nearbyTemporaryPlaces}
+            closestPlace={closestPlace}
+            onSelectPlace={handleSelectPlace}
+            onCreateTemporary={() => setStep('create_temp')}
+            onSearchByName={handleSearchByName}
+            searchingByName={searchingByName}
+            presenceRadius={presenceRadiusMeters}
+            userCoords={userCoords}
+          />
+        )}
 
-        }
-
-        {/* Create temporary place */}
-        {step === 'create_temp' &&
-        <div className="space-y-4 animate-fade-in">
+        {/* Criar local temporário */}
+        {step === 'create_temp' && (
+          <div className="space-y-4 animate-fade-in">
             <div className="flex items-center gap-3 mb-2">
-              <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-xl"
-              onClick={() => setStep('select')}>
-
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setStep('select')}>
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
                 <h2 className="text-xl font-bold">Criar local temporário</h2>
-                <p className="text-sm text-muted-foreground">
-                  Expira após 6 horas sem atividade
-                </p>
+                <p className="text-sm text-muted-foreground">Expira após 6 horas sem atividade</p>
               </div>
             </div>
-            
             <Card className="border-0 shadow-sm">
               <CardContent className="pt-6 space-y-4">
                 <div>
                   <Label htmlFor="placeName" className="text-sm font-medium">Nome do local</Label>
                   <Input
-                  id="placeName"
-                  placeholder="Ex: Festa do João, Churrasco no parque..."
-                  value={newPlaceName}
-                  onChange={(e) => setNewPlaceName(e.target.value)}
-                  className="mt-2 h-11 rounded-xl" />
-
+                    id="placeName"
+                    placeholder="Ex: Festa do João, Churrasco no parque..."
+                    value={newPlaceName}
+                    onChange={(e) => setNewPlaceName(e.target.value)}
+                    className="mt-2 h-11 rounded-xl"
+                  />
                 </div>
                 <Button
-                onClick={handleCreateTemporaryPlace}
-                disabled={!newPlaceName.trim()}
-                className="w-full h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold">
-
+                  onClick={handleCreateTemporaryPlace}
+                  disabled={!newPlaceName.trim()}
+                  className="w-full h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
+                >
                   Continuar
                 </Button>
               </CardContent>
             </Card>
           </div>
-        }
+        )}
 
-        {/* Confirm use of existing temporary place */}
-        {step === 'confirm_temp' && nearbyTempToConfirm &&
-        <div className="space-y-4 animate-fade-in">
+        {/* Confirmar local temporário existente */}
+        {step === 'confirm_temp' && nearbyTempToConfirm && (
+          <div className="space-y-4 animate-fade-in">
             <div className="text-center mb-4">
               <h2 className="text-xl font-bold">Local temporário próximo</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Já existe um local muito próximo. Deseja entrar?
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">Já existe um local muito próximo. Deseja entrar?</p>
             </div>
-            
             <Card className="border-2 border-katu-green/30">
               <CardContent className="pt-6">
                 <div className="p-4 bg-katu-green/10 rounded-xl">
@@ -573,112 +432,78 @@ export default function Location() {
                     <span>{Math.round(nearbyTempToConfirm.distance_meters)}m de você</span>
                   </div>
                 </div>
-
                 <div className="flex flex-col gap-2 mt-4">
-                  <Button
-                  onClick={handleConfirmUseExistingTemp}
-                  className="h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold">
-
+                  <Button onClick={handleConfirmUseExistingTemp} className="h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold">
                     Entrar neste local
                   </Button>
-                  <Button
-                  variant="outline"
-                  className="h-11 rounded-xl"
-                  onClick={handleConfirmCreateNewTemp}>
-
+                  <Button variant="outline" className="h-11 rounded-xl" onClick={handleConfirmCreateNewTemp}>
                     Criar outro local mesmo assim
                   </Button>
-                  <Button
-                  variant="ghost"
-                  className="h-11 rounded-xl"
-                  onClick={() => {
-                    setNearbyTempToConfirm(null);
-                    setStep('select');
-                  }}>
-
+                  <Button variant="ghost" className="h-11 rounded-xl" onClick={() => { setNearbyTempToConfirm(null); setStep('select'); }}>
                     Voltar
                   </Button>
                 </div>
               </CardContent>
             </Card>
           </div>
-        }
+        )}
 
-        {/* Expression screen - momentary expression */}
-        {step === 'expression' &&
-        <div className="space-y-4 animate-fade-in">
+        {/* Expressão momentânea */}
+        {step === 'expression' && (
+          <div className="space-y-4 animate-fade-in">
             <div className="flex items-center gap-3 mb-2">
               <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-xl"
-              onClick={() => {
-                if (nearbyTempToConfirm) {
-                  setStep('confirm_temp');
-                } else if (newPlaceName.trim()) {
-                  setStep('create_temp');
-                } else {
-                  setStep('select');
-                }
-              }}>
-
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-xl"
+                onClick={() => {
+                  if (nearbyTempToConfirm) setStep('confirm_temp');
+                  else if (newPlaceName.trim()) setStep('create_temp');
+                  else setStep('select');
+                }}
+              >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div>
-                <h2 className="text-xl font-bold">Seu momento aqui</h2>
-              </div>
+              <h2 className="text-xl font-bold">Seu momento aqui</h2>
             </div>
-            
             <Card className="border-0 shadow-sm">
               <CardContent className="pt-6 space-y-5">
                 <div>
-                  <p className="text-base text-foreground mb-1">O que as pessoas precisam saber sobre você aqui e agora?
-
-                </p>
-                  <p className="text-sm text-muted-foreground mb-4">
-
-                </p>
+                  <p className="text-base text-foreground mb-4">
+                    O que as pessoas precisam saber sobre você aqui e agora?
+                  </p>
                   <Textarea
-                  placeholder="Ex: Aberto a conversar."
-                  value={expressionText}
-                  onChange={(e) => setExpressionText(e.target.value.slice(0, 140))}
-                  className="min-h-[100px] rounded-xl resize-none"
-                  maxLength={140} />
-
+                    placeholder="Ex: Aberto a conversar."
+                    value={expressionText}
+                    onChange={(e) => setExpressionText(e.target.value.slice(0, 140))}
+                    className="min-h-[100px] rounded-xl resize-none"
+                    maxLength={140}
+                  />
                   <p className="text-xs text-muted-foreground text-right mt-1">
                     {expressionText.length}/140
                   </p>
                 </div>
-
                 <Button
-                disabled={cameraRequesting}
-                onClick={() => setStep('selfie')}
-                className="w-full h-12 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-base">
-
-                  {cameraRequesting ? (
-                    <>
-                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                      Acessando câmera...
-                    </>
-                  ) : (
-                    'Continuar'
-                  )}
+                  onClick={() => setStep('selfie')}
+                  className="w-full h-12 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-base"
+                >
+                  Continuar
                 </Button>
               </CardContent>
             </Card>
           </div>
-        }
+        )}
 
-        {/* Selfie step */}
-        {step === 'selfie' &&
-        <CheckinSelfie
-          onConfirm={handleSelfieConfirm}
-          onCancel={handleSelfieCancel}
-          uploading={activating} />
-
-        }
+        {/* Selfie */}
+        {step === 'selfie' && (
+          <CheckinSelfie
+            onConfirm={handleSelfieConfirm}
+            onCancel={handleSelfieCancel}
+            uploading={activating}
+          />
+        )}
       </div>
       <ProfileGateModal open={showProfileGate} onClose={() => setShowProfileGate(false)} />
-    </MobileLayout>);
-
+    </MobileLayout>
+  );
 }
