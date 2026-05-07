@@ -21,23 +21,27 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [containerReady, setContainerReady] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Câmera nativa — aguarda o container estar no DOM antes de iniciar
+  // Câmera nativa — primeiro renderiza o container, depois inicia o preview
   useEffect(() => {
     if (!isNative) return;
-    // Pequeno delay para garantir que o container já foi renderizado e tem posição real
-    const timer = setTimeout(() => {
-      initNativePreview();
-    }, 100);
+    // Mostra o container primeiro (step = 'capture'), depois inicia a câmera
+    setStep('capture');
     return () => {
-      clearTimeout(timer);
       cameraService.stopPreview();
     };
   }, []);
+
+  // Quando o container estiver pronto no DOM, inicia o preview
+  useEffect(() => {
+    if (!isNative || !containerReady) return;
+    initNativePreview();
+  }, [containerReady]);
 
   // Câmera browser — carrega modelos e inicia stream
   useEffect(() => {
@@ -82,10 +86,8 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   };
 
   const initNativePreview = async () => {
-    setStep('loading');
     try {
       await cameraService.startPreview();
-      setStep('capture');
     } catch (err: any) {
       console.error('[CheckinSelfie] Native preview error:', err);
       setErrorMsg('Não foi possível acessar a câmera. Verifique as permissões nas configurações do dispositivo.');
@@ -157,8 +159,9 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const handleRetake = async () => {
     setCapturedImage(null);
     setCapturedBlob(null);
+    setContainerReady(false);
     if (isNative) {
-      await initNativePreview();
+      setStep('capture');
     } else {
       await initBrowserCamera();
     }
@@ -223,6 +226,11 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
             id="cameraPreviewContainer"
             className="relative w-full aspect-square rounded-2xl overflow-hidden"
             style={{ background: 'transparent' }}
+            ref={(el) => {
+              if (el && !containerReady) {
+                setContainerReady(true);
+              }
+            }}
           />
           <Button
             onClick={handleCapture}
