@@ -16,6 +16,20 @@ export async function startPreview(): Promise<void> {
   const x = rect?.left ?? 0;
   const y = rect?.top ?? 0;
 
+  export async function startPreview(): Promise<void> {
+  if (previewActive) return;
+
+  const el = document.getElementById('cameraPreviewContainer');
+  const rect = el?.getBoundingClientRect();
+  const size = rect?.width ?? window.screen.width;
+  const x = rect?.left ?? 0;
+  const y = rect?.top ?? 0;
+
+  // LOG TEMPORÁRIO
+  console.log('[KATUU-CAM] el encontrado:', !!el);
+  console.log('[KATUU-CAM] rect:', JSON.stringify(rect));
+  console.log('[KATUU-CAM] params:', JSON.stringify({ x: Math.round(x), y: Math.round(y), width: Math.round(size), height: Math.round(size) }));
+
   await CameraPreview.start({
     position: 'front',
     parent: 'cameraPreviewContainer',
