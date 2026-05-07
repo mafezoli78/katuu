@@ -87,43 +87,55 @@ export default function Location() {
   const hasFetchedRef = useRef(false);
   const pendingRef = useRef(getPendingAction());
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/auth', { replace: true });
-      return;
-    }
-    if (loading) return;
-    if (currentPresence) {
-      navigate('/home', { replace: true });
-      return;
-    }
-    if (pendingRef.current) {
-      setPermissionChecked(true);
-      return;
-    }
+ useEffect(() => {
+  if (!user) {
+    navigate('/auth', { replace: true });
+    return;
+  }
+  if (loading) return;
+  if (currentPresence) {
+    navigate('/home', { replace: true });
+    return;
+  }
+  if (pendingRef.current) {
+    setPermissionChecked(true);
+    return;
+  }
 
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-        setPermissionChecked(true);
-        if (result.state === 'granted') {
-          setPermissionStatus('granted');
-          setStep('detecting');
-          handleRequestLocation();
-        } else if (result.state === 'denied') {
-          setPermissionStatus('blocked');
-          setStep('permission');
-        } else {
-          setStep('permission');
-        }
-      }).catch(() => {
-        setPermissionChecked(true);
+  // Verifica se usuário já autorizou antes (persistido no localStorage)
+  const alreadyGranted = localStorage.getItem('location_permission_granted') === 'true';
+
+  if (alreadyGranted) {
+    setPermissionChecked(true);
+    setPermissionStatus('granted');
+    setStep('detecting');
+    handleRequestLocation();
+    return;
+  }
+
+  if (navigator.permissions) {
+    navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+      setPermissionChecked(true);
+      if (result.state === 'granted') {
+        localStorage.setItem('location_permission_granted', 'true');
+        setPermissionStatus('granted');
+        setStep('detecting');
+        handleRequestLocation();
+      } else if (result.state === 'denied') {
+        setPermissionStatus('blocked');
         setStep('permission');
-      });
-    } else {
+      } else {
+        setStep('permission');
+      }
+    }).catch(() => {
       setPermissionChecked(true);
       setStep('permission');
-    }
-  }, [user, navigate, loading, currentPresence]);
+    });
+  } else {
+    setPermissionChecked(true);
+    setStep('permission');
+  }
+}, [user, navigate, loading, currentPresence]);
 
   useEffect(() => {
     const pending = pendingRef.current;
