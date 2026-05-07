@@ -58,6 +58,9 @@ export default function Splash() {
       <p className="text-white/80 text-base mt-6 font-medium tracking-wide">
         o presente em movimento
       </p>
+      <p className="text-white/40 text-xs mt-2 tracking-widest">
+        v1.0.1
+      </p>
 
       {/* Loading bar */}
       <div className="mt-12 w-48 h-1.5 bg-white/20 rounded-full overflow-hidden">
