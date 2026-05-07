@@ -21,27 +21,23 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
   const [modelsLoaded, setModelsLoaded] = useState(false);
-  const [containerReady, setContainerReady] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Câmera nativa — primeiro renderiza o container, depois inicia o preview
+  // Câmera nativa — renderiza o container primeiro, depois inicia o preview
   useEffect(() => {
     if (!isNative) return;
-    // Mostra o container primeiro (step = 'capture'), depois inicia a câmera
     setStep('capture');
+    const timer = setTimeout(() => {
+      initNativePreview();
+    }, 500);
     return () => {
+      clearTimeout(timer);
       cameraService.stopPreview();
     };
   }, []);
-
-  // Quando o container estiver pronto no DOM, inicia o preview
-  useEffect(() => {
-    if (!isNative || !containerReady) return;
-    initNativePreview();
-  }, [containerReady]);
 
   // Câmera browser — carrega modelos e inicia stream
   useEffect(() => {
@@ -159,9 +155,11 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const handleRetake = async () => {
     setCapturedImage(null);
     setCapturedBlob(null);
-    setContainerReady(false);
     if (isNative) {
       setStep('capture');
+      setTimeout(() => {
+        initNativePreview();
+      }, 500);
     } else {
       await initBrowserCamera();
     }
@@ -226,11 +224,6 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
             id="cameraPreviewContainer"
             className="relative w-full aspect-square rounded-2xl overflow-hidden"
             style={{ background: 'transparent' }}
-            ref={(el) => {
-              if (el && !containerReady) {
-                setContainerReady(true);
-              }
-            }}
           />
           <Button
             onClick={handleCapture}
