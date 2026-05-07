@@ -169,6 +169,7 @@ export default function Location() {
         hasFetchedRef.current = true;
         setIsRequestingPermission(false);
         setPermissionStatus('granted');
+        localStorage.setItem('location_permission_granted', 'true');
         const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
         setUserCoords(coords);
         fetchPlacesRef.current?.(coords.lat, coords.lng);
