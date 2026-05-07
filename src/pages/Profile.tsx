@@ -227,7 +227,7 @@ export default function Profile() {
   const bioStatus = getBioStatus();
 
   return (
-    <MobileLayout>
+    <MobileLayout headerVersion={APP_VERSION}>
       <div className="p-4 space-y-4 page-fade pb-24">
 
         {/* BLOCO 1 — Perfil */}
@@ -503,12 +503,7 @@ export default function Profile() {
           </Button>
         )}
 
-        {/* Versão */}
-        {!editing && (
-          <p className="text-center text-xs text-muted-foreground pb-2">
-            Katuu v{APP_VERSION}
-          </p>
-        )}
+
       </div>
       <PasswordChangeDialog
         open={passwordDialogOpen}
