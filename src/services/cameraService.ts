@@ -1,28 +1,43 @@
 import { Capacitor } from '@capacitor/core';
-import { Camera, CameraResultType, CameraSource, CameraDirection } from '@capacitor/camera';
+import { CameraPreview } from '@capacitor-community/camera-preview';
 
 export function isNative(): boolean {
   return Capacitor.isNativePlatform();
 }
 
-// Captura selfie via câmera nativa — sem opção de galeria
-export async function takeSelfie(): Promise<{ blob: Blob; dataUrl: string }> {
-  const photo = await Camera.getPhoto({
-    quality: 85,
-    allowEditing: false,
-    resultType: CameraResultType.DataUrl,
-    source: CameraSource.Camera,
-    direction: CameraDirection.Front,
-    width: 720,
-    height: 720,
-    correctOrientation: true,
-    presentationStyle: 'fullscreen',
+let previewActive = false;
+
+export async function startPreview(): Promise<void> {
+  if (previewActive) return;
+  await CameraPreview.start({
+    position: 'front',
+    parent: 'cameraPreviewContainer',
+    className: 'cameraPreview',
+    width: window.screen.width,
+    height: window.screen.width, // quadrado (1:1)
+    toBack: false,
+    disableAudio: true,
   });
+  previewActive = true;
+}
 
-  if (!photo.dataUrl) throw new Error('NO_PHOTO_DATA');
+export async function capturePhoto(): Promise<{ blob: Blob; dataUrl: string }> {
+  const result = await CameraPreview.capture({ quality: 85 });
+  const dataUrl = `data:image/jpeg;base64,${result.value}`;
+  const blob = dataUrlToBlob(dataUrl);
+  return { blob, dataUrl };
+}
 
-  const blob = dataUrlToBlob(photo.dataUrl);
-  return { blob, dataUrl: photo.dataUrl };
+export async function stopPreview(): Promise<void> {
+  if (!previewActive) return;
+  try {
+    await CameraPreview.stop();
+  } catch {}
+  previewActive = false;
+}
+
+export function isPreviewActive(): boolean {
+  return previewActive;
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -38,32 +53,14 @@ function dataUrlToBlob(dataUrl: string): Blob {
 
 // --- Legacy browser stream API (mantida para web) ---
 let currentStream: MediaStream | null = null;
-let pendingRequest: Promise<MediaStream> | null = null;
 
 export async function requestCamera(): Promise<MediaStream> {
-  if (pendingRequest) return pendingRequest;
-
-  pendingRequest = (async () => {
-    try {
-      if (currentStream) {
-        currentStream.getTracks().forEach(t => t.stop());
-        currentStream = null;
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
-        audio: false,
-      });
-      currentStream = stream;
-      return stream;
-    } catch (err) {
-      currentStream = null;
-      throw err;
-    } finally {
-      pendingRequest = null;
-    }
-  })();
-
-  return pendingRequest;
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
+    audio: false,
+  });
+  currentStream = stream;
+  return stream;
 }
 
 export function getStream(): MediaStream | null {
@@ -75,8 +72,4 @@ export function stopCamera(): void {
     currentStream.getTracks().forEach(t => t.stop());
     currentStream = null;
   }
-}
-
-export function isActive(): boolean {
-  return currentStream !== null && currentStream.getTracks().some(t => t.readyState === 'live');
 }
