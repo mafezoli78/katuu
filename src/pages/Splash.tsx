@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import logoKatuu from '@/assets/logo-katuu-oficial.png';
 import iconKatuu from '@/assets/icon-katuu.png';
+import { APP_VERSION } from '@/version';
 
 export default function Splash() {
   const navigate = useNavigate();
@@ -55,12 +56,12 @@ export default function Splash() {
       </div>
 
       {/* Tagline */}
-      <p className="text-white/80 text-base mt-6 font-medium tracking-wide">
-        o presente em movimento
-      </p>
-      <p className="text-white/40 text-xs mt-2 tracking-widest">
-        v1.0.1
-      </p>
+     <p className="text-white/80 text-base mt-6 font-medium tracking-wide">
+  o presente em movimento
+</p>
+<p className="text-white/40 text-xs mt-2 tracking-widest">
+  v{APP_VERSION}
+</p>
 
       {/* Loading bar */}
       <div className="mt-12 w-48 h-1.5 bg-white/20 rounded-full overflow-hidden">
