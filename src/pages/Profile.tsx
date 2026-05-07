@@ -22,6 +22,7 @@ import {
   LogOut, Check, User, Heart, Pencil, X,
   Lock, RotateCcw, Bell, BellOff, Settings,
 } from 'lucide-react';
+import { APP_VERSION } from '@/version';
 
 const MIN_BIO_LENGTH = 40;
 const MAX_BIO_LENGTH = 150;
@@ -487,12 +488,12 @@ export default function Profile() {
  </Card>
         )}
 
-        {/* Versão */}
-        {!editing && (
-          <p className="text-center text-xs text-muted-foreground pb-2">
-            Katuu v1.0.1
-          </p>
-        )}
+{/* Versão */}
+{!editing && (
+  <p className="text-center text-xs text-muted-foreground pb-2">
+    Katuu v{APP_VERSION}
+  </p>
+)}
 
         {/* Sair */}
         {!editing && (
