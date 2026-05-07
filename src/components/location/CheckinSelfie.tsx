@@ -26,11 +26,15 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Câmera nativa — inicia preview inline
+  // Câmera nativa — aguarda o container estar no DOM antes de iniciar
   useEffect(() => {
     if (!isNative) return;
-    initNativePreview();
+    // Pequeno delay para garantir que o container já foi renderizado e tem posição real
+    const timer = setTimeout(() => {
+      initNativePreview();
+    }, 100);
     return () => {
+      clearTimeout(timer);
       cameraService.stopPreview();
     };
   }, []);
@@ -214,10 +218,11 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
             </Button>
             <h2 className="text-xl font-bold">Tire sua selfie</h2>
           </div>
-          {/* Container onde o plugin renderiza o preview da câmera */}
+          {/* Container transparente — o plugin renderiza atrás dele */}
           <div
             id="cameraPreviewContainer"
-            className="relative w-full aspect-square rounded-2xl overflow-hidden bg-black"
+            className="relative w-full aspect-square rounded-2xl overflow-hidden"
+            style={{ background: 'transparent' }}
           />
           <Button
             onClick={handleCapture}
