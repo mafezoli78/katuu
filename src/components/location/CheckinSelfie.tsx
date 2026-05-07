@@ -26,10 +26,13 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Câmera nativa — abre automaticamente
+  // Câmera nativa — inicia preview inline
   useEffect(() => {
     if (!isNative) return;
-    openNativeCamera();
+    initNativePreview();
+    return () => {
+      cameraService.stopPreview();
+    };
   }, []);
 
   // Câmera browser — carrega modelos e inicia stream
@@ -74,20 +77,13 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     setFaceDetected(false);
   };
 
-  const openNativeCamera = async () => {
+  const initNativePreview = async () => {
     setStep('loading');
     try {
-      const photo = await cameraService.takeSelfie();
-      setCapturedBlob(photo.blob);
-      setCapturedImage(photo.dataUrl);
-      setStep('preview');
+      await cameraService.startPreview();
+      setStep('capture');
     } catch (err: any) {
-      console.error('[CheckinSelfie] Native camera error:', err);
-      // Usuário cancelou — volta para tela anterior
-      if (err?.message?.includes('cancelled') || err?.message?.includes('canceled') || err?.message?.includes('NO_PHOTO_DATA')) {
-        onCancel();
-        return;
-      }
+      console.error('[CheckinSelfie] Native preview error:', err);
       setErrorMsg('Não foi possível acessar a câmera. Verifique as permissões nas configurações do dispositivo.');
       setStep('error');
     }
@@ -96,11 +92,9 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const initBrowserCamera = async () => {
     setStep('loading');
     try {
-      // Carrega modelos de detecção de rosto
       faceapi.nets.tinyFaceDetector.loadFromUri('/models')
         .then(() => setModelsLoaded(true))
         .catch(() => { setModelsLoaded(true); setFaceDetected(true); });
-
       await cameraService.requestCamera();
       setStep('capture');
     } catch (err) {
@@ -110,7 +104,23 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     }
   };
 
-  const handleCapture = () => {
+  const handleCapture = async () => {
+    if (isNative) {
+      try {
+        const photo = await cameraService.capturePhoto();
+        await cameraService.stopPreview();
+        setCapturedBlob(photo.blob);
+        setCapturedImage(photo.dataUrl);
+        setStep('preview');
+      } catch (err) {
+        console.error('[CheckinSelfie] Capture error:', err);
+        setErrorMsg('Erro ao capturar foto. Tente novamente.');
+        setStep('error');
+      }
+      return;
+    }
+
+    // Browser
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
@@ -144,27 +154,26 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     setCapturedImage(null);
     setCapturedBlob(null);
     if (isNative) {
-      await openNativeCamera();
+      await initNativePreview();
     } else {
       await initBrowserCamera();
     }
   };
 
   const handleUsePhoto = () => {
-    if (capturedBlob) {
-      onConfirm(capturedBlob, 'camera');
-    }
+    if (capturedBlob) onConfirm(capturedBlob, 'camera');
   };
 
   const handleCancel = () => {
-    if (!isNative) {
+    if (isNative) {
+      cameraService.stopPreview();
+    } else {
       cameraService.stopCamera();
       stopDetection();
     }
     onCancel();
   };
 
-  // Loading
   if (step === 'loading') {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-4">
@@ -188,14 +197,35 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
           </div>
           <div className="flex flex-col items-center justify-center py-8 gap-4 text-center">
             <p className="text-sm text-muted-foreground max-w-[280px]">{errorMsg}</p>
-            <Button
-              onClick={handleRetake}
-              className="h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
-            >
+            <Button onClick={handleRetake} className="h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold">
               <RefreshCw className="h-4 w-4 mr-2" />
               Tentar novamente
             </Button>
           </div>
+        </>
+      )}
+
+      {/* Captura nativa inline */}
+      {step === 'capture' && isNative && (
+        <>
+          <div className="flex items-center gap-3 mb-2">
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={handleCancel}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h2 className="text-xl font-bold">Tire sua selfie</h2>
+          </div>
+          {/* Container onde o plugin renderiza o preview da câmera */}
+          <div
+            id="cameraPreviewContainer"
+            className="relative w-full aspect-square rounded-2xl overflow-hidden bg-black"
+          />
+          <Button
+            onClick={handleCapture}
+            className="w-full h-12 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-base"
+          >
+            <Camera className="h-5 w-5 mr-2" />
+            Capturar
+          </Button>
         </>
       )}
 
@@ -244,13 +274,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
       {step === 'preview' && capturedImage && (
         <>
           <div className="flex items-center gap-3 mb-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-xl"
-              onClick={handleRetake}
-              disabled={uploading}
-            >
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={handleRetake} disabled={uploading}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h2 className="text-xl font-bold">Ficou boa?</h2>
@@ -266,16 +290,9 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
             >
               {uploading ? (
                 <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Entrando...</>
-              ) : (
-                'Usar esta foto'
-              )}
+              ) : 'Usar esta foto'}
             </Button>
-            <Button
-              variant="ghost"
-              onClick={handleRetake}
-              disabled={uploading}
-              className="w-full h-11 rounded-xl"
-            >
+            <Button variant="ghost" onClick={handleRetake} disabled={uploading} className="w-full h-11 rounded-xl">
               <RefreshCw className="h-4 w-4 mr-2" />
               Refazer
             </Button>
