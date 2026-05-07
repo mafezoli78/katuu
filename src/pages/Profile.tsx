@@ -488,14 +488,7 @@ export default function Profile() {
  </Card>
         )}
 
-{/* Versão */}
-{!editing && (
-  <p className="text-center text-xs text-muted-foreground pb-2">
-    Katuu v{APP_VERSION}
-  </p>
-)}
-
-        {/* Sair */}
+{/* Sair */}
         {!editing && (
           <Button
             variant="outline"
@@ -509,8 +502,14 @@ export default function Profile() {
             Sair da conta
           </Button>
         )}
-      </div>
 
+        {/* Versão */}
+        {!editing && (
+          <p className="text-center text-xs text-muted-foreground pb-2">
+            Katuu v{APP_VERSION}
+          </p>
+        )}
+      </div>
       <PasswordChangeDialog
         open={passwordDialogOpen}
         onClose={() => setPasswordDialogOpen(false)}
