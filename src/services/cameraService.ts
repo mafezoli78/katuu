@@ -7,37 +7,50 @@ export function isNative(): boolean {
 
 let previewActive = false;
 
+function waitForElement(id: string, timeout = 3000): Promise<HTMLElement> {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const check = () => {
+      const el = document.getElementById(id);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        // Garante que o elemento tem dimensões reais na tela
+        if (rect.width > 0 && rect.height > 0) {
+          resolve(el);
+          return;
+        }
+      }
+      if (Date.now() - start > timeout) {
+        reject(new Error(`Element #${id} not found or has no size after ${timeout}ms`));
+        return;
+      }
+      requestAnimationFrame(check);
+    };
+    requestAnimationFrame(check);
+  });
+}
+
 export async function startPreview(): Promise<void> {
   if (previewActive) return;
 
-  const el = document.getElementById('cameraPreviewContainer');
-  const rect = el?.getBoundingClientRect();
-  const size = rect?.width ?? window.screen.width;
-  const x = rect?.left ?? 0;
-  const y = rect?.top ?? 0;
+  const el = await waitForElement('cameraPreviewContainer');
+  const rect = el.getBoundingClientRect();
 
-  export async function startPreview(): Promise<void> {
-  if (previewActive) return;
+  const x = Math.round(rect.left);
+  const y = Math.round(rect.top);
+  const width = Math.round(rect.width);
+  const height = Math.round(rect.height);
 
-  const el = document.getElementById('cameraPreviewContainer');
-  const rect = el?.getBoundingClientRect();
-  const size = rect?.width ?? window.screen.width;
-  const x = rect?.left ?? 0;
-  const y = rect?.top ?? 0;
-
-  // LOG TEMPORÁRIO
-  console.log('[KATUU-CAM] el encontrado:', !!el);
-  console.log('[KATUU-CAM] rect:', JSON.stringify(rect));
-  console.log('[KATUU-CAM] params:', JSON.stringify({ x: Math.round(x), y: Math.round(y), width: Math.round(size), height: Math.round(size) }));
+  console.log('[KATUU-CAM] rect:', JSON.stringify({ x, y, width, height }));
 
   await CameraPreview.start({
     position: 'front',
     parent: 'cameraPreviewContainer',
     className: 'cameraPreview',
-    x: Math.round(x),
-    y: Math.round(y),
-    width: Math.round(size),
-    height: Math.round(size),
+    x,
+    y,
+    width,
+    height,
     toBack: true,
     disableAudio: true,
   });
