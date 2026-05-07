@@ -9,13 +9,22 @@ let previewActive = false;
 
 export async function startPreview(): Promise<void> {
   if (previewActive) return;
+
+  const el = document.getElementById('cameraPreviewContainer');
+  const rect = el?.getBoundingClientRect();
+  const size = rect?.width ?? window.screen.width;
+  const x = rect?.left ?? 0;
+  const y = rect?.top ?? 0;
+
   await CameraPreview.start({
     position: 'front',
     parent: 'cameraPreviewContainer',
     className: 'cameraPreview',
-    width: window.screen.width,
-    height: window.screen.width, // quadrado (1:1)
-    toBack: false,
+    x: Math.round(x),
+    y: Math.round(y),
+    width: Math.round(size),
+    height: Math.round(size),
+    toBack: true,
     disableAudio: true,
   });
   previewActive = true;
@@ -23,9 +32,39 @@ export async function startPreview(): Promise<void> {
 
 export async function capturePhoto(): Promise<{ blob: Blob; dataUrl: string }> {
   const result = await CameraPreview.capture({ quality: 85 });
-  const dataUrl = `data:image/jpeg;base64,${result.value}`;
-  const blob = dataUrlToBlob(dataUrl);
-  return { blob, dataUrl };
+  const rawDataUrl = `data:image/jpeg;base64,${result.value}`;
+  const corrected = await fixRotation(rawDataUrl);
+  const blob = dataUrlToBlob(corrected);
+  return { blob, dataUrl: corrected };
+}
+
+function fixRotation(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const needsRotation = img.width > img.height;
+      const size = Math.min(img.width, img.height);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
+
+      if (needsRotation) {
+        ctx.translate(size, 0);
+        ctx.rotate(Math.PI / 2);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, 0, 0, size, size);
+      } else {
+        ctx.translate(size, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, 0, 0, size, size);
+      }
+
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.src = dataUrl;
+  });
 }
 
 export async function stopPreview(): Promise<void> {
