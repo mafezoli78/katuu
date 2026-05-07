@@ -484,7 +484,14 @@ export default function Profile() {
                 Mostrar tutorial novamente
               </Button>
             </CardContent>
-          </Card>
+ </Card>
+        )}
+
+        {/* Versão */}
+        {!editing && (
+          <p className="text-center text-xs text-muted-foreground pb-2">
+            Katuu v1.0.1
+          </p>
         )}
 
         {/* Sair */}
