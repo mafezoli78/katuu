@@ -21,12 +21,12 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [previewReady, setPreviewReady] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Câmera nativa — renderiza o container primeiro, depois inicia o preview
   useEffect(() => {
     if (!isNative) return;
     setStep('capture');
@@ -39,7 +39,6 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     };
   }, []);
 
-  // Câmera browser — carrega modelos e inicia stream
   useEffect(() => {
     if (isNative) return;
     initBrowserCamera();
@@ -72,6 +71,13 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     }, 400);
     return stopDetection;
   }, [step, modelsLoaded, isNative]);
+
+  useEffect(() => {
+    if (!isNative || step !== 'preview') return;
+    cameraService.stopPreview();
+    const timer = setTimeout(() => setPreviewReady(true), 150);
+    return () => clearTimeout(timer);
+  }, [step, isNative]);
 
   const stopDetection = () => {
     if (detectionIntervalRef.current) {
@@ -109,8 +115,8 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const handleCapture = async () => {
     if (isNative) {
       try {
+        setPreviewReady(false);
         const photo = await cameraService.capturePhoto();
-        await cameraService.stopPreview();
         setCapturedBlob(photo.blob);
         setCapturedImage(photo.dataUrl);
         setStep('preview');
@@ -155,6 +161,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const handleRetake = async () => {
     setCapturedImage(null);
     setCapturedBlob(null);
+    setPreviewReady(false);
     if (isNative) {
       setStep('capture');
       setTimeout(() => {
@@ -219,10 +226,9 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
             </Button>
             <h2 className="text-xl font-bold">Tire sua selfie</h2>
           </div>
-          {/* Container transparente — o plugin renderiza atrás dele */}
           <div
             id="cameraPreviewContainer"
-            className="relative w-full aspect-square rounded-2xl overflow-hidden"
+            className="relative w-full aspect-square overflow-hidden"
             style={{ background: 'transparent' }}
           />
           <Button
@@ -276,23 +282,43 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
         </>
       )}
 
-      {/* Preview */}
+      {/* Preview — overlay branco primeiro (flash), depois mostra a foto */}
       {step === 'preview' && capturedImage && (
-        <>
-          <div className="flex items-center gap-3 mb-2">
+        <div
+          className="fixed inset-0 z-50 flex flex-col"
+          style={{
+            backgroundColor: previewReady ? 'var(--background)' : 'white',
+            transition: 'background-color 0.15s ease-in',
+          }}
+        >
+          <div className="flex items-center gap-3 p-4">
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={handleRetake} disabled={uploading}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h2 className="text-xl font-bold">Ficou boa?</h2>
           </div>
-          <div className="w-full aspect-square rounded-2xl overflow-hidden">
-            <img src={capturedImage} alt="Selfie" className="w-full h-full object-cover" />
+
+          {/* Imagem sem distorção — proporção natural preservada */}
+          <div
+            className="px-4"
+            style={{ opacity: previewReady ? 1 : 0, transition: 'opacity 0.15s ease-in' }}
+          >
+            <img
+              src={capturedImage}
+              alt="Selfie"
+              style={{ width: '100%', height: 'auto', display: 'block' }}
+            />
           </div>
-          <div className="flex flex-col gap-2">
+
+          <div
+            className="flex flex-col gap-2 p-4 mt-4"
+            style={{ opacity: previewReady ? 1 : 0, transition: 'opacity 0.15s ease-in' }}
+          >
             <Button
               onClick={handleUsePhoto}
               disabled={uploading}
-              className="w-full h-12 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-base"
+              className="w-full h-12 rounded-xl font-semibold text-base text-white"
+              style={{ backgroundColor: '#6B8E7F' }}
             >
               {uploading ? (
                 <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Entrando...</>
@@ -303,8 +329,9 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
               Refazer
             </Button>
           </div>
-        </>
+        </div>
       )}
+
     </div>
   );
 }

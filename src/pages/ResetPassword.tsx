@@ -14,14 +14,26 @@ export default function ResetPassword() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Detect recovery event from URL hash
+    // Detecta recovery via hash da URL (web)
     const hash = window.location.hash;
     if (hash.includes('type=recovery')) {
       setIsRecovery(true);
     }
 
+    // Detecta recovery via evento do Supabase (nativo e web)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
+        setIsRecovery(true);
+      }
+      // Se já tem sessão ativa ao abrir esta tela (setSession foi chamado pelo DeepLinkHandler)
+      if (event === 'SIGNED_IN') {
+        setIsRecovery(true);
+      }
+    });
+
+    // Verifica se já tem sessão ativa (caso o DeepLinkHandler já tenha chamado setSession)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
         setIsRecovery(true);
       }
     });
@@ -45,7 +57,8 @@ export default function ResetPassword() {
       toast({ variant: 'destructive', title: 'Erro', description: error.message });
     } else {
       toast({ title: 'Senha atualizada!', description: 'Você já pode entrar com sua nova senha.' });
-      navigate('/auth');
+      await supabase.auth.signOut();
+      navigate('/auth', { replace: true });
     }
   };
 

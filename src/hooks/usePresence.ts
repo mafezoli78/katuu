@@ -428,7 +428,7 @@ export function usePresence() {
 
     const { error } = await supabase
       .from('presence')
-      .update({ ultima_atividade: new Date().toISOString() })
+      .update({ ultima_atividade: new Date().toISOString(), prorrogado: false })
       .eq('id', currentPresence.id);
 
     if (error) {

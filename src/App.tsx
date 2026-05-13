@@ -1,12 +1,15 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useTutorial } from "@/hooks/useTutorial";
 import { TutorialFlow } from "@/components/tutorial/TutorialFlow";
 import { useAutoPushSubscription } from "@/hooks/useAutoPushSubscription";
+import { App as CapApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
+import { supabase } from "@/integrations/supabase/client";
 
 // Lazy-loaded pages — cada página é um chunk separado no build
 const Splash = lazy(() => import("./pages/Splash"));
@@ -32,11 +35,64 @@ function PageLoader() {
   );
 }
 
+function DeepLinkHandler() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const handleUrl = async (url: string) => {
+      try {
+        const parsed = new URL(url);
+        const params = new URLSearchParams(parsed.hash.replace('#', ''));
+        const type = params.get('type') || parsed.searchParams.get('type');
+        const accessToken = params.get('access_token') || parsed.searchParams.get('access_token');
+        const refreshToken = params.get('refresh_token') || parsed.searchParams.get('refresh_token');
+
+        if (type === 'recovery' && accessToken) {
+          // Seta a sessão com os tokens do link de recovery
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          });
+          navigate('/reset-password', { replace: true });
+        } else if (type === 'signup' || type === 'email_confirmation') {
+          // Confirmação de email — seta sessão e vai para home
+          if (accessToken) {
+            await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || '',
+            });
+          }
+          navigate('/home', { replace: true });
+        }
+      } catch (e) {
+        console.error('[DeepLink] Error handling URL:', url, e);
+      }
+    };
+
+    // Listener para quando o app já está aberto e recebe um deep link
+    const listener = CapApp.addListener('appUrlOpen', ({ url }) => {
+      handleUrl(url);
+    });
+
+    // Verifica se o app foi aberto via deep link
+    CapApp.getLaunchUrl().then(({ url }) => {
+      if (url) handleUrl(url);
+    }).catch(() => {});
+
+    return () => {
+      listener.then(l => l.remove());
+    };
+  }, [navigate]);
+
+  return null;
+}
+
 function AppRoutes() {
   const { user, loading } = useAuth();
   const { shouldShowTutorial, loading: tutorialLoading, dismissTutorial } = useTutorial();
 
-  // Solicita permissão de push automaticamente após login
   useAutoPushSubscription();
 
   if (loading || tutorialLoading) {
@@ -49,6 +105,7 @@ function AppRoutes() {
 
   return (
     <Suspense fallback={<PageLoader />}>
+      <DeepLinkHandler />
       <Routes>
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />

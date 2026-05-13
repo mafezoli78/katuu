@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { CameraPreview } from '@capacitor-community/camera-preview';
+import exifr from 'exifr';
 
 export function isNative(): boolean {
   return Capacitor.isNativePlatform();
@@ -7,41 +8,19 @@ export function isNative(): boolean {
 
 let previewActive = false;
 
-function waitForElement(id: string, timeout = 3000): Promise<HTMLElement> {
-  return new Promise((resolve, reject) => {
-    const start = Date.now();
-    const check = () => {
-      const el = document.getElementById(id);
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        // Garante que o elemento tem dimensões reais na tela
-        if (rect.width > 0 && rect.height > 0) {
-          resolve(el);
-          return;
-        }
-      }
-      if (Date.now() - start > timeout) {
-        reject(new Error(`Element #${id} not found or has no size after ${timeout}ms`));
-        return;
-      }
-      requestAnimationFrame(check);
-    };
-    requestAnimationFrame(check);
-  });
-}
-
 export async function startPreview(): Promise<void> {
   if (previewActive) return;
 
-  const el = await waitForElement('cameraPreviewContainer');
-  const rect = el.getBoundingClientRect();
+  const el = document.getElementById('cameraPreviewContainer');
+  const rect = el?.getBoundingClientRect();
 
-  const x = Math.round(rect.left);
-  const y = Math.round(rect.top);
-  const width = Math.round(rect.width);
-  const height = Math.round(rect.height);
+  const screenW = window.screen.width;
+  const hasValidRect = rect && rect.width > 0 && rect.height > 0;
 
-  console.log('[KATUU-CAM] rect:', JSON.stringify({ x, y, width, height }));
+  const x = hasValidRect ? Math.round(rect.left) : 0;
+  const y = hasValidRect ? Math.round(rect.top) : 72;
+  const width = hasValidRect ? Math.round(rect.width) : screenW;
+  const height = hasValidRect ? Math.round(rect.height) : screenW;
 
   await CameraPreview.start({
     position: 'front',
@@ -51,55 +30,59 @@ export async function startPreview(): Promise<void> {
     y,
     width,
     height,
-    toBack: true,
+    toBack: false,
     disableAudio: true,
   });
   previewActive = true;
 }
 
 export async function capturePhoto(): Promise<{ blob: Blob; dataUrl: string }> {
-  const result = await CameraPreview.capture({ quality: 85 });
+  const result = await CameraPreview.captureSample({ quality: 85 });
   const rawDataUrl = `data:image/jpeg;base64,${result.value}`;
-  const corrected = await fixRotation(rawDataUrl);
+  const corrected = await fixRotationWithExif(rawDataUrl);
   const blob = dataUrlToBlob(corrected);
   return { blob, dataUrl: corrected };
 }
 
-function fixRotation(dataUrl: string): Promise<string> {
+
+async function fixRotationWithExif(dataUrl: string): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      const needsRotation = img.width > img.height;
-      const size = Math.min(img.width, img.height);
+      // Rotaciona 90° para portrait
+      const rotated = document.createElement('canvas');
+      rotated.width = img.height;
+      rotated.height = img.width;
+      const rCtx = rotated.getContext('2d')!;
+      rCtx.translate(0, img.width);
+      rCtx.rotate(-Math.PI / 2);
+      rCtx.drawImage(img, 0, 0);
 
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d')!;
+      // Recorta para quadrado centralizado
+      const size = Math.min(rotated.width, rotated.height);
+      const offsetX = (rotated.width - size) / 2;
+      const offsetY = (rotated.height - size) / 2;
 
-      if (needsRotation) {
-        ctx.translate(size, 0);
-        ctx.rotate(Math.PI / 2);
-        ctx.scale(-1, 1);
-        ctx.drawImage(img, 0, 0, size, size);
-      } else {
-        ctx.translate(size, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(img, 0, 0, size, size);
-      }
+      const final = document.createElement('canvas');
+      final.width = size;
+      final.height = size;
+      const fCtx = final.getContext('2d')!;
+      fCtx.drawImage(rotated, offsetX, offsetY, size, size, 0, 0, size, size);
 
-      resolve(canvas.toDataURL('image/jpeg', 0.85));
+      resolve(final.toDataURL('image/jpeg', 0.85));
     };
+    img.onerror = () => resolve(dataUrl);
     img.src = dataUrl;
   });
 }
 
 export async function stopPreview(): Promise<void> {
   if (!previewActive) return;
+  previewActive = false;
   try {
+    await new Promise(resolve => setTimeout(resolve, 400));
     await CameraPreview.stop();
   } catch {}
-  previewActive = false;
 }
 
 export function isPreviewActive(): boolean {

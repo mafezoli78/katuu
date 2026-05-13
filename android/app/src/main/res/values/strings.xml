@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Katuu</string>
+    <string name="title_activity_main">Katuu</string>
+    <string name="package_name">com.katuu.app</string>
+    <string name="custom_url_scheme">com.katuu.app</string>
+</resources>

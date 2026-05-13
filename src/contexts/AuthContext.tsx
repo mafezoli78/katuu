@@ -70,9 +70,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithOAuth = async (provider: 'google') => {
-    const { error } = await supabase.auth.signInWithOAuth({ provider });
-    return { error: error as Error | null };
-  };
+  const { Capacitor } = await import('@capacitor/core');
+  const redirectTo = Capacitor.isNativePlatform()
+    ? 'https://app.katuu.com.br/login-callback.html'
+    : `${window.location.origin}/auth`;
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo },
+  });
+  return { error: error as Error | null };
+};
 
 const signOut = async () => {
     try {
