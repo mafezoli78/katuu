@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.katuu.app",
+      "sha256_cert_fingerprints": [
+        "DE:AE:4D:5E:BF:B9:AE:11:22:9F:50:9C:35:87:C5:EE:8B:16:DB:A0:CD:AF:4C:72:30:85:D6:6E:E1:E6:3E:9E"
+      ]
+    }
+  }
+]

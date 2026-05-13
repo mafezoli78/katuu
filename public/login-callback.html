@@ -42,16 +42,15 @@
   <p class="hint">Se o app não abrir, verifique se o Katuu está instalado.</p>
 
   <script>
-    // Pega todos os parâmetros da URL atual (hash e query string)
-    const hash = window.location.hash;
-    const search = window.location.search;
-    const deepLink = 'com.katuu.app://login-callback' + (hash || search);
+    // Preserva todos os parâmetros (code, access_token, etc)
+    const params = window.location.search + window.location.hash;
+    const deepLink = 'https://app.katuu.com.br/login-callback' + params;
     document.getElementById('deeplink').href = deepLink;
 
-    // Tenta abrir automaticamente
+    // Android App Link — tenta abrir o app diretamente
     setTimeout(() => {
       window.location.href = deepLink;
-    }, 500);
+    }, 300);
   </script>
 </body>
 </html>
