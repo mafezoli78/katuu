@@ -43,14 +43,13 @@
 
   <script>
     // Preserva todos os parâmetros (code, access_token, etc)
-    const params = window.location.search + window.location.hash;
-    const deepLink = 'https://app.katuu.com.br/login-callback' + params;
-    document.getElementById('deeplink').href = deepLink;
+      const params = window.location.search + window.location.hash;
+      const deepLink = 'com.katuu.app://login-callback' + params;
+      document.getElementById('deeplink').href = deepLink;
 
-    // Android App Link — tenta abrir o app diretamente
-    setTimeout(() => {
+      setTimeout(() => {
       window.location.href = deepLink;
-    }, 300);
+      }, 300);
   </script>
 </body>
 </html>
