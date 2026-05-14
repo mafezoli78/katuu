@@ -7,9 +7,6 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useTutorial } from "@/hooks/useTutorial";
 import { TutorialFlow } from "@/components/tutorial/TutorialFlow";
 import { useAutoPushSubscription } from "@/hooks/useAutoPushSubscription";
-import { App as CapApp } from "@capacitor/app";
-import { Capacitor } from "@capacitor/core";
-import { supabase } from "@/integrations/supabase/client";
 
 const Splash = lazy(() => import("./pages/Splash"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -34,74 +31,59 @@ function PageLoader() {
   );
 }
 
+// Trata deep links para reset de senha — apenas no app nativo
 function DeepLinkHandler() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
+    // Imports dinâmicos — não quebram o build web
+    let cleanup: (() => void) | undefined;
 
-    const handleUrl = async (url: string) => {
-      try {
-        console.log('[DeepLink] received:', url);
-        const parsed = new URL(url);
+    const init = async () => {
+      const { Capacitor } = await import('@capacitor/core');
+      if (!Capacitor.isNativePlatform()) return;
 
-        // Extrai parâmetros do hash ou query string
-        const hashParams = new URLSearchParams(parsed.hash.replace('#', ''));
-        const queryParams = parsed.searchParams;
+      const capAppModule = await import('@capacitor/app');
+      const CapApp = capAppModule.App;
+      const { supabase } = await import('@/integrations/supabase/client');
 
-        const type = hashParams.get('type') || queryParams.get('type');
-        const code = queryParams.get('code');
-        const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
+      const handleUrl = async (url: string) => {
+        try {
+          const parsed = new URL(url);
+          const hashParams = new URLSearchParams(parsed.hash.replace('#', ''));
+          const type = hashParams.get('type') || parsed.searchParams.get('type');
+          const accessToken = hashParams.get('access_token') || parsed.searchParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token') || parsed.searchParams.get('refresh_token');
 
-        if (type === 'recovery') {
-          // Reset de senha
-          if (accessToken) {
+          if (type === 'recovery' && accessToken) {
             await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken || '',
             });
+            navigate('/reset-password', { replace: true });
           }
-          navigate('/reset-password', { replace: true });
-          return;
+        } catch (e) {
+          console.error('[DeepLink] Error:', e);
         }
+      };
 
-        if (code) {
-          // PKCE flow — troca o code por sessão
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (!error) {
-            navigate('/home', { replace: true });
-          }
-          return;
-        }
+      const listenerPromise = CapApp.addListener('appUrlOpen', ({ url }) => {
+        void handleUrl(url);
+      });
 
-        if (accessToken && refreshToken) {
-          // Token flow direto
-          await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          navigate('/home', { replace: true });
-          return;
-        }
+      CapApp.getLaunchUrl()
+        .then(({ url }) => { if (url) void handleUrl(url); })
+        .catch(() => {});
 
-      } catch (e) {
-        console.error('[DeepLink] Error:', e);
-      }
+      cleanup = () => {
+        listenerPromise.then(l => l.remove());
+      };
     };
 
-    // Listener para app já aberto
-    const listenerPromise = CapApp.addListener('appUrlOpen', ({ url }) => {
-      void handleUrl(url);
-    });
-
-    // Verifica se o app foi aberto via deep link (cold start)
-    CapApp.getLaunchUrl()
-      .then(({ url }) => { if (url) void handleUrl(url); })
-      .catch(() => {});
+    init();
 
     return () => {
-      listenerPromise.then(l => l.remove());
+      cleanup?.();
     };
   }, [navigate]);
 

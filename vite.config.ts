@@ -13,8 +13,23 @@ export default defineConfig(({ mode }) => ({
     },
   },
   esbuild: {
-    // Remove console.* calls in production build
     drop: mode === 'production' ? ['console', 'debugger'] : [],
+  },
+  build: {
+    rollupOptions: {
+      external: [
+        '@capacitor/app',
+        '@capacitor/browser',
+        '@capacitor/core',
+        '@capacitor/geolocation',
+        '@capacitor-community/camera-preview',
+        '@capgo/capacitor-social-login',
+      ],
+      onwarn(warning, warn) {
+        if (warning.code === 'UNRESOLVED_IMPORT') return;
+        warn(warning);
+      },
+    },
   },
   plugins: [
     react(),
@@ -23,7 +38,6 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.png", "pwa-192x192.png", "pwa-512x512.png"],
       workbox: {
-        // Stale-while-revalidate para assets e páginas
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -60,7 +74,6 @@ export default defineConfig(({ mode }) => ({
             },
           },
         ],
-        // CRITICAL: Never cache OAuth redirect route
         navigateFallbackDenylist: [/^\/~oauth/],
       },
       manifest: {

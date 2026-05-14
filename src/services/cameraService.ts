@@ -1,6 +1,5 @@
 import { Capacitor } from '@capacitor/core';
 import { CameraPreview } from '@capacitor-community/camera-preview';
-import exifr from 'exifr';
 
 export function isNative(): boolean {
   return Capacitor.isNativePlatform();
@@ -13,7 +12,6 @@ export async function startPreview(): Promise<void> {
 
   const el = document.getElementById('cameraPreviewContainer');
   const rect = el?.getBoundingClientRect();
-
   const screenW = window.screen.width;
   const hasValidRect = rect && rect.width > 0 && rect.height > 0;
 
@@ -39,37 +37,42 @@ export async function startPreview(): Promise<void> {
 export async function capturePhoto(): Promise<{ blob: Blob; dataUrl: string }> {
   const result = await CameraPreview.captureSample({ quality: 85 });
   const rawDataUrl = `data:image/jpeg;base64,${result.value}`;
-  const corrected = await fixRotationWithExif(rawDataUrl);
+  const corrected = await fixOrientation(rawDataUrl);
   const blob = dataUrlToBlob(corrected);
   return { blob, dataUrl: corrected };
 }
 
-
-async function fixRotationWithExif(dataUrl: string): Promise<string> {
+// Corrige orientação da imagem capturada pela câmera frontal nativa
+// captureSample retorna imagem em landscape — rotaciona para portrait
+async function fixOrientation(dataUrl: string): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      // Rotaciona 90° para portrait
-      const rotated = document.createElement('canvas');
-      rotated.width = img.height;
-      rotated.height = img.width;
-      const rCtx = rotated.getContext('2d')!;
-      rCtx.translate(0, img.width);
-      rCtx.rotate(-Math.PI / 2);
-      rCtx.drawImage(img, 0, 0);
+      const isLandscape = img.width > img.height;
 
-      // Recorta para quadrado centralizado
-      const size = Math.min(rotated.width, rotated.height);
-      const offsetX = (rotated.width - size) / 2;
-      const offsetY = (rotated.height - size) / 2;
+      if (!isLandscape) {
+        // Já está em portrait, apenas espelha horizontalmente (selfie)
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.translate(img.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+        return;
+      }
 
-      const final = document.createElement('canvas');
-      final.width = size;
-      final.height = size;
-      const fCtx = final.getContext('2d')!;
-      fCtx.drawImage(rotated, offsetX, offsetY, size, size, 0, 0, size, size);
-
-      resolve(final.toDataURL('image/jpeg', 0.85));
+      // Landscape → rotaciona 90° e espelha para selfie frontal
+      const canvas = document.createElement('canvas');
+      canvas.width = img.height;
+      canvas.height = img.width;
+      const ctx = canvas.getContext('2d')!;
+      ctx.translate(canvas.width, 0);
+      ctx.rotate(Math.PI / 2);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
     };
     img.onerror = () => resolve(dataUrl);
     img.src = dataUrl;
@@ -80,7 +83,7 @@ export async function stopPreview(): Promise<void> {
   if (!previewActive) return;
   previewActive = false;
   try {
-    await new Promise(resolve => setTimeout(resolve, 400));
+    await new Promise(resolve => setTimeout(resolve, 300));
     await CameraPreview.stop();
   } catch {}
 }
@@ -100,7 +103,7 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([array], { type: mime });
 }
 
-// --- Legacy browser stream API (mantida para web) ---
+// Browser stream API (mantida para web)
 let currentStream: MediaStream | null = null;
 
 export async function requestCamera(): Promise<MediaStream> {

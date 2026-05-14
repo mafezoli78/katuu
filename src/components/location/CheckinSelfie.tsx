@@ -27,18 +27,18 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Nativo: renderiza container antes de iniciar câmera
   useEffect(() => {
     if (!isNative) return;
     setStep('capture');
-    const timer = setTimeout(() => {
-      initNativePreview();
-    }, 500);
+    const timer = setTimeout(() => initNativePreview(), 500);
     return () => {
       clearTimeout(timer);
       cameraService.stopPreview();
     };
   }, []);
 
+  // Browser: inicia stream
   useEffect(() => {
     if (isNative) return;
     initBrowserCamera();
@@ -48,6 +48,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     };
   }, []);
 
+  // Browser: conecta stream ao video
   useEffect(() => {
     if (isNative || step !== 'capture') return;
     const stream = cameraService.getStream();
@@ -57,6 +58,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     }
   }, [step, isNative]);
 
+  // Browser: detecção de rosto
   useEffect(() => {
     if (isNative || step !== 'capture' || !modelsLoaded) return;
     detectionIntervalRef.current = setInterval(async () => {
@@ -72,6 +74,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     return stopDetection;
   }, [step, modelsLoaded, isNative]);
 
+  // Nativo: para preview e mostra foto com flash
   useEffect(() => {
     if (!isNative || step !== 'preview') return;
     cameraService.stopPreview();
@@ -90,8 +93,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const initNativePreview = async () => {
     try {
       await cameraService.startPreview();
-    } catch (err: any) {
-      console.error('[CheckinSelfie] Native preview error:', err);
+    } catch {
       setErrorMsg('Não foi possível acessar a câmera. Verifique as permissões nas configurações do dispositivo.');
       setStep('error');
     }
@@ -105,8 +107,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
         .catch(() => { setModelsLoaded(true); setFaceDetected(true); });
       await cameraService.requestCamera();
       setStep('capture');
-    } catch (err) {
-      console.error('[CheckinSelfie] Browser camera error:', err);
+    } catch {
       setErrorMsg('Não foi possível acessar a câmera. Verifique as permissões do navegador.');
       setStep('error');
     }
@@ -120,8 +121,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
         setCapturedBlob(photo.blob);
         setCapturedImage(photo.dataUrl);
         setStep('preview');
-      } catch (err) {
-        console.error('[CheckinSelfie] Capture error:', err);
+      } catch {
         setErrorMsg('Erro ao capturar foto. Tente novamente.');
         setStep('error');
       }
@@ -164,9 +164,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     setPreviewReady(false);
     if (isNative) {
       setStep('capture');
-      setTimeout(() => {
-        initNativePreview();
-      }, 500);
+      setTimeout(() => initNativePreview(), 500);
     } else {
       await initBrowserCamera();
     }
@@ -217,7 +215,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
         </>
       )}
 
-      {/* Captura nativa inline */}
+      {/* Captura nativa */}
       {step === 'capture' && isNative && (
         <>
           <div className="flex items-center gap-3 mb-2">
@@ -282,7 +280,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
         </>
       )}
 
-      {/* Preview — overlay branco primeiro (flash), depois mostra a foto */}
+      {/* Preview com flash */}
       {step === 'preview' && capturedImage && (
         <div
           className="fixed inset-0 z-50 flex flex-col"
@@ -297,8 +295,6 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
             </Button>
             <h2 className="text-xl font-bold">Ficou boa?</h2>
           </div>
-
-          {/* Imagem sem distorção — proporção natural preservada */}
           <div
             className="px-4"
             style={{ opacity: previewReady ? 1 : 0, transition: 'opacity 0.15s ease-in' }}
@@ -309,7 +305,6 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
               style={{ width: '100%', height: 'auto', display: 'block' }}
             />
           </div>
-
           <div
             className="flex flex-col gap-2 p-4 mt-4"
             style={{ opacity: previewReady ? 1 : 0, transition: 'opacity 0.15s ease-in' }}
