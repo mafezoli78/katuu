@@ -1,5 +1,6 @@
 // src/hooks/useAutoPushSubscription.ts
 // Solicita permissão e registra subscription a cada login
+// Apenas em ambiente web/PWA — não no app nativo
 
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,15 +21,12 @@ async function subscribeUser(userId: string) {
 
     const registration = await navigator.serviceWorker.ready;
 
-    // Pede permissão — se já foi concedida, retorna 'granted' sem mostrar diálogo
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return;
 
-    // Remove subscription antiga se existir (garante chave VAPID atualizada)
     const existing = await registration.pushManager.getSubscription();
     if (existing) await existing.unsubscribe();
 
-    // Cria nova subscription
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
@@ -37,7 +35,6 @@ async function subscribeUser(userId: string) {
     const sub = subscription.toJSON();
     if (!sub.keys) return;
 
-    // Salva no banco vinculada ao usuário atual
     await (supabase.from('push_subscriptions' as any).upsert({
       user_id: userId,
       endpoint: sub.endpoint,
@@ -56,10 +53,15 @@ export function useAutoPushSubscription() {
   useEffect(() => {
     if (!user?.id) return;
 
-    const timer = setTimeout(() => {
-      subscribeUser(user.id);
-    }, 2000);
+    // Não executa no app nativo — push nativo será implementado via FCM na Fase 1
+    import('@capacitor/core').then(({ Capacitor }) => {
+      if (Capacitor.isNativePlatform()) return;
 
-    return () => clearTimeout(timer);
+      const timer = setTimeout(() => {
+        subscribeUser(user.id);
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    });
   }, [user?.id]);
 }

@@ -36,7 +36,6 @@ function DeepLinkHandler() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Imports dinâmicos — não quebram o build web
     let cleanup: (() => void) | undefined;
 
     const init = async () => {
@@ -81,56 +80,61 @@ function DeepLinkHandler() {
     };
 
     init();
-
-    return () => {
-      cleanup?.();
-    };
+    return () => { cleanup?.(); };
   }, [navigate]);
 
   return null;
 }
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { shouldShowTutorial, loading: tutorialLoading, dismissTutorial } = useTutorial();
 
+  // Push subscription apenas em ambiente web — não no app nativo
   useAutoPushSubscription();
 
-  if (loading || tutorialLoading) {
-    return null;
+  // Aguarda estados essenciais carregarem
+  if (authLoading || tutorialLoading) {
+    return <PageLoader />;
   }
 
   if (user && shouldShowTutorial) {
     return <TutorialFlow onComplete={dismissTutorial} />;
   }
 
+  if (user) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <DeepLinkHandler />
+        <Routes>
+          <Route path="/" element={<Splash />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/waves" element={<Waves />} />
+          <Route path="/chat" element={<Chat />} />
+          <Route path="/location" element={<Location />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/debug" element={<Debug />} />
+          <Route path="*" element={<Navigate to="/location" replace />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+
   return (
     <Suspense fallback={<PageLoader />}>
       <DeepLinkHandler />
       <Routes>
+        <Route path="/" element={<Splash />} />
+        <Route path="/auth" element={<Auth />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/debug" element={<Debug />} />
-
-        {user ? (
-          <>
-            <Route path="/" element={<Splash />} />
-            <Route path="/home" element={<Home />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/waves" element={<Waves />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/location" element={<Location />} />
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="*" element={<Navigate to="/location" replace />} />
-          </>
-        ) : (
-          <>
-            <Route path="/" element={<Splash />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="*" element={<Navigate to="/auth" replace />} />
-          </>
-        )}
+        <Route path="*" element={<Navigate to="/auth" replace />} />
       </Routes>
     </Suspense>
   );
