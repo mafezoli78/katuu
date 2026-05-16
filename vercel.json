@@ -1,5 +1,19 @@
 {
-  "buildCommand": "",
-  "outputDirectory": "public",
-  "installCommand": ""
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "routes": [
+    {
+      "src": "/reset-password",
+      "dest": "/reset-password.html"
+    },
+    {
+      "src": "/login-callback",
+      "dest": "/login-callback.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
 }
