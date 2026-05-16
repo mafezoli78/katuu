@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -14,15 +14,50 @@ type Step = 'main' | 'email' | 'password' | 'register';
 export default function Auth() {
   const [step, setStep] = useState<Step>('main');
   const [email, setEmail] = useState('');
-  const { user, signInWithOAuth } = useAuth();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const redirectAttemptedRef = useRef(false);
+  
+  const { user, loading, signInWithOAuth } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Redireciona usuário autenticado para /location (não /home)
+  // O App.tsx/PostLoginRedirect decide o destino final baseado na presença
   useEffect(() => {
+    // Evita redirecionamentos múltiplos
+    if (redirectAttemptedRef.current) return;
+    
+    // Não redireciona enquanto o auth está carregando
+    if (loading) return;
+    
+    // Se já está redirecionando, não faz nada
+    if (isRedirecting) return;
+
     if (user) {
-      navigate('/home', { replace: true });
+      redirectAttemptedRef.current = true;
+      setIsRedirecting(true);
+      
+      // Pequeno delay para garantir que o estado de sessão foi sincronizado
+      const timer = setTimeout(() => {
+        navigate('/location', { replace: true });
+      }, 150);
+      
+      return () => clearTimeout(timer);
     }
-  }, [user, navigate]);
+  }, [user, loading, isRedirecting, navigate]);
+
+  // Se estiver redirecionando, mostra um loader simples
+  if (isRedirecting || (user && !redirectAttemptedRef.current)) {
+    return (
+      <div 
+        className="min-h-screen flex flex-col items-center justify-center"
+        style={{ background: 'linear-gradient(to bottom, #124854, #1F3A5F)' }}
+      >
+        <img src={iconKatuu} alt="Katuu" className="w-16 h-16 object-contain mb-4 animate-pulse-soft" />
+        <p className="text-white/80 text-sm">Entrando...</p>
+      </div>
+    );
+  }
 
   const handleOAuth = async (provider: 'google') => {
     const { error } = await signInWithOAuth(provider);

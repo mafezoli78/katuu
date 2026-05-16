@@ -4,4 +4,5 @@
     <string name="title_activity_main">Katuu</string>
     <string name="package_name">com.katuu.app</string>
     <string name="custom_url_scheme">com.katuu.app</string>
+    <string name="server_client_id">218022107605-ca7duh6mt7k9jdii3tgtaakfr6co0tk1.apps.googleusercontent.com</string>
 </resources>

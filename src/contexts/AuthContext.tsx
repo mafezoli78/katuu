@@ -20,69 +20,161 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(prev => {
-          if (prev?.access_token === session?.access_token) return prev;
-          return session;
-        });
-        setUser(prev => {
-          if (prev?.id === session?.user?.id) return prev;
-          return session?.user ?? null;
-        });
+    let mounted = true;
+    let initialLoadDone = false;
+
+    // Timeout de segurança: 8 segundos
+    const safetyTimer = setTimeout(() => {
+      if (mounted && !initialLoadDone) {
+        console.warn('[Auth] Timeout - forçando loading=false');
+        initialLoadDone = true;
         setLoading(false);
+      }
+    }, 8000);
+
+    // Carrega sessão inicial
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (!mounted) return;
+        setSession(session);
+        setUser(session?.user ?? null);
+      })
+      .catch((err) => {
+        console.error('[Auth] Erro ao carregar sessão:', err);
+      })
+      .finally(() => {
+        if (mounted && !initialLoadDone) {
+          initialLoadDone = true;
+          setLoading(false);
+          clearTimeout(safetyTimer);
+        }
+      });
+
+    // Escuta mudanças de auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!mounted) return;
+        console.log('[Auth] Evento:', _event);
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (!initialLoadDone) {
+          initialLoadDone = true;
+          setLoading(false);
+          clearTimeout(safetyTimer);
+        }
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+      clearTimeout(safetyTimer);
+    };
   }, []);
 
   const signUp = async (email: string, password: string, metadata?: { nome: string }) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: metadata },
-    });
-    return { error: error as Error | null };
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: metadata },
+      });
+      return { error: error as Error | null };
+    } catch (err) {
+      console.error('[Auth] Erro signUp:', err);
+      return { error: err as Error };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { error };
+      
+      // Atualiza estado imediatamente
+      setSession(data.session);
+      setUser(data.session?.user ?? null);
+      
+      return { error: null };
+    } catch (err) {
+      console.error('[Auth] Erro signIn:', err);
+      return { error: err as Error };
+    }
   };
 
-  // TODO: Google login nativo via @capgo/capacitor-social-login — implementar antes do lançamento
-  const signInWithOAuth = async (_provider: 'google') => {
-    return { error: new Error('Login com Google disponível em breve') };
-  };
+const signInWithOAuth = async (provider: 'google') => {
+  try {
+    const win = window as any;
+    const SocialLogin = win.Capacitor?.Plugins?.SocialLogin;
+    
+    if (!SocialLogin) {
+      return { error: new Error('Login com Google não disponível neste dispositivo') };
+    }
+
+    // Inicializa o plugin (necessário em alguns dispositivos)
+    try {
+      await SocialLogin.initialize();
+    } catch (e) {
+      // Ignora se já estiver inicializado
+      console.log('[Auth] SocialLogin initialize:', e);
+    }
+
+    const result = await SocialLogin.login({
+      provider: 'google',
+      options: {
+        scopes: ['profile', 'email'],
+      },
+    });
+
+    if (!result?.accessToken?.token) {
+      return { error: new Error('Falha ao obter token do Google') };
+    }
+
+    const { data, error } = await supabase.auth.signInWithIdToken({
+      provider: 'google',
+      token: result.accessToken.token,
+    });
+
+    if (error) return { error };
+    
+    setSession(data.session);
+    setUser(data.session?.user ?? null);
+    
+    return { error: null };
+  } catch (err: any) {
+    console.error('[Auth] Erro Google SignIn:', err);
+    return { error: err as Error };
+  }
+};
 
   const signOut = async () => {
     try {
-      const { data: presence } = await supabase
-        .from('presence')
-        .select('place_id')
-        .eq('user_id', user?.id)
-        .eq('ativo', true)
-        .maybeSingle();
+      // Tenta limpar presença (não bloqueia se falhar)
+      if (user?.id) {
+        try {
+          const { data: presence } = await supabase
+            .from('presence')
+            .select('place_id')
+            .eq('user_id', user.id)
+            .eq('ativo', true)
+            .maybeSingle();
 
-      if (presence?.place_id && user?.id) {
-        await supabase.rpc('end_presence_cascade', {
-          p_user_id: user.id,
-          p_place_id: presence.place_id,
-          p_motivo: 'manual',
-          p_force: true,
-        } as any);
+          if (presence?.place_id) {
+            await supabase.rpc('end_presence_cascade', {
+              p_user_id: user.id,
+              p_place_id: presence.place_id,
+              p_motivo: 'manual',
+              p_force: true,
+            } as any);
+          }
+        } catch (err) {
+          console.error('[Auth] Erro ao limpar presença:', err);
+        }
       }
-    } catch (err) {
-      console.error('[Auth] Error cleaning up presence on signOut:', err);
     } finally {
       await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
     }
   };
 

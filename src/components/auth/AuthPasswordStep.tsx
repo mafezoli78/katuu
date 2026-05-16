@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -15,6 +16,7 @@ export function AuthPasswordStep({ email, onBack }: AuthPasswordStepProps) {
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleLogin = async () => {
     if (password.length < 6) {
@@ -22,20 +24,35 @@ export function AuthPasswordStep({ email, onBack }: AuthPasswordStepProps) {
       return;
     }
     setLoading(true);
-    const { error } = await signIn(email, password);
-    setLoading(false);
-    if (error) {
+    
+    try {
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao entrar',
+          description: error.message === 'Invalid login credentials' ? 'Senha incorreta' : error.message,
+        });
+      } else {
+        // Redireciona imediatamente após login bem-sucedido
+        // O Location.tsx verificará a permissão de GPS e presença
+        navigate('/location', { replace: true });
+      }
+    } catch (err) {
       toast({
         variant: 'destructive',
-        title: 'Erro ao entrar',
-        description: error.message === 'Invalid login credentials' ? 'Senha incorreta' : error.message,
+        title: 'Erro inesperado',
+        description: 'Tente novamente mais tarde',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleForgotPassword = async () => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: 'com.katuu.app://reset-password',
     });
     if (error) {
       toast({ variant: 'destructive', title: 'Erro', description: error.message });

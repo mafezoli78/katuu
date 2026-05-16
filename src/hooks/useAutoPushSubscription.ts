@@ -8,6 +8,16 @@ import { supabase } from '@/integrations/supabase/client';
 
 const VAPID_PUBLIC_KEY = 'BMjJdgmsVCtRExT2_2vs0eQmoDrZ8ObtjwxatJaEYyAdYAzDPdeUtBCUSuKLmrU4PllBY0QCnlYryostL0iVCQ8';
 
+// Detecta se está rodando em app nativo (Capacitor) sem importar o módulo
+function isNativePlatform(): boolean {
+  // Verifica se existe a ponte nativa do Capacitor no window
+  // Em ambiente nativo, o Capacitor injeta window.Capacitor
+  const win = window as any;
+  return !!(win.Capacitor?.isNativePlatform?.()) || 
+         !!(win.Capacitor?.getPlatform?.() === 'android') ||
+         !!(win.Capacitor?.getPlatform?.() === 'ios');
+}
+
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -54,14 +64,12 @@ export function useAutoPushSubscription() {
     if (!user?.id) return;
 
     // Não executa no app nativo — push nativo será implementado via FCM na Fase 1
-    import('@capacitor/core').then(({ Capacitor }) => {
-      if (Capacitor.isNativePlatform()) return;
+    if (isNativePlatform()) return;
 
-      const timer = setTimeout(() => {
-        subscribeUser(user.id);
-      }, 2000);
+    const timer = setTimeout(() => {
+      subscribeUser(user.id);
+    }, 2000);
 
-      return () => clearTimeout(timer);
-    });
+    return () => clearTimeout(timer);
   }, [user?.id]);
 }

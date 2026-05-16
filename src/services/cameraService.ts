@@ -1,14 +1,47 @@
-import { Capacitor } from '@capacitor/core';
-import { CameraPreview } from '@capacitor-community/camera-preview';
+// Serviço de câmera - suporte nativo (Capacitor) e web (MediaStream)
+// As importações do Capacitor são carregadas condicionalmente
 
-export function isNative(): boolean {
-  return Capacitor.isNativePlatform();
+// Detecta se está rodando em app nativo sem importar o módulo diretamente
+function isNativePlatform(): boolean {
+  const win = window as any;
+  return !!(win.Capacitor?.isNativePlatform?.()) || 
+         !!(win.Capacitor?.getPlatform?.() === 'android') ||
+         !!(win.Capacitor?.getPlatform?.() === 'ios');
 }
 
+export function isNative(): boolean {
+  return isNativePlatform();
+}
+
+// ============================================================
+// CÂMERA NATIVA (via plugin Capacitor)
+// ============================================================
+
 let previewActive = false;
+let CameraPreviewModule: any = null;
+
+async function getCameraPreview(): Promise<any> {
+  if (!CameraPreviewModule) {
+    // Só importa o plugin em ambiente nativo
+    if (isNativePlatform()) {
+      try {
+        const mod = await import('@capacitor-community/camera-preview');
+        CameraPreviewModule = mod.CameraPreview;
+      } catch (err) {
+        console.error('[cameraService] Failed to load CameraPreview:', err);
+        throw new Error('Camera plugin not available');
+      }
+    } else {
+      throw new Error('Native camera only available in Capacitor environment');
+    }
+  }
+  return CameraPreviewModule;
+}
 
 export async function startPreview(): Promise<void> {
   if (previewActive) return;
+
+  const CameraPreview = await getCameraPreview();
 
   const el = document.getElementById('cameraPreviewContainer');
   const rect = el?.getBoundingClientRect();
@@ -35,6 +68,7 @@ export async function startPreview(): Promise<void> {
 }
 
 export async function capturePhoto(): Promise<{ blob: Blob; dataUrl: string }> {
+  const CameraPreview = await getCameraPreview();
   const result = await CameraPreview.captureSample({ quality: 85 });
   const rawDataUrl = `data:image/jpeg;base64,${result.value}`;
   const corrected = await fixOrientation(rawDataUrl);
@@ -84,6 +118,7 @@ export async function stopPreview(): Promise<void> {
   previewActive = false;
   try {
     await new Promise(resolve => setTimeout(resolve, 300));
+    const CameraPreview = await getCameraPreview();
     await CameraPreview.stop();
   } catch {}
 }
@@ -103,7 +138,10 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([array], { type: mime });
 }
 
-// Browser stream API (mantida para web)
+// ============================================================
+// CÂMERA WEB (MediaStream API)
+// ============================================================
+
 let currentStream: MediaStream | null = null;
 
 export async function requestCamera(): Promise<MediaStream> {
