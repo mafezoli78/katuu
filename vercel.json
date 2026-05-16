@@ -8,8 +8,8 @@
       "dest": "/reset-password.html"
     },
     {
-      "src": "/login-callback",
-      "dest": "/login-callback.html"
+      "src": "/reset-password.html",
+      "dest": "/reset-password.html"
     },
     {
       "src": "/(.*)",
