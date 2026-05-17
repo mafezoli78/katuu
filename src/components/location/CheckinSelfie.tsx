@@ -31,7 +31,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   useEffect(() => {
     if (!isNative) return;
     setStep('capture');
-    const timer = setTimeout(() => initNativePreview(), 500);
+    const timer = setTimeout(() => initNativePreview(), 800);
     return () => {
       clearTimeout(timer);
       cameraService.stopPreview();
@@ -54,7 +54,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     const stream = cameraService.getStream();
     if (stream && videoRef.current) {
       videoRef.current.srcObject = stream;
-      videoRef.current.play().catch(() => {});
+      videoRef.current.play().catch(() => { });
     }
   }, [step, isNative]);
 
@@ -69,7 +69,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
           new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 })
         );
         setFaceDetected(!!detection);
-      } catch {}
+      } catch { }
     }, 400);
     return stopDetection;
   }, [step, modelsLoaded, isNative]);
@@ -93,7 +93,8 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const initNativePreview = async () => {
     try {
       await cameraService.startPreview();
-    } catch {
+    } catch (err: any) {
+      console.error('[CheckinSelfie] Native preview error:', err);
       setErrorMsg('Não foi possível acessar a câmera. Verifique as permissões nas configurações do dispositivo.');
       setStep('error');
     }
@@ -207,7 +208,10 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
           </div>
           <div className="flex flex-col items-center justify-center py-8 gap-4 text-center">
             <p className="text-sm text-muted-foreground max-w-[280px]">{errorMsg}</p>
-            <Button onClick={handleRetake} className="h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold">
+            <Button
+              onClick={() => { setErrorMsg(null); setStep('capture'); setTimeout(() => initNativePreview(), 300); }}
+              className="h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
+            >
               <RefreshCw className="h-4 w-4 mr-2" />
               Tentar novamente
             </Button>
@@ -224,14 +228,27 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
             </Button>
             <h2 className="text-xl font-bold">Tire sua selfie</h2>
           </div>
+
           <div
-            id="cameraPreviewContainer"
-            className="relative w-full aspect-square overflow-hidden"
-            style={{ background: 'transparent' }}
-          />
+            className="relative w-full mx-auto rounded-2xl overflow-hidden"
+            style={{
+              aspectRatio: '3/4',
+              maxWidth: '90%',
+              background: '#000',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+            }}
+          >
+            <div
+              id="cameraPreviewContainer"
+              className="absolute inset-0"
+              style={{ zIndex: 1 }}
+            />
+          </div>
+
           <Button
             onClick={handleCapture}
-            className="w-full h-12 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-base"
+            className="w-full h-12 rounded-xl font-semibold text-base text-white mt-4"
+            style={{ backgroundColor: '#F97316', zIndex: 2, position: 'relative' }}
           >
             <Camera className="h-5 w-5 mr-2" />
             Capturar
@@ -259,9 +276,8 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
             />
             {modelsLoaded && (
               <div className="absolute bottom-3 left-0 right-0 flex justify-center">
-                <div className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  faceDetected ? 'bg-green-500/90 text-white' : 'bg-black/60 text-white/70'
-                }`}>
+                <div className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${faceDetected ? 'bg-green-500/90 text-white' : 'bg-black/60 text-white/70'
+                  }`}>
                   {faceDetected ? '✓ Rosto detectado' : 'Posicione seu rosto'}
                 </div>
               </div>

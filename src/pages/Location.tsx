@@ -87,55 +87,65 @@ export default function Location() {
   const hasFetchedRef = useRef(false);
   const pendingRef = useRef(getPendingAction());
 
- useEffect(() => {
-  if (!user) {
-    navigate('/auth', { replace: true });
-    return;
-  }
-  if (loading) return;
-  if (currentPresence) {
-    navigate('/home', { replace: true });
-    return;
-  }
-  if (pendingRef.current) {
-    setPermissionChecked(true);
-    return;
-  }
-
-  // Verifica se usuário já autorizou antes (persistido no localStorage)
-  const alreadyGranted = localStorage.getItem('location_permission_granted') === 'true';
-
-  if (alreadyGranted) {
-    setPermissionChecked(true);
-    setPermissionStatus('granted');
-    setStep('detecting');
-    handleRequestLocation();
-    return;
-  }
-
-  if (navigator.permissions) {
-    navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+  useEffect(() => {
+    if (!user) {
+      navigate('/auth', { replace: true });
+      return;
+    }
+    if (loading) return;
+    if (currentPresence) {
+      navigate('/home', { replace: true });
+      return;
+    }
+    if (pendingRef.current) {
       setPermissionChecked(true);
-      if (result.state === 'granted') {
-        localStorage.setItem('location_permission_granted', 'true');
-        setPermissionStatus('granted');
+      return;
+    }
+
+    // Verifica se usuário já autorizou antes (persistido no localStorage)
+    const alreadyGranted = localStorage.getItem('location_permission_granted') === 'true';
+
+    if (alreadyGranted) {
+      setPermissionChecked(true);
+      setPermissionStatus('granted');
+      setStep('detecting');
+      handleRequestLocation();
+      return;
+    }
+
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+        setPermissionChecked(true);
+
+        if (result.state === 'granted') {
+          // Já tem permissão — vai direto
+          localStorage.setItem('location_permission_granted', 'true');
+          setPermissionStatus('granted');
+          setStep('detecting');
+          handleRequestLocation();
+        } else if (result.state === 'prompt') {
+          // Primeira vez — chama popup nativo direto
+          setPermissionStatus('prompt');
+          setStep('detecting');
+          handleRequestLocation();
+        } else {
+          // Negou antes — mostra tela de bloqueado
+          setPermissionStatus('blocked');
+          setStep('permission');
+        }
+      }).catch(() => {
+        // Fallback: navegador não suporta permissions.query
+        setPermissionChecked(true);
         setStep('detecting');
         handleRequestLocation();
-      } else if (result.state === 'denied') {
-        setPermissionStatus('blocked');
-        setStep('permission');
-      } else {
-        setStep('permission');
-      }
-    }).catch(() => {
+      });
+    } else {
+      // Dispositivo sem API permissions — tenta direto
       setPermissionChecked(true);
-      setStep('permission');
-    });
-  } else {
-    setPermissionChecked(true);
-    setStep('permission');
-  }
-}, [user, navigate, loading, currentPresence]);
+      setStep('detecting');
+      handleRequestLocation();
+    }
+  }, [user, navigate, loading, currentPresence]);
 
   useEffect(() => {
     const pending = pendingRef.current;
@@ -191,6 +201,34 @@ export default function Location() {
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );
   }, [isRequestingPermission, toast]);
+
+
+
+  // Corrige o retorno do background/hibernação
+  useEffect(() => {
+    let wasVisible = true;
+
+    const handleVisibilityChange = () => {
+      const isVisible = document.visibilityState === 'visible';
+
+      // Só age quando volta de invisível para visível
+      if (isVisible && !wasVisible) {
+        // Reseta os bloqueios e refaz a detecção
+        hasFetchedRef.current = false;
+        setIsRequestingPermission(false);
+
+        if (permissionStatus === 'granted') {
+          setStep('detecting');
+          setTimeout(() => handleRequestLocation(), 300);
+        }
+      }
+
+      wasVisible = isVisible;
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [permissionStatus, handleRequestLocation]);
 
   const handleSelectPlace = (placeId: string) => {
     setSelectedPlaceId(placeId);

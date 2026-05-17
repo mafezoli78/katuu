@@ -20,10 +20,9 @@ export default defineConfig(({ mode }) => ({
       external: [
         '@capacitor/app',
         '@capacitor/browser',
-        '@capacitor/core',
         '@capacitor/geolocation',
-        '@capacitor-community/camera-preview',
         '@capgo/capacitor-social-login',
+	'@capacitor-community/camera-preview',
       ],
       onwarn(warning, warn) {
         if (warning.code === 'UNRESOLVED_IMPORT') return;

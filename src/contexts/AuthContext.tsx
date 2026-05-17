@@ -90,11 +90,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) return { error };
-      
+
       // Atualiza estado imediatamente
       setSession(data.session);
       setUser(data.session?.user ?? null);
-      
+
       return { error: null };
     } catch (err) {
       console.error('[Auth] Erro signIn:', err);
@@ -102,50 +102,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-const signInWithOAuth = async (provider: 'google') => {
-  try {
-    const win = window as any;
-    const SocialLogin = win.Capacitor?.Plugins?.SocialLogin;
-    
-    if (!SocialLogin) {
-      return { error: new Error('Login com Google não disponível neste dispositivo') };
-    }
-
-    // Inicializa o plugin (necessário em alguns dispositivos)
+  const signInWithOAuth = async (provider: 'google') => {
     try {
-      await SocialLogin.initialize();
-    } catch (e) {
-      // Ignora se já estiver inicializado
-      console.log('[Auth] SocialLogin initialize:', e);
+      const win = window as any;
+      const SocialLogin = win.Capacitor?.Plugins?.SocialLogin;
+
+      if (!SocialLogin) {
+        return { error: new Error('Login com Google não disponível') };
+      }
+
+      await SocialLogin.initialize({
+        google: {
+          webClientId: '218022107605-ca7duh6mt7k9jdii3tgtaakfr6co0tk1.apps.googleusercontent.com',
+          mode: 'online',
+        },
+      });
+
+      const result = await SocialLogin.login({
+        provider: 'google',
+        options: {},
+      });
+
+      // Usa o idToken (JWT) em vez do accessToken
+      const idToken = result?.result?.idToken || result?.idToken;
+
+      if (!idToken) {
+        return { error: new Error('Falha ao obter token do Google') };
+      }
+
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: idToken,
+      });
+
+      if (error) return { error };
+
+      setSession(data.session);
+      setUser(data.session?.user ?? null);
+
+      return { error: null };
+    } catch (err: any) {
+      console.error('[Auth] Erro Google SignIn:', err);
+      return { error: err as Error };
     }
-
-    const result = await SocialLogin.login({
-      provider: 'google',
-      options: {
-        scopes: ['profile', 'email'],
-      },
-    });
-
-    if (!result?.accessToken?.token) {
-      return { error: new Error('Falha ao obter token do Google') };
-    }
-
-    const { data, error } = await supabase.auth.signInWithIdToken({
-      provider: 'google',
-      token: result.accessToken.token,
-    });
-
-    if (error) return { error };
-    
-    setSession(data.session);
-    setUser(data.session?.user ?? null);
-    
-    return { error: null };
-  } catch (err: any) {
-    console.error('[Auth] Erro Google SignIn:', err);
-    return { error: err as Error };
-  }
-};
+  };
 
   const signOut = async () => {
     try {

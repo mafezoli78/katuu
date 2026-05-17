@@ -7,9 +7,6 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
   },
   plugins: {
-    App: {
-      launchUrl: 'com.katuu.app://',
-    },
     SocialLogin: {
       google: {
         webClientId: '218022107605-ca7duh6mt7k9jdii3tgtaakfr6co0tk1.apps.googleusercontent.com',

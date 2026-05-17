@@ -50,16 +50,32 @@ export function AuthPasswordStep({ email, onBack }: AuthPasswordStepProps) {
     }
   };
 
-  const handleForgotPassword = async () => {
+const handleForgotPassword = async () => {
+  try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'com.katuu.app://reset-password',
+      redirectTo: 'https://app.katuu.com.br/reset-password',
     });
+    
     if (error) {
-      toast({ variant: 'destructive', title: 'Erro', description: error.message });
+      toast({ 
+        variant: 'destructive', 
+        title: 'Erro ao enviar email', 
+        description: 'Não foi possível enviar o email de recuperação. Tente novamente.' 
+      });
     } else {
-      toast({ title: 'E-mail enviado', description: 'Verifique sua caixa de entrada para redefinir a senha.' });
+      toast({ 
+        title: 'Email enviado!', 
+        description: 'Verifique sua caixa de entrada para redefinir sua senha.' 
+      });
     }
-  };
+  } catch {
+    toast({ 
+      variant: 'destructive', 
+      title: 'Erro de conexão', 
+      description: 'Verifique sua internet e tente novamente.' 
+    });
+  }
+};
 
   return (
     <div className="w-full max-w-sm flex flex-col items-center">

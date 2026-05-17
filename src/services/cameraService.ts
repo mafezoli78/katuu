@@ -4,9 +4,9 @@
 // Detecta se está rodando em app nativo sem importar o módulo diretamente
 function isNativePlatform(): boolean {
   const win = window as any;
-  return !!(win.Capacitor?.isNativePlatform?.()) || 
-         !!(win.Capacitor?.getPlatform?.() === 'android') ||
-         !!(win.Capacitor?.getPlatform?.() === 'ios');
+  return !!(win.Capacitor?.isNativePlatform?.()) ||
+    !!(win.Capacitor?.getPlatform?.() === 'android') ||
+    !!(win.Capacitor?.getPlatform?.() === 'ios');
 }
 
 export function isNative(): boolean {
@@ -22,15 +22,13 @@ let CameraPreviewModule: any = null;
 
 async function getCameraPreview(): Promise<any> {
   if (!CameraPreviewModule) {
-    // Só importa o plugin em ambiente nativo
     if (isNativePlatform()) {
-      try {
-        const mod = await import('@capacitor-community/camera-preview');
-        CameraPreviewModule = mod.CameraPreview;
-      } catch (err) {
-        console.error('[cameraService] Failed to load CameraPreview:', err);
+      const win = window as any;
+      const plugin = win.Capacitor?.Plugins?.CameraPreview;
+      if (!plugin) {
         throw new Error('Camera plugin not available');
       }
+      CameraPreviewModule = plugin;
     } else {
       throw new Error('Native camera only available in Capacitor environment');
     }
@@ -43,8 +41,15 @@ export async function startPreview(): Promise<void> {
 
   const CameraPreview = await getCameraPreview();
 
+  // Aguarda o container estar disponível no DOM
   const el = document.getElementById('cameraPreviewContainer');
-  const rect = el?.getBoundingClientRect();
+  if (!el) {
+    console.warn('[cameraService] Container #cameraPreviewContainer não encontrado, aguardando...');
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  const container = document.getElementById('cameraPreviewContainer');
+  const rect = container?.getBoundingClientRect();
   const screenW = window.screen.width;
   const hasValidRect = rect && rect.width > 0 && rect.height > 0;
 
@@ -52,6 +57,8 @@ export async function startPreview(): Promise<void> {
   const y = hasValidRect ? Math.round(rect.top) : 72;
   const width = hasValidRect ? Math.round(rect.width) : screenW;
   const height = hasValidRect ? Math.round(rect.height) : screenW;
+
+  console.log('[cameraService] Starting preview at:', { x, y, width, height });
 
   await CameraPreview.start({
     position: 'front',
@@ -120,7 +127,7 @@ export async function stopPreview(): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 300));
     const CameraPreview = await getCameraPreview();
     await CameraPreview.stop();
-  } catch {}
+  } catch { }
 }
 
 export function isPreviewActive(): boolean {

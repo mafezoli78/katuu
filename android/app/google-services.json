@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "795999907720",
+    "project_id": "katuu-92396",
+    "storage_bucket": "katuu-92396.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:795999907720:android:479a339e8a229cd1e5943d",
+        "android_client_info": {
+          "package_name": "com.katuu.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCTd7_Ryz6IIt5Xv4K4XD8o6gjEzzQ_ukA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
