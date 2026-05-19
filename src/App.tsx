@@ -9,6 +9,7 @@ import { useTutorial } from "@/hooks/useTutorial";
 import { TutorialFlow } from "@/components/tutorial/TutorialFlow";
 import { useAutoPushSubscription } from "@/hooks/useAutoPushSubscription";
 import { supabase } from '@/integrations/supabase/client';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 const Splash = lazy(() => import("./pages/Splash"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -243,6 +244,7 @@ function AppRoutes() {
   const { shouldShowTutorial, loading: tutorialLoading, dismissTutorial } = useTutorial();
 
   useAutoPushSubscription();
+  usePushNotifications();
 
   if (authLoading || tutorialLoading) {
     return <PageLoader />;
