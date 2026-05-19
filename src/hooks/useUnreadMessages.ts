@@ -18,6 +18,10 @@ export function useUnreadMessages(conversationIds: string[]) {
     totalConversationsWithUnread: 0,
   });
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  // Usar um ID único por instância do hook para evitar conflitos de canal no Supabase
+  const [hookId] = useState(() => Math.random().toString(36).substring(7));
+  const channelName = `unread-messages-watch-${user?.id || 'anon'}-${hookId}`;
+
   const mountedRef = useRef(true);
 
   const fetchUnreadCounts = useCallback(async () => {
@@ -94,7 +98,7 @@ export function useUnreadMessages(conversationIds: string[]) {
     }
 
     const channel = supabase
-      .channel('unread-messages-watch')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
@@ -128,7 +132,7 @@ export function useUnreadMessages(conversationIds: string[]) {
         channelRef.current = null;
       }
     };
-  }, [user, conversationIds.join(','), fetchUnreadCounts]);
+  }, [user, conversationIds.join(","), fetchUnreadCounts, channelName]);
 
   // Legacy compatibility aliases
   const unreadCounts = unread.byConversation;

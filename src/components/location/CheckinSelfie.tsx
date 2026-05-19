@@ -12,6 +12,9 @@ interface CheckinSelfieProps {
   uploading?: boolean;
 }
 
+const KATUU_GREEN = '#6B8E7F';
+const KATUU_ORANGE = '#F4A261';
+
 export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieProps) {
   const isNative = cameraService.isNative();
 
@@ -22,12 +25,17 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
   const [faceDetected, setFaceDetected] = useState(false);
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [previewReady, setPreviewReady] = useState(false);
+  const [verifyingFace, setVerifyingFace] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Nativo: renderiza container antes de iniciar câmera
+  // Carrega modelos face-api assim que o componente monta
+  useEffect(() => {
+    faceapi.nets.tinyFaceDetector.loadFromUri('/models').catch(() => { });
+  }, []);
+
   useEffect(() => {
     if (!isNative) return;
     setStep('capture');
@@ -38,7 +46,6 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     };
   }, []);
 
-  // Browser: inicia stream
   useEffect(() => {
     if (isNative) return;
     initBrowserCamera();
@@ -48,7 +55,6 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     };
   }, []);
 
-  // Browser: conecta stream ao video
   useEffect(() => {
     if (isNative || step !== 'capture') return;
     const stream = cameraService.getStream();
@@ -58,7 +64,6 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     }
   }, [step, isNative]);
 
-  // Browser: detecção de rosto
   useEffect(() => {
     if (isNative || step !== 'capture' || !modelsLoaded) return;
     detectionIntervalRef.current = setInterval(async () => {
@@ -74,7 +79,6 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     return stopDetection;
   }, [step, modelsLoaded, isNative]);
 
-  // Nativo: para preview e mostra foto com flash
   useEffect(() => {
     if (!isNative || step !== 'preview') return;
     cameraService.stopPreview();
@@ -94,7 +98,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     try {
       await cameraService.startPreview();
     } catch (err: any) {
-      console.error('[CheckinSelfie] Native preview error:', err);
+      console.error('[CheckinSelfie] Native preview error:', err?.message || err);
       setErrorMsg('Não foi possível acessar a câmera. Verifique as permissões nas configurações do dispositivo.');
       setStep('error');
     }
@@ -111,6 +115,26 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     } catch {
       setErrorMsg('Não foi possível acessar a câmera. Verifique as permissões do navegador.');
       setStep('error');
+    }
+  };
+
+  // Verifica se há rosto na foto capturada
+  const verifyFaceInPhoto = async (dataUrl: string): Promise<boolean> => {
+    try {
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+      const detection = await faceapi.detectSingleFace(
+        img,
+        new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 })
+      );
+      return !!detection;
+    } catch {
+      // Se falhar a detecção, aceita a foto (não bloqueia o usuário)
+      return true;
     }
   };
 
@@ -163,6 +187,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
     setCapturedImage(null);
     setCapturedBlob(null);
     setPreviewReady(false);
+    setErrorMsg(null);
     if (isNative) {
       setStep('capture');
       setTimeout(() => initNativePreview(), 500);
@@ -209,8 +234,9 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
           <div className="flex flex-col items-center justify-center py-8 gap-4 text-center">
             <p className="text-sm text-muted-foreground max-w-[280px]">{errorMsg}</p>
             <Button
-              onClick={() => { setErrorMsg(null); setStep('capture'); setTimeout(() => initNativePreview(), 300); }}
-              className="h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
+              onClick={handleRetake}
+              className="h-11 rounded-xl font-semibold text-white"
+              style={{ backgroundColor: KATUU_ORANGE }}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Tentar novamente
@@ -229,14 +255,10 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
             <h2 className="text-xl font-bold">Tire sua selfie</h2>
           </div>
 
+          {/* Frame quadrado — border-radius não funciona com câmera nativa */}
           <div
-            className="relative w-full mx-auto rounded-2xl overflow-hidden"
-            style={{
-              aspectRatio: '3/4',
-              maxWidth: '90%',
-              background: '#000',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
-            }}
+            className="relative w-full overflow-hidden bg-black"
+            style={{ aspectRatio: '1/1' }}
           >
             <div
               id="cameraPreviewContainer"
@@ -247,11 +269,15 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
 
           <Button
             onClick={handleCapture}
-            className="w-full h-12 rounded-xl font-semibold text-base text-white mt-4"
-            style={{ backgroundColor: '#F97316', zIndex: 2, position: 'relative' }}
+            disabled={verifyingFace}
+            className="w-full h-12 rounded-xl font-semibold text-base text-white"
+            style={{ backgroundColor: KATUU_ORANGE }}
           >
-            <Camera className="h-5 w-5 mr-2" />
-            Capturar
+            {verifyingFace ? (
+              <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Verificando...</>
+            ) : (
+              <><Camera className="h-5 w-5 mr-2" />Capturar</>
+            )}
           </Button>
         </>
       )}
@@ -265,7 +291,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
             </Button>
             <h2 className="text-xl font-bold">Tire sua selfie</h2>
           </div>
-          <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-black">
+          <div className="relative w-full aspect-square overflow-hidden bg-black">
             <video
               ref={videoRef}
               autoPlay
@@ -286,9 +312,9 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
           <canvas ref={canvasRef} className="hidden" />
           <Button
             onClick={handleCapture}
-            variant="secondary"
             disabled={!faceDetected || !modelsLoaded}
-            className="w-full h-12 rounded-xl font-semibold text-base disabled:opacity-50"
+            className="w-full h-12 rounded-xl font-semibold text-base text-white disabled:opacity-50"
+            style={{ backgroundColor: KATUU_ORANGE }}
           >
             <Camera className="h-5 w-5 mr-2" />
             {!modelsLoaded ? 'Carregando...' : !faceDetected ? 'Posicione seu rosto' : 'Capturar'}
@@ -296,7 +322,7 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
         </>
       )}
 
-      {/* Preview com flash */}
+      {/* Preview */}
       {step === 'preview' && capturedImage && (
         <div
           className="fixed inset-0 z-50 flex flex-col"
@@ -322,14 +348,14 @@ export function CheckinSelfie({ onConfirm, onCancel, uploading }: CheckinSelfieP
             />
           </div>
           <div
-            className="flex flex-col gap-2 p-4 mt-4"
+            className="flex flex-col gap-2 p-4"
             style={{ opacity: previewReady ? 1 : 0, transition: 'opacity 0.15s ease-in' }}
           >
             <Button
               onClick={handleUsePhoto}
               disabled={uploading}
               className="w-full h-12 rounded-xl font-semibold text-base text-white"
-              style={{ backgroundColor: '#6B8E7F' }}
+              style={{ backgroundColor: KATUU_GREEN }}
             >
               {uploading ? (
                 <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Entrando...</>

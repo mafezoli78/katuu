@@ -9,7 +9,7 @@ import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { ConversationsList } from '@/components/chat/ConversationsList';
 import { toast } from '@/components/ui/use-toast';
-import { MessageCircle, MessageSquare } from 'lucide-react';
+import { MessageCircle, MessageSquare, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
 export default function Chat() {
@@ -28,6 +28,7 @@ export default function Chat() {
     closeChat,
     endChat,
     clearEndedReason,
+    loading: chatLoading,
   } = useChat({ presenceState, currentPresence });
 
   const conversationIds = activeConversations.map((c) => c.id);
@@ -108,7 +109,11 @@ export default function Chat() {
           Conversas ativas com pessoas no mesmo local
         </p>
 
-        {activeConversations.length === 0 ? (
+        {chatLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-katu-blue" />
+          </div>
+        ) : activeConversations.length === 0 ? (
           <Card className="border-0 shadow-sm">
             <CardContent className="py-10 text-center">
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">

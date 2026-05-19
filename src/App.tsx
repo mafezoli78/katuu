@@ -1,9 +1,10 @@
-import React, { lazy, Suspense, useEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ConversationsProvider } from "@/contexts/ConversationsContext";
 import { useTutorial } from "@/hooks/useTutorial";
 import { TutorialFlow } from "@/components/tutorial/TutorialFlow";
 import { useAutoPushSubscription } from "@/hooks/useAutoPushSubscription";
@@ -57,8 +58,8 @@ class AppErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-8 gap-4" 
-             style={{ background: 'linear-gradient(to bottom, #124854, #1F3A5F)' }}>
+        <div className="flex flex-col items-center justify-center min-h-screen p-8 gap-4"
+          style={{ background: 'linear-gradient(to bottom, #124854, #1F3A5F)' }}>
           <div className="text-5xl mb-2">😕</div>
           <h1 className="text-white text-xl font-bold text-center">
             Algo deu errado
@@ -100,15 +101,15 @@ class AppErrorBoundary extends React.Component<
 
 class LazyErrorBoundary extends React.Component<
   { children: React.ReactNode; fallback?: React.ReactNode },
-  { hasError: boolean }
+  { hasError: boolean; error: Error | null }
 > {
   constructor(props: { children: React.ReactNode; fallback?: React.ReactNode }) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
@@ -124,9 +125,10 @@ class LazyErrorBoundary extends React.Component<
             <p className="text-muted-foreground text-sm text-center">
               Não foi possível carregar esta página. Tente recarregar o app.
             </p>
+
             <button
               onClick={() => {
-                this.setState({ hasError: false });
+                this.setState({ hasError: false, error: null });
                 window.location.reload();
               }}
               className="px-6 py-2 bg-primary text-primary-foreground rounded-xl font-semibold"
@@ -177,7 +179,7 @@ function DeepLinkHandler() {
       const hashParams = new URLSearchParams(hash.replace('#', ''));
       const accessToken = hashParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token');
-      
+
       if (accessToken) {
         supabase.auth.setSession({
           access_token: accessToken,
@@ -195,7 +197,7 @@ function DeepLinkHandler() {
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
         const url = data?.url || event.data;
         if (!url || typeof url !== 'string') return;
-        
+
         const parsed = new URL(url);
         const hashParams = new URLSearchParams(parsed.hash.replace('#', ''));
         const type = hashParams.get('type') || parsed.searchParams.get('type');
@@ -300,12 +302,14 @@ const App = () => (
   <AppErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </TooltipProvider>
+        <BrowserRouter>
+          <ConversationsProvider>
+            <TooltipProvider>
+              <Toaster />
+              <AppRoutes />
+            </TooltipProvider>
+          </ConversationsProvider>
+        </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>
   </AppErrorBoundary>

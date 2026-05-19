@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useConversations } from '@/hooks/useConversations';
 import { toast } from '@/components/ui/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -50,6 +51,7 @@ interface UseInteractionDataResult {
  */
 export function useInteractionData(placeId: string | null): UseInteractionDataResult {
   const { user } = useAuth();
+  const { addConversationUpdateListener } = useConversations();
   const [sentWaves, setSentWaves] = useState<NormalizedWave[]>([]);
   const [receivedWaves, setReceivedWaves] = useState<NormalizedWave[]>([]);
   const [conversations, setConversations] = useState<NormalizedConversation[]>([]);
@@ -204,44 +206,32 @@ export function useInteractionData(placeId: string | null): UseInteractionDataRe
     }
   }, [user?.id, placeId, fetchData]);
 
-  // Realtime subscription para conversations
-  // Garante que mudanças (chat iniciado, chat encerrado) reflitam imediatamente
+  // Escuta atualizações de conversas via listener centralizado do useConversations
+  // Isso evita o erro "cannot add postgres_changes callbacks" ao unificar o canal
   useEffect(() => {
     if (!user?.id || !placeId) return;
 
-    const channel = supabase
-      .channel(`interaction-conversations-${placeId}-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'conversations',
-          filter: `place_id=eq.${placeId}`,
-        },
-        (payload) => {
-          const record = payload.new as any;
-          const oldRecord = payload.old as any;
-          
-          // Verificar se a mudança envolve o usuário atual
-          const involvesUser = 
-            record?.user1_id === user.id || 
-            record?.user2_id === user.id ||
-            oldRecord?.user1_id === user.id ||
-            oldRecord?.user2_id === user.id;
-          
-          if (involvesUser) {
-            // Refetch para garantir consistência
-            fetchData();
-          }
-        }
-      )
-      .subscribe();
+    const unsubscribe = addConversationUpdateListener((payload) => {
+      const record = payload.new as any;
+      const oldRecord = payload.old as any;
+      
+      const involvesUser = 
+        record?.user1_id === user.id || 
+        record?.user2_id === user.id ||
+        oldRecord?.user1_id === user.id ||
+        oldRecord?.user2_id === user.id;
+      
+      const isCurrentPlace = 
+        record?.place_id === placeId ||
+        oldRecord?.place_id === placeId;
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, placeId, fetchData]);
+      if (involvesUser && isCurrentPlace) {
+        fetchData();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user?.id, placeId, fetchData, addConversationUpdateListener]);
 
   // Realtime subscription para waves
   // Garante que acenos enviados/recebidos reflitam imediatamente

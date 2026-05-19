@@ -53,8 +53,10 @@ export default function Location() {
   const DEFAULT_INTENTION_ID = 'fe9396db-a8d8-4064-a5f5-c1220e6722f1';
 
   const fetchPlacesRef = useRef<((lat: number, lng: number) => Promise<void>) | null>(null);
+
   const fetchPlaces = useCallback(async (lat: number, lng: number) => {
     setPlacesLoading(true);
+    let failed = false;
     try {
       await fetchNearbyTemporaryPlaces(lat, lng);
 
@@ -75,10 +77,29 @@ export default function Location() {
         }
       }
     } catch (error) {
-      console.error('[Location] Error fetching places:', error);
-      toast({ variant: 'destructive', title: 'Erro ao buscar locais', description: 'Tente novamente' });
+      console.error('[Location] Error fetching places, retrying...', error);
+      failed = true;
     } finally {
-      setPlacesLoading(false);
+      if (!failed) setPlacesLoading(false);
+    }
+
+    // Retry silencioso após 3s
+    if (failed) {
+      setTimeout(async () => {
+        try {
+          const results = await placesService.searchNearby({ latitude: lat, longitude: lng, radius: MAX_SEARCH_RADIUS_METERS, limit: 20 });
+          setPlaces(results);
+          if (results.length > 0 && results[0].distance_meters !== undefined) {
+            if (results[0].distance_meters <= PROXIMITY_THRESHOLD_METERS) {
+              setClosestPlace(results[0]);
+            }
+          }
+        } catch {
+          toast({ variant: 'destructive', title: 'Não foi possível carregar os locais', description: 'Verifique sua conexão e tente novamente.' });
+        } finally {
+          setPlacesLoading(false);
+        }
+      }, 3000);
     }
   }, [fetchNearbyTemporaryPlaces, toast]);
 

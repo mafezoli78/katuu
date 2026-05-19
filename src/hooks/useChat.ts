@@ -12,13 +12,12 @@ export interface ChatState {
   isActive: boolean;
   conversation: ConversationWithDetails | null;
   endedReason: ConversationEndReason | null;
-  wasEndedByMe: boolean; // R3: Track who ended the conversation
-  /** Indicates if the chat can potentially be recovered (system issue, not human action) */
+  wasEndedByMe: boolean;
   isRecoverable: boolean;
 }
 
 interface UseChatOptions {
-  presenceState: { 
+  presenceState: {
     logicalState: PresenceLogicalState;
     endReason: PresenceEndReason | null;
   };
@@ -27,7 +26,7 @@ interface UseChatOptions {
 
 export function useChat(options?: UseChatOptions) {
   const { user } = useAuth();
-  const { conversations, refetch: refetchConversations, deactivateConversation } = useConversations();
+  const { conversations, loading: conversationsLoading, refetch: refetchConversations, deactivateConversation, addConversationUpdateListener } = useConversations();
   const [chatState, setChatState] = useState<ChatState>({
     isActive: false,
     conversation: null,
@@ -35,12 +34,9 @@ export function useChat(options?: UseChatOptions) {
     wasEndedByMe: false,
     isRecoverable: false,
   });
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const previousLogicalState = useRef<PresenceLogicalState | null>(null);
 
-  // CRITICAL: React to presence state transitions
-  // RULE: Only 'ended' (human-initiated) clears chat definitively
-  // 'suspended' (technical) marks as recoverable
+  // Reage a transições de estado de presença
   useEffect(() => {
     if (!options?.presenceState) return;
     
@@ -48,12 +44,10 @@ export function useChat(options?: UseChatOptions) {
     const endReason = options.presenceState.endReason;
     const prevState = previousLogicalState.current;
     
-    // Track state transitions
     if (prevState !== null && prevState !== currentLogicalState) {
       logger.debug(`[useChat] Presence state transition: ${prevState} → ${currentLogicalState}`);
     }
     
-    // Handle 'ended' state - ONLY for human-initiated actions
     if (currentLogicalState === 'ended' && prevState !== 'ended' && chatState.isActive) {
       const isHumanAction = endReason?.isHumanInitiated ?? true;
       
@@ -63,38 +57,33 @@ export function useChat(options?: UseChatOptions) {
           isActive: false,
           conversation: null,
           endedReason: 'presence_end',
-          wasEndedByMe: true, // Human action = definitive
+          wasEndedByMe: true,
           isRecoverable: false,
         });
       } else {
-        // Technical reason reaching 'ended' - should not happen with new logic
-        // but handle gracefully as recoverable
         logger.debug('[useChat] Presence ended (technical) - marking as recoverable');
         setChatState(prev => ({
           ...prev,
           isActive: false,
           endedReason: 'system_suspended',
-          wasEndedByMe: false, // System issue, not user action
+          wasEndedByMe: false,
           isRecoverable: true,
         }));
       }
     }
     
-    // Handle 'suspended' state - technical issue, potentially recoverable
     if (currentLogicalState === 'suspended' && prevState === 'active' && chatState.isActive) {
       logger.debug('[useChat] Presence suspended - marking chat as suspended (recoverable)');
       setChatState(prev => ({
         ...prev,
         endedReason: 'system_suspended',
-        wasEndedByMe: false, // System suspension, not user action
-        isRecoverable: true, // Can be recovered if presence revalidates
+        wasEndedByMe: false,
+        isRecoverable: true,
       }));
     }
     
-    // Handle recovery from 'suspended' back to 'active'
     if (currentLogicalState === 'active' && prevState === 'suspended') {
       logger.debug('[useChat] Presence reactivated - chat may recover');
-      // If chat was marked as suspended/recoverable, clear the suspension state
       if (chatState.isRecoverable && chatState.endedReason === 'system_suspended') {
         setChatState(prev => ({
           ...prev,
@@ -107,8 +96,6 @@ export function useChat(options?: UseChatOptions) {
     previousLogicalState.current = currentLogicalState;
   }, [options?.presenceState?.logicalState, options?.presenceState?.endReason, chatState.isActive, chatState.isRecoverable]);
 
-  // Belt and suspenders: if currentPresence is null AND endReason is human-initiated
-  // Only clear chat definitively for human actions
   useEffect(() => {
     if (!options) return;
     
@@ -128,7 +115,6 @@ export function useChat(options?: UseChatOptions) {
           isRecoverable: false,
         });
       } else {
-        // Technical reason - keep conversation reference, mark as suspended
         logger.debug('[useChat] currentPresence is null (technical) - marking suspended');
         setChatState(prev => ({
           ...prev,
@@ -140,69 +126,42 @@ export function useChat(options?: UseChatOptions) {
     }
   }, [options?.currentPresence, options?.presenceState?.endReason, chatState.isActive]);
 
-  // Subscribe to conversation changes (for real-time updates when other user ends chat)
+  // Escuta atualizações de conversas via listener centralizado do useConversations
+  // Sem criar canal Realtime próprio — elimina o conflito de canais
   useEffect(() => {
-    if (!user || conversations.length === 0) return;
+    if (!user) return;
 
-    const conversationIds = conversations.map(c => c.id);
-    
-    const channel = supabase
-      .channel('conversations-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'conversations',
-        },
-        (payload) => {
-          const updated = payload.new as any;
-          
-          // Check if this is one of our conversations and it was deactivated
-          if (conversationIds.includes(updated.id) && !updated.ativo) {
-            logger.debug('[useChat] Conversation deactivated:', updated.id);
-            
-            const wasEndedByMe = updated.encerrado_por === user?.id;
-            
-            // Toast for the OTHER user — fired directly from Realtime handler
-            // so it works regardless of Chat page being open or closed
-            if (!wasEndedByMe) {
-              toast({
-                title: 'A outra pessoa encerrou a conversa',
-                description: 'As mensagens foram apagadas',
-              });
-            }
-            
-            // If this was the active conversation, update state
-            if (chatState.conversation?.id === updated.id) {
-              setChatState({
-                isActive: false,
-                conversation: null,
-                endedReason: updated.encerrado_motivo || 'manual',
-                wasEndedByMe,
-                isRecoverable: false,
-              });
-            }
-            
-            // Refetch conversations to update the list
-            refetchConversations();
-          }
+    const unsubscribe = addConversationUpdateListener((payload) => {
+      const updated = payload.new as any;
+
+      if (!updated.ativo) {
+        const wasEndedByMe = updated.encerrado_por === user?.id;
+
+        if (!wasEndedByMe) {
+          toast({
+            title: 'A outra pessoa encerrou a conversa',
+            description: 'As mensagens foram apagadas',
+          });
         }
-      )
-      .subscribe();
 
-    channelRef.current = channel;
+        if (chatState.conversation?.id === updated.id) {
+          setChatState({
+            isActive: false,
+            conversation: null,
+            endedReason: updated.encerrado_motivo || 'manual',
+            wasEndedByMe,
+            isRecoverable: false,
+          });
+        }
 
-    return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
+        refetchConversations();
       }
-    };
-  }, [user, conversations, chatState.conversation?.id, refetchConversations]);
+    });
+
+    return () => unsubscribe();
+  }, [user, chatState.conversation?.id, refetchConversations, addConversationUpdateListener]);
 
   const openChat = useCallback((conversation: ConversationWithDetails) => {
-    // Validate that conversation has a valid place_id
     if (!conversation.place_id) {
       console.error('[useChat] Cannot open chat: conversation has no place_id');
       return;
@@ -233,7 +192,6 @@ export function useChat(options?: UseChatOptions) {
     const conversationId = chatState.conversation.id;
 
     try {
-      // RPC ATÔMICA: encerra conversa + deleta mensagens + aplica cooldown
       const { error } = await supabase.rpc('end_conversation', {
         p_conversation_id: conversationId,
         p_motivo: reason,
@@ -265,9 +223,6 @@ export function useChat(options?: UseChatOptions) {
     }
   }, [chatState.conversation, user, refetchConversations]);
 
-  // Called when presence ends (from usePresence)
-  // endAllChatsForPresence: DB cleanup is handled by end_presence_cascade RPC
-  // This function only cleans up local React state
   const endAllChatsForPresence = useCallback(async (_placeId?: string) => {
     if (!user) return;
 
@@ -297,5 +252,6 @@ export function useChat(options?: UseChatOptions) {
     endAllChatsForPresence,
     clearEndedReason,
     refetchConversations,
+    loading: conversationsLoading,
   };
 }

@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWaves, Wave } from '@/hooks/useWaves';
-import { useConversations } from '@/hooks/useConversations';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Card, CardContent } from '@/components/ui/card';
-
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +14,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
-
 
 interface WaveWithProfile {
   id: string;
@@ -37,16 +34,15 @@ interface WaveWithProfile {
 export default function Waves() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { 
-    receivedWaves, 
-    sentWaves, 
-    markAsRead, 
-    markAllAsRead, 
+  const {
+    receivedWaves,
+    sentWaves,
+    markAsRead,
+    markAllAsRead,
     unreadCount,
     acceptWave,
-    ignoreWave 
+    ignoreWave
   } = useWaves();
-  const { addConversation } = useConversations();
   const [receivedWithProfiles, setReceivedWithProfiles] = useState<WaveWithProfile[]>([]);
   const [sentWithProfiles, setSentWithProfiles] = useState<WaveWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,14 +70,14 @@ export default function Waves() {
           supabase.from('profiles').select('nome, foto_url').eq('id', wave.de_user_id).single(),
           supabase.from('locations').select('nome').eq('id', wave.location_id).maybeSingle()
         ]);
-        
+
         // Try places table if not found in locations
         let locationName = locationRes.data?.nome;
         if (!locationName) {
           const placeRes = await supabase.from('places').select('nome').eq('id', wave.location_id).maybeSingle();
           locationName = placeRes.data?.nome || 'Local desconhecido';
         }
-        
+
         if (profileRes.data) {
           receivedData.push({
             id: wave.id,
@@ -104,13 +100,13 @@ export default function Waves() {
           supabase.from('profiles').select('nome, foto_url').eq('id', wave.para_user_id).single(),
           supabase.from('locations').select('nome').eq('id', wave.location_id).maybeSingle()
         ]);
-        
+
         let locationName = locationRes.data?.nome;
         if (!locationName) {
           const placeRes = await supabase.from('places').select('nome').eq('id', wave.location_id).maybeSingle();
           locationName = placeRes.data?.nome || 'Local desconhecido';
         }
-        
+
         if (profileRes.data) {
           sentData.push({
             id: wave.id,
@@ -145,9 +141,9 @@ export default function Waves() {
 
   const handleAcceptWave = async (wave: WaveWithProfile) => {
     setProcessingWaveId(wave.id);
-    
+
     const { error, conversation } = await acceptWave(wave.id);
-    
+
     if (error) {
       toast({
         title: 'Erro ao aceitar aceno',
@@ -157,14 +153,12 @@ export default function Waves() {
     } else if (conversation) {
       // Remove from local list immediately
       setReceivedWithProfiles(prev => prev.filter(w => w.id !== wave.id));
-      
-      addConversation(conversation);
-      
+
       toast({
         title: 'Chat iniciado! 🎉',
         description: `Você agora pode conversar com ${wave.profile.nome || 'esta pessoa'}`,
         action: (
-          <ToastAction 
+          <ToastAction
             altText="Abrir conversa"
             onClick={() => navigate(`/chat?conversationId=${conversation.id}`)}
           >
@@ -174,14 +168,14 @@ export default function Waves() {
         )
       });
     }
-    
+
     setProcessingWaveId(null);
   };
 
   const handleIgnoreWave = async (waveId: string) => {
     await ignoreWave(waveId);
     setReceivedWithProfiles(prev => prev.filter(w => w.id !== waveId));
-    
+
     toast({
       title: 'Aceno ignorado',
     });
@@ -206,8 +200,8 @@ export default function Waves() {
 
         <Tabs defaultValue="received" className="w-full">
           <TabsList className="w-full h-11 rounded-xl bg-muted/50 p-1">
-            <TabsTrigger 
-              value="received" 
+            <TabsTrigger
+              value="received"
               className="flex-1 h-9 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
             >
               <Inbox className="h-4 w-4 mr-1.5" />
@@ -217,8 +211,8 @@ export default function Waves() {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger 
-              value="sent" 
+            <TabsTrigger
+              value="sent"
               className="flex-1 h-9 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
             >
               <Send className="h-4 w-4 mr-1.5" />
@@ -254,10 +248,10 @@ export default function Waves() {
                 {receivedWithProfiles.map((wave) => {
                   const expiration = formatExpiration(wave.expires_at);
                   const isProcessing = processingWaveId === wave.id;
-                  
+
                   return (
-                    <Card 
-                      key={wave.id} 
+                    <Card
+                      key={wave.id}
                       className={`border-0 shadow-sm overflow-hidden ${!wave.visualizado ? 'ring-2 ring-accent/50' : ''}`}
                       onClick={() => !wave.visualizado && markAsRead(wave.id)}
                     >
@@ -287,11 +281,11 @@ export default function Waves() {
                             <span className="h-3 w-3 rounded-full bg-accent animate-pulse" />
                           )}
                         </div>
-                        
+
                         {/* Action buttons */}
                         <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             className="flex-1 h-10 rounded-xl"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -302,7 +296,7 @@ export default function Waves() {
                             <X className="h-4 w-4 mr-1.5" />
                             Ignorar
                           </Button>
-                          <Button 
+                          <Button
                             className="flex-1 h-10 rounded-xl bg-katu-green hover:bg-katu-green/90 text-white"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -348,7 +342,7 @@ export default function Waves() {
               <div className="space-y-3">
                 {sentWithProfiles.map((wave) => {
                   const expiration = formatExpiration(wave.expires_at);
-                  
+
                   return (
                     <Card key={wave.id} className="border-0 shadow-sm">
                       <CardContent className="p-4 flex items-center gap-3">
