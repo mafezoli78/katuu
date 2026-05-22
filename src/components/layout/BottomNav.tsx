@@ -21,6 +21,15 @@ export function BottomNav() {
     { icon: User, label: 'Perfil', path: '/profile' },
   ];
 
+  const handleNavClick = (path: string) => {
+    if (location.pathname === path) {
+      // Já está na página — dispara evento para resetar o estado
+      window.dispatchEvent(new CustomEvent('nav-reset', { detail: { path } }));
+    } else {
+      navigate(path);
+    }
+  };
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border safe-area-inset-bottom z-50 shadow-nav">
       <div className="max-w-md mx-auto flex justify-around items-center h-16">
@@ -29,11 +38,11 @@ export function BottomNav() {
           return (
             <button
               key={path}
-              onClick={() => navigate(path)}
+              onClick={() => handleNavClick(path)}
               className={cn(
                 "flex flex-col items-center justify-center flex-1 h-full transition-all duration-200 relative",
-                isActive 
-                  ? "text-katu-blue" 
+                isActive
+                  ? "text-katu-blue"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -54,7 +63,6 @@ export function BottomNav() {
               )}>
                 {label}
               </span>
-              {/* Active indicator line */}
               {isActive && (
                 <div className="absolute -top-px left-1/2 -translate-x-1/2 w-12 h-0.5 bg-katu-blue rounded-full" />
               )}

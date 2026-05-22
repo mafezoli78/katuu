@@ -2,20 +2,22 @@ export type PendingAction = {
   type: 'ACTIVATE_PRESENCE';
   placeId: string;
   expressionText?: string;
+  selfieUrl?: string;
+  selfieSource?: 'camera' | 'upload';
 };
 
 const KEY = 'katu_pending_action';
 
 export function savePendingAction(action: PendingAction) {
-  sessionStorage.setItem(KEY, JSON.stringify(action));
+  localStorage.setItem(KEY, JSON.stringify(action));
 }
 
 export function getPendingAction(): PendingAction | null {
-  const raw = sessionStorage.getItem(KEY);
+  const raw = localStorage.getItem(KEY);
   if (!raw) return null;
   return JSON.parse(raw);
 }
 
 export function clearPendingAction() {
-  sessionStorage.removeItem(KEY);
+  localStorage.removeItem(KEY);
 }

@@ -83,36 +83,36 @@ export async function capturePhoto(): Promise<{ blob: Blob; dataUrl: string }> {
   return { blob, dataUrl: corrected };
 }
 
-// Corrige orientação da imagem capturada pela câmera frontal nativa
-// captureSample retorna imagem em landscape — rotaciona para portrait
+// Corrige orientação e realiza o recorte quadrado da imagem capturada
 async function fixOrientation(dataUrl: string): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
       const isLandscape = img.width > img.height;
+      
+      // Define o tamanho do quadrado baseado na menor dimensão
+      const size = Math.min(img.width, img.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
 
       if (!isLandscape) {
-        // Já está em portrait, apenas espelha horizontalmente (selfie)
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d')!;
-        ctx.translate(img.width, 0);
+        // Portrait: Centraliza verticalmente e espelha (selfie)
+        const offsetY = (img.height - size) / 2;
+        ctx.translate(size, 0);
         ctx.scale(-1, 1);
-        ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-        return;
+        ctx.drawImage(img, 0, offsetY, size, size, 0, 0, size, size);
+      } else {
+        // Landscape: Rotaciona 90°, centraliza horizontalmente e espelha
+        const offsetX = (img.width - size) / 2;
+        ctx.translate(size, 0);
+        ctx.rotate(Math.PI / 2);
+        ctx.scale(-1, 1);
+        // Note: Após rotação, as coordenadas de origem mudam
+        ctx.drawImage(img, offsetX, 0, size, size, 0, 0, size, size);
       }
 
-      // Landscape → rotaciona 90° e espelha para selfie frontal
-      const canvas = document.createElement('canvas');
-      canvas.width = img.height;
-      canvas.height = img.width;
-      const ctx = canvas.getContext('2d')!;
-      ctx.translate(canvas.width, 0);
-      ctx.rotate(Math.PI / 2);
-      ctx.scale(-1, 1);
-      ctx.drawImage(img, 0, 0);
       resolve(canvas.toDataURL('image/jpeg', 0.85));
     };
     img.onerror = () => resolve(dataUrl);

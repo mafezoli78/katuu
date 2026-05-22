@@ -16,6 +16,7 @@ import { Place, placesService, PROXIMITY_THRESHOLD_METERS, INITIAL_SEARCH_RADIUS
 import { PlaceSelector } from '@/components/location/PlaceSelector';
 import { CheckinSelfie } from '@/components/location/CheckinSelfie';
 import { supabase } from '@/integrations/supabase/client';
+import { useProfile } from '@/hooks/useProfile';
 import { logger } from '@/lib/logger';
 
 export default function Location() {
@@ -35,6 +36,7 @@ export default function Location() {
   } = usePresence();
 
   const [showProfileGate, setShowProfileGate] = useState(false);
+  const { isProfileComplete } = useProfile();
   const [step, setStep] = useState<'permission' | 'detecting' | 'select' | 'create_temp' | 'confirm_temp' | 'expression' | 'selfie'>('detecting');
   const [permissionChecked, setPermissionChecked] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<'prompt' | 'granted' | 'denied' | 'blocked'>('prompt');
@@ -177,8 +179,13 @@ export default function Location() {
     if (pending.placeId) {
       setSelectedPlaceId(pending.placeId);
       if (pending.expressionText) setExpressionText(pending.expressionText);
-      setStep('expression');
-      handleRequestLocation();
+      if (pending.selfieUrl) {
+        // Selfie já foi tirada e enviada — ativa presença diretamente
+        handleActivatePresence(pending.selfieUrl, pending.selfieSource || 'camera');
+      } else {
+        setStep('expression');
+        handleRequestLocation();
+      }
     }
   }, []);
 
@@ -320,7 +327,7 @@ export default function Location() {
       } catch (err: any) {
         if (err.message === 'PROFILE_LOADING') return;
         if (err?.message === 'PROFILE_INCOMPLETE' || err?.code === 'PROFILE_INCOMPLETE') {
-          savePendingAction({ type: 'ACTIVATE_PRESENCE', placeId: selectedPlaceId || '', expressionText: expressionText?.trim() || undefined });
+          savePendingAction({ type: 'ACTIVATE_PRESENCE', placeId: selectedPlaceId || '', expressionText: expressionText?.trim() || undefined, selfieUrl, selfieSource });
           setShowProfileGate(true);
           return;
         }
@@ -329,7 +336,7 @@ export default function Location() {
 
       if (error) {
         if (error?.message === 'PROFILE_INCOMPLETE' || (error as any)?.code === 'PROFILE_INCOMPLETE') {
-          savePendingAction({ type: 'ACTIVATE_PRESENCE', placeId: selectedPlaceId || '', expressionText: expressionText?.trim() || undefined });
+          savePendingAction({ type: 'ACTIVATE_PRESENCE', placeId: selectedPlaceId || '', expressionText: expressionText?.trim() || undefined, selfieUrl, selfieSource });
           setShowProfileGate(true);
           return;
         }
@@ -365,6 +372,7 @@ export default function Location() {
         setActivating(false);
         return;
       }
+
       await handleActivatePresence(fileName, source);
     } catch {
       toast({ variant: 'destructive', title: 'Erro inesperado' });

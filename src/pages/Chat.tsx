@@ -38,6 +38,18 @@ export default function Chat() {
     if (!user) navigate('/auth', { replace: true });
   }, [user, navigate]);
 
+  // Listener para reset ao clicar no ícone Chat do menu estando já em /chat
+  useEffect(() => {
+    const handleNavReset = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.path === '/chat' && chatState.isActive) {
+        closeChat();
+      }
+    };
+    window.addEventListener('nav-reset', handleNavReset);
+    return () => window.removeEventListener('nav-reset', handleNavReset);
+  }, [chatState.isActive, closeChat]);
+
   useEffect(() => {
     if (!conversationIdParam || chatState.isActive) return;
     const targetConversation = activeConversations.find((c) => c.id === conversationIdParam);
@@ -83,8 +95,6 @@ export default function Chat() {
     openChat(conversation);
   };
 
-  // Chat ativo: sem header do app, nav visível (some com teclado)
-  // ChatWindow usa position:fixed para header, messages e input — independente do layout
   if (chatState.isActive && chatState.conversation) {
     return (
       <MobileLayout showHeader={false} showNav={!isKeyboardVisible}>

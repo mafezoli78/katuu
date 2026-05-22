@@ -1,19 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useWaves, Wave } from '@/hooks/useWaves';
+import { useWaves } from '@/hooks/useWaves';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { Eye, Check, X, MessageCircle, Loader2, Inbox, Send } from 'lucide-react';
+import { Eye, Check, X, Loader2, Inbox, Send } from 'lucide-react';
 import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from '@/components/ui/use-toast';
-import { ToastAction } from '@/components/ui/toast';
 
 interface WaveWithProfile {
   id: string;
@@ -63,7 +62,6 @@ export default function Waves() {
         return;
       }
 
-      // Fetch received waves with sender profiles
       const receivedData: WaveWithProfile[] = [];
       for (const wave of receivedWaves) {
         const [profileRes, locationRes] = await Promise.all([
@@ -71,7 +69,6 @@ export default function Waves() {
           supabase.from('locations').select('nome').eq('id', wave.location_id).maybeSingle()
         ]);
 
-        // Try places table if not found in locations
         let locationName = locationRes.data?.nome;
         if (!locationName) {
           const placeRes = await supabase.from('places').select('nome').eq('id', wave.location_id).maybeSingle();
@@ -93,7 +90,6 @@ export default function Waves() {
       }
       setReceivedWithProfiles(receivedData);
 
-      // Fetch sent waves with recipient profiles
       const sentData: WaveWithProfile[] = [];
       for (const wave of sentWaves) {
         const [profileRes, locationRes] = await Promise.all([
@@ -150,41 +146,22 @@ export default function Waves() {
         description: error.message,
         variant: 'destructive'
       });
+      setProcessingWaveId(null);
     } else if (conversation) {
-      // Remove from local list immediately
-      setReceivedWithProfiles(prev => prev.filter(w => w.id !== wave.id));
-
-      toast({
-        title: 'Chat iniciado! 🎉',
-        description: `Você agora pode conversar com ${wave.profile.nome || 'esta pessoa'}`,
-        action: (
-          <ToastAction
-            altText="Abrir conversa"
-            onClick={() => navigate(`/chat?conversationId=${conversation.id}`)}
-          >
-            <MessageCircle className="h-4 w-4 mr-1" />
-            Abrir chat
-          </ToastAction>
-        )
-      });
+      // Navega diretamente ao chat sem toast
+      navigate(`/chat?conversationId=${conversation.id}`);
     }
-
-    setProcessingWaveId(null);
   };
 
   const handleIgnoreWave = async (waveId: string) => {
     await ignoreWave(waveId);
     setReceivedWithProfiles(prev => prev.filter(w => w.id !== waveId));
-
-    toast({
-      title: 'Aceno ignorado',
-    });
+    toast({ title: 'Aceno ignorado' });
   };
 
   return (
     <MobileLayout>
       <div className="p-4 page-fade">
-        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <HandshakeIcon className="h-6 w-6 text-katu-blue" />
@@ -282,7 +259,6 @@ export default function Waves() {
                           )}
                         </div>
 
-                        {/* Action buttons */}
                         <div className="flex gap-2">
                           <Button
                             variant="outline"

@@ -41,6 +41,18 @@ export function usePendingAction() {
       }
 
       logger.debug(`[usePendingAction] ✅ Presence activated: ${presenceId}`);
+
+      // Se houver uma selfie salva na ação pendente, atualiza a presença recém-criada
+      if (pending.selfieUrl) {
+        logger.debug(`[usePendingAction] 📸 Applying saved selfie to presence: ${pending.selfieUrl}`);
+        await supabase.from('presence').update({
+          checkin_selfie_url: pending.selfieUrl,
+          checkin_selfie_created_at: new Date().toISOString(),
+          selfie_provided: pending.selfieSource === 'camera',
+          selfie_source: pending.selfieSource || 'camera',
+        }).eq('id', presenceId);
+      }
+
       navigate('/home', { replace: true });
     } catch (err) {
       logger.debug('[usePendingAction] ❌ Unexpected error during activation');
