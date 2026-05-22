@@ -725,11 +725,14 @@ function StepFinal({ onComplete, onRestart }: { onComplete: () => void; onRestar
         <p className="text-white/70 text-base leading-relaxed max-w-xs">
           Agora você sabe como o Katuu funciona. Veja quem está aqui com você <strong className="text-white">agora</strong>.
         </p>
+        <p className="text-white/50 text-sm max-w-xs">
+          Você pode rever este tutorial a qualquer momento em <strong className="text-white/70">Perfil → Configurações</strong>.
+        </p>
       </div>
 
       <div className="flex flex-col gap-3 w-full max-w-xs">
         <Button onClick={onComplete} className="w-full py-4 rounded-2xl bg-accent text-accent-foreground font-bold text-base shadow-lg hover:bg-accent/90">
-          Começar a usar o Katuu 🚀
+          Começar a usar o Katuu
         </Button>
         <Button variant="ghost" onClick={onRestart} className="w-full py-2.5 text-white/50 hover:text-white hover:bg-white/10">
           Ver tutorial novamente

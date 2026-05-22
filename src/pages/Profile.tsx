@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { useInterestCategories } from '@/hooks/useInterestCategories';
-import { usePushNotifications } from '@/hooks/usePushNotifications';
+
 import type { Gender } from '@/types/gender';
 import { GENDER_OPTIONS } from '@/types/gender';
 import { MobileLayout } from '@/components/layout/MobileLayout';
@@ -20,7 +20,7 @@ import { PasswordChangeDialog } from '@/components/profile/PasswordChangeDialog'
 import { DateOfBirthPicker } from '@/components/profile/DateOfBirthPicker';
 import {
   LogOut, Check, User, Heart, Pencil, X,
-  Lock, RotateCcw, Bell, BellOff, Settings,
+  Lock, RotateCcw, Settings,
 } from 'lucide-react';
 import { APP_VERSION } from '@/version';
 
@@ -40,7 +40,7 @@ export default function Profile() {
   const { user, signOut } = useAuth();
   const { profile, interests, updateProfile, updateInterests, calculateAge } = useProfile();
   const { categories } = useInterestCategories();
-  const { permission, subscribe, unsubscribe } = usePushNotifications();
+
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -51,7 +51,7 @@ export default function Profile() {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [gender, setGender] = useState<Gender | null>(null);
   const [loading, setLoading] = useState(false);
-  const [pushLoading, setPushLoading] = useState(false);
+
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -192,28 +192,7 @@ export default function Profile() {
     setSelectedInterests(interests.map(i => i.interest_id));
   };
 
-  const handlePushToggle = async () => {
-    setPushLoading(true);
-    try {
-      if (permission === 'granted') {
-        await unsubscribe();
-        toast({ title: 'Notificações desativadas' });
-      } else {
-        const success = await subscribe();
-        if (success) {
-          toast({ title: 'Notificações ativadas! 🔔' });
-        } else if (permission === 'denied') {
-          toast({
-            variant: 'destructive',
-            title: 'Notificações bloqueadas',
-            description: 'Habilite nas configurações do dispositivo.',
-          });
-        }
-      }
-    } finally {
-      setPushLoading(false);
-    }
-  };
+
 
   const age = profile?.data_nascimento ? calculateAge(profile.data_nascimento) : null;
 
@@ -446,32 +425,7 @@ export default function Profile() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {permission !== 'denied' && (
-                <Button
-                  variant="outline"
-                  onClick={handlePushToggle}
-                  disabled={pushLoading}
-                  className="w-full justify-start h-11 rounded-xl"
-                >
-                  {permission === 'granted' ? (
-                    <>
-                      <BellOff className="h-4 w-4 mr-2" />
-                      Desativar notificações
-                      <span className="ml-auto text-xs text-katu-green">Ativas</span>
-                    </>
-                  ) : (
-                    <>
-                      <Bell className="h-4 w-4 mr-2" />
-                      Ativar notificações
-                    </>
-                  )}
-                </Button>
-              )}
-              {permission === 'denied' && (
-                <p className="text-xs text-muted-foreground px-1">
-                  🔕 Notificações bloqueadas. Ative nas configurações do dispositivo.
-                </p>
-              )}
+
               <Button
                 variant="outline"
                 onClick={async () => {

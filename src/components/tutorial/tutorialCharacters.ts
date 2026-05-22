@@ -11,10 +11,4 @@ export const TUTORIAL_CHARACTERS = [
     photo: '/tutorial/carlos.jpg',
     intention: 'Aqui para relaxar',
   },
-  {
-    name: 'Marina',
-    age: 24,
-    photo: '/tutorial/marina.jpg',
-    intention: 'Boa conversa sempre',
-  },
 ];

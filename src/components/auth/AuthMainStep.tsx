@@ -8,8 +8,8 @@ interface AuthMainStepProps {
 export function AuthMainStep({ onGoogle, onEmail }: AuthMainStepProps) {
   return (
     <div className="w-full max-w-sm flex flex-col items-center">
-      <h1 className="text-2xl font-bold text-white mb-1">Bem-vindo de volta</h1>
-      <p className="text-white/70 text-sm mb-8">Entre na sua conta para continuar</p>
+      <h1 className="text-2xl font-bold text-white mb-1">Bem-vindo ao Katuu</h1>
+      <p className="text-white/70 text-sm mb-8">Escolha como deseja entrar</p>
 
       <div className="w-full space-y-3">
         <button
