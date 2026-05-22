@@ -49,6 +49,7 @@ export function PersonCard({
   const navigate = useNavigate();
   const { user } = useAuth();
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
 
   const { state, button, isVisible } = useMemo(() => {
@@ -164,10 +165,12 @@ export function PersonCard({
 
   const initials = person.profile.nome?.[0]?.toUpperCase() || '?';
 
-  const handleButtonClick = () => {
+  const handleButtonClick = async () => {
     switch (button.action) {
       case 'wave':
-        onWave(person.id);
+        setIsSending(true);
+        await onWave(person.id);
+        setIsSending(false);
         break;
       case 'open_waves':
         navigate('/waves');
@@ -200,7 +203,7 @@ export function PersonCard({
   const ctaButton = (
     <Button
       className={`w-full h-11 rounded-xl font-semibold ${getButtonStyles()}`}
-      disabled={button.disabled}
+      disabled={button.disabled || isSending}
       onClick={handleButtonClick}
     >
       <HandshakeIcon className={`h-5 w-5 mr-2 ${shouldAnimateIcon ? 'animate-wave' : ''}`} />
