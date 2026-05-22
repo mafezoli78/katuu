@@ -8,7 +8,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ showLogo = true, className = '', version }: AppHeaderProps) {
   return (
-    <header className={`bg-primary py-3 px-4 ${className}`}>
+    <header className={`bg-primary py-3 px-4 safe-area-inset-top ${className}`}>
       {showLogo && (
         <div className="flex flex-col items-center">
           <img 

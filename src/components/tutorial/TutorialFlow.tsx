@@ -95,7 +95,7 @@ function TooltipCallout({ text, onAction }: { text: string; onAction: () => void
 // ---------------------------------------------------------------------------
 function StepFooter({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
   return (
-    <div className="px-6 py-4 flex gap-3">
+    <div className="px-6 py-4 flex gap-3 safe-area-inset-bottom">
       <Button variant="outline" onClick={onBack} className="flex-1 h-11 rounded-xl">
         Voltar
       </Button>
@@ -136,7 +136,7 @@ function StepWelcome({ onNext, onSkip }: { onNext: () => void; onSkip: () => voi
         
       </div>
 
-      <div className="flex flex-col gap-3 w-full max-w-xs">
+      <div className="flex flex-col gap-3 w-full max-w-xs safe-area-inset-bottom">
         <Button onClick={onNext} className="w-full py-3.5 rounded-2xl bg-accent text-accent-foreground font-semibold text-base shadow hover:bg-accent/90">
           Ver como funciona
         </Button>
@@ -730,7 +730,7 @@ function StepFinal({ onComplete, onRestart }: { onComplete: () => void; onRestar
         </p>
       </div>
 
-      <div className="flex flex-col gap-3 w-full max-w-xs">
+      <div className="flex flex-col gap-3 w-full max-w-xs safe-area-inset-bottom">
         <Button onClick={onComplete} className="w-full py-4 rounded-2xl bg-accent text-accent-foreground font-bold text-base shadow-lg hover:bg-accent/90">
           Começar a usar o Katuu
         </Button>
@@ -792,7 +792,7 @@ export function TutorialFlow({ onComplete }: TutorialFlowProps) {
     <div className="fixed inset-0 bg-background flex flex-col z-50">
       {/* Header with dots */}
       {isIntermediate && (
-        <div className="flex items-center justify-between px-6 pt-4 pb-2">
+        <div className="flex items-center justify-between px-6 pt-4 pb-2 safe-area-inset-top">
           <div className="w-16">
             <button onClick={back} className="flex items-center gap-1 text-muted-foreground text-sm">
               <ChevronLeft size={16} /> Voltar

@@ -9,12 +9,16 @@
 @layer base {
   :root {
     /* Katu Brand Colors */
-    --katu-blue: 200 81% 47%; /* #1E8FD3 - Logo blue */
-    --katu-green: 165 52% 51%; /* #40C2A8 - Logo green */
-    
+    --katu-blue: 200 81% 47%;
+    /* #1E8FD3 - Logo blue */
+    --katu-green: 165 52% 51%;
+    /* #40C2A8 - Logo green */
+
     /* Katu Color Palette */
-    --background: 0 0% 97%; /* #F7F7F7 */
-    --foreground: 0 0% 10%; /* #1A1A1A */
+    --background: 0 0% 97%;
+    /* #F7F7F7 */
+    --foreground: 0 0% 10%;
+    /* #1A1A1A */
 
     --card: 0 0% 100%;
     --card-foreground: 0 0% 10%;
@@ -22,19 +26,24 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 10%;
 
-    --primary: 213 50% 25%; /* #1F3A5F */
+    --primary: 213 50% 25%;
+    /* #1F3A5F */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 150 16% 49%; /* #6B8E7F */
+    --secondary: 150 16% 49%;
+    /* #6B8E7F */
     --secondary-foreground: 0 0% 100%;
 
     --muted: 0 0% 93%;
-    --muted-foreground: 0 0% 43%; /* #6E6E6E */
+    --muted-foreground: 0 0% 43%;
+    /* #6E6E6E */
 
-    --accent: 27 88% 67%; /* #F4A261 */
+    --accent: 27 88% 67%;
+    /* #F4A261 */
     --accent-foreground: 0 0% 10%;
 
-    --destructive: 0 84% 67%; /* #f46161 */
+    --destructive: 0 84% 67%;
+    /* #f46161 */
     --destructive-foreground: 0 0% 100%;
 
     --border: 0 0% 90%;
@@ -75,7 +84,8 @@
     --accent: 27 88% 60%;
     --accent-foreground: 0 0% 10%;
 
-    --destructive: 0 84% 67%; /* #f46161 */
+    --destructive: 0 84% 67%;
+    /* #f46161 */
     --destructive-foreground: 0 0% 100%;
 
     --border: 220 15% 20%;
@@ -98,7 +108,8 @@
     @apply border-border;
   }
 
-  html, body {
+  html,
+  body {
     height: 100%;
   }
 
@@ -113,7 +124,7 @@
   .katu-gradient {
     background: linear-gradient(180deg, hsl(213 50% 25%) 0%, hsl(165 52% 51%) 100%);
   }
-  
+
   .katu-gradient-horizontal {
     background: linear-gradient(90deg, hsl(200 81% 47%) 0%, hsl(165 52% 51%) 100%);
   }
@@ -124,7 +135,11 @@
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  
+
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
   .mobile-container {
     @apply max-w-md mx-auto;
   }
@@ -135,7 +150,7 @@
   .page-enter {
     animation: slideUp 0.3s ease-out forwards;
   }
-  
+
   .page-fade {
     animation: fadeIn 0.2s ease-out forwards;
   }
@@ -146,6 +161,7 @@
     opacity: 0;
     transform: translateY(16px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -156,6 +172,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -167,9 +184,11 @@
   0% {
     width: 0%;
   }
+
   50% {
     width: 70%;
   }
+
   100% {
     width: 100%;
   }
@@ -192,11 +211,11 @@
   .place-card {
     @apply transition-all duration-200;
   }
-  
+
   .place-card:hover {
     @apply shadow-md;
   }
-  
+
   .place-card:active {
     @apply scale-[0.99];
   }
@@ -247,16 +266,34 @@
 }
 
 @keyframes userPulse {
-  0% { transform: scale(0.3); opacity: 1; }
-  100% { transform: scale(1); opacity: 0; }
+  0% {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
 }
 
 /* Tutorial swipe animation */
 @keyframes tutorial-swipe {
-  0%   { transform: translateX(0); }
-  30%  { transform: translateX(-140px); }
-  70%  { transform: translateX(-140px); }
-  100% { transform: translateX(0); }
+  0% {
+    transform: translateX(0);
+  }
+
+  30% {
+    transform: translateX(-140px);
+  }
+
+  70% {
+    transform: translateX(-140px);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
 }
 
 /* Place pins */
@@ -281,7 +318,8 @@
 }
 
 .place-pin.pin-active {
-  background: hsl(200 81% 47%); /* katu-blue */
+  background: hsl(200 81% 47%);
+  /* katu-blue */
 }
 
 .place-pin.pin-empty {
@@ -290,7 +328,8 @@
 }
 
 .place-pin.pin-temporary {
-  background: hsl(165 52% 51%); /* katu-green */
+  background: hsl(165 52% 51%);
+  /* katu-green */
 }
 
 /* Popup styling */
