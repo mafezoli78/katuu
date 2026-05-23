@@ -61,7 +61,7 @@ function StepDots({ total, current }: { total: number; current: number }) {
 }
 
 // ---------------------------------------------------------------------------
-// CHARACTER AVATAR — square with rounded corners
+// CHARACTER AVATAR square with rounded corners
 // ---------------------------------------------------------------------------
 function CharAvatar({ char, size = 'md', showBadge = false }: { char: Character; size?: 'sm' | 'md' | 'lg'; showBadge?: boolean }) {
   const sizes = { sm: 'w-10 h-10', md: 'w-14 h-14', lg: 'w-20 h-20' };
@@ -76,16 +76,21 @@ function CharAvatar({ char, size = 'md', showBadge = false }: { char: Character;
 }
 
 // ---------------------------------------------------------------------------
-// TOOLTIP CALLOUT for Step 1 — arrow points up-right
+// TOOLTIP CALLOUT for Step 1 arrow points up-right
 // ---------------------------------------------------------------------------
-function TooltipCallout({ text, onAction }: { text: string; onAction: () => void }) {
+function TooltipCallout({ text, onAction, arrowPosition = 'top' }: { text: string; onAction: () => void; arrowPosition?: 'top' | 'bottom' }) {
   return (
     <div className="bg-primary text-primary-foreground rounded-xl p-3 shadow-lg relative">
+      {arrowPosition === 'top' && (
+        <div className="absolute -top-2 right-6 w-4 h-4 bg-primary rotate-45" />
+      )}
       <p className="text-sm leading-relaxed mb-2">{text}</p>
       <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg text-sm font-semibold w-full" onClick={onAction}>
         Ok, entendi
       </Button>
-      <div className="absolute -top-2 right-6 w-4 h-4 bg-primary rotate-45" />
+      {arrowPosition === 'bottom' && (
+        <div className="absolute -bottom-2 right-6 w-4 h-4 bg-primary rotate-45" />
+      )}
     </div>
   );
 }
@@ -110,10 +115,10 @@ function StepFooter({ onBack, onNext }: { onBack: () => void; onNext: () => void
 // INDIVIDUAL STEPS
 // ---------------------------------------------------------------------------
 
-// Step 0 — Welcome
+// Step 0 Welcome
 function StepWelcome({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) {
   return (
-    <div className="flex flex-col items-center h-full px-8 text-center gap-6 bg-gradient-to-b from-[#124854] to-[#1F3A5F] overflow-y-auto py-8 justify-center">
+    <div className="flex flex-col items-center min-h-full px-8 text-center gap-6 bg-gradient-to-b from-[#124854] to-[#1F3A5F] overflow-y-auto py-12 justify-center safe-area-inset-top">
       <div className="flex flex-col items-center gap-4">
         <img src={katuuLogo} alt="Katuu" className="h-16 object-contain" />
         <h1 className="text-2xl font-bold text-white leading-tight">
@@ -148,7 +153,7 @@ function StepWelcome({ onNext, onSkip }: { onNext: () => void; onSkip: () => voi
   );
 }
 
-// Step 1 — Locais (tooltip/callout sequential flow)
+// Step 1 Locais (tooltip/callout sequential flow)
 function StepLocais({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const [tooltipStep, setTooltipStep] = useState(0);
   const showOverlay = tooltipStep < 4;
@@ -169,7 +174,7 @@ function StepLocais({ onNext, onBack }: { onNext: () => void; onBack: () => void
             O Katuu detecta sua localização e mostra os estabelecimentos próximos.
           </p>
         </div>
-        {/* List/Map toggle — icons only, top-right */}
+        {/* List/Map toggle icons only, top-right */}
         <div className={`flex items-center gap-0.5 bg-muted rounded-lg p-0.5 ml-3 flex-shrink-0 ${tooltipStep === 3 ? 'relative z-[10]' : ''}`}>
           <div className="rounded-md p-2 bg-card shadow-sm">
             <List className="h-4 w-4 text-foreground" />
@@ -211,7 +216,7 @@ function StepLocais({ onNext, onBack }: { onNext: () => void; onBack: () => void
             </Card>
           ))}
 
-          {/* Tooltip 0 — "Aqui" button */}
+          {/* Tooltip 0 "Aqui" button */}
           {tooltipStep === 0 && (
             <div className="relative z-[11] mt-2">
               <TooltipCallout
@@ -251,17 +256,18 @@ function StepLocais({ onNext, onBack }: { onNext: () => void; onBack: () => void
           </Button>
 
           {tooltipStep === 2 && (
-            <div className="relative z-[11] mt-2">
+            <div className="relative z-[11] mb-2">
               <TooltipCallout
                 text="Use para locais não cadastrados, eventos corporativos e festas privadas."
                 onAction={() => setTooltipStep(3)}
+                arrowPosition="bottom"
               />
             </div>
           )}
         </div>
       </div>
 
-      {/* Tooltip 3 — map toggle (positioned below header) */}
+      {/* Tooltip 3 map toggle (positioned below header) */}
       {tooltipStep === 3 && (
         <div className="absolute top-24 right-6 z-[11] w-64">
           <TooltipCallout
@@ -271,13 +277,13 @@ function StepLocais({ onNext, onBack }: { onNext: () => void; onBack: () => void
         </div>
       )}
 
-      {/* Footer — only shown after all tooltips */}
+      {/* Footer only shown after all tooltips */}
       {tooltipStep >= 4 && <StepFooter onBack={onBack} onNext={onNext} />}
     </div>
   );
 }
 
-// Step 2 — Seu momento aqui
+// Step 2 Seu momento aqui
 function StepMomento({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const [intention, setIntention] = useState('');
 
@@ -292,7 +298,7 @@ function StepMomento({ onNext, onBack }: { onNext: () => void; onBack: () => voi
 
       <div className="flex-1 px-6 overflow-y-auto">
         <div className="flex flex-col gap-3 mt-2">
-          {/* Presence card mock — matching PresenceStatusCard */}
+          {/* Presence card mock matching PresenceStatusCard */}
           <Card className="bg-gradient-to-r from-primary to-primary/90 text-primary-foreground border-0 shadow-lg overflow-hidden">
             <CardContent className="p-4">
               <div className="flex items-start justify-between mb-3">
@@ -328,14 +334,14 @@ function StepMomento({ onNext, onBack }: { onNext: () => void; onBack: () => voi
               </p>
               <Textarea
                 value={intention}
-                onChange={(e) => setIntention(e.target.value)}
+                readOnly
                 placeholder="Ex: Aberto a conversar."
                 maxLength={140}
-                className="resize-none h-16"
+                className="resize-none h-16 cursor-default"
               />
               <p className="text-right text-sm text-muted-foreground mt-1">{intention.length}/140</p>
               <p className="text-sm italic text-muted-foreground mt-2">
-                Esta etapa é opcional, mas essencial para boas conexões — diga às pessoas como você está agora.
+                Esta etapa é opcional, mas essencial para boas conexões diga às pessoas como você está agora.
               </p>
             </CardContent>
           </Card>
@@ -353,7 +359,7 @@ function StepMomento({ onNext, onBack }: { onNext: () => void; onBack: () => voi
   );
 }
 
-// Step 3 — Selfie
+// Step 3 Selfie
 function StepSelfie({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   return (
     <div className="flex flex-col h-full">
@@ -366,25 +372,27 @@ function StepSelfie({ onNext, onBack }: { onNext: () => void; onBack: () => void
 
       <div className="flex-1 px-6 overflow-y-auto">
         <div className="flex flex-col gap-4 mt-2">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-col gap-2">
             {[
               { icon: '🔒', title: 'Segurança', desc: 'Confirma que você é uma pessoa real' },
               { icon: '🤝', title: 'Confiança', desc: 'Quem vai aceitar seu aceno sabe com quem fala' },
               { icon: '👋', title: 'Contexto', desc: 'Mostra como você está agora, neste momento' },
             ].map((item) => (
               <Card key={item.title} className="border shadow-sm">
-                <CardContent className="p-3 flex flex-col items-center gap-1 text-center">
-                  <span className="text-2xl">{item.icon}</span>
-                  <p className="text-sm font-semibold">{item.title}</p>
-                  <p className="text-sm text-muted-foreground leading-tight">{item.desc}</p>
+                <CardContent className="p-3 flex items-center gap-3">
+                  <span className="text-2xl flex-shrink-0">{item.icon}</span>
+                  <div>
+                    <p className="text-sm font-semibold">{item.title}</p>
+                    <p className="text-sm text-muted-foreground leading-tight">{item.desc}</p>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
 
-          {/* Mock PersonCard — matching real layout */}
+          {/* Mock PersonCard matching real layout */}
           <div>
-            <p className="text-sm text-muted-foreground mb-2 font-medium">Como aparece no seu card:</p>
+            <p className="text-sm text-muted-foreground mb-2 font-medium">Seu perfil ficará assim (toque na foto para ampliar):</p>
             <Card className="border-0 shadow-sm overflow-hidden">
               <CardContent className="p-0">
                 <div className="flex h-full">
@@ -417,7 +425,7 @@ function StepSelfie({ onNext, onBack }: { onNext: () => void; onBack: () => void
 
           <div className="bg-primary/5 rounded-2xl p-3">
             <p className="text-sm text-primary leading-relaxed">
-              📷 A foto é tirada no momento — não é possível usar fotos da galeria. Isso garante que você está realmente presente.
+              📷 A foto é tirada no momento não é possível usar fotos da galeria. Isso garante que você está realmente presente.
             </p>
           </div>
         </div>
@@ -428,7 +436,7 @@ function StepSelfie({ onNext, onBack }: { onNext: () => void; onBack: () => void
   );
 }
 
-// Step 4 — Perfil (conditional — only if profile incomplete)
+// Step 4 Perfil (conditional only if profile incomplete)
 function StepPerfil({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   return (
     <div className="flex flex-col h-full">
@@ -477,7 +485,7 @@ function StepPerfil({ onNext, onBack }: { onNext: () => void; onBack: () => void
                 <div>
                   <p className="font-semibold text-sm">Interesses</p>
                   <p className="text-base text-muted-foreground mt-0.5 leading-relaxed">
-                    Seus interesses <strong>não aparecem no seu card</strong> para outras pessoas. Eles são usados apenas para <strong>ordenar quem aparece primeiro</strong> — pessoas com interesses em comum ficam no topo da sua lista.
+                    Seus interesses <strong>não aparecem no seu card</strong> para outras pessoas. Eles são usados apenas para <strong>ordenar quem aparece primeiro</strong> pessoas com interesses em comum ficam no topo da sua lista.
                   </p>
                 </div>
               </div>
@@ -497,7 +505,7 @@ function StepPerfil({ onNext, onBack }: { onNext: () => void; onBack: () => void
   );
 }
 
-// Step 5 — Pessoas no local + Aceno
+// Step 5 Pessoas no local + Aceno
 function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const [waved, setWaved] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
@@ -538,7 +546,7 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
             </CardContent>
           </Card>
 
-          {/* People list — compact row layout */}
+          {/* People list compact row layout */}
           <div className="flex flex-col gap-2">
             {CHARACTERS.map((char) => (
               <Card key={char.name} className="border-0 shadow-sm overflow-hidden">
@@ -614,7 +622,7 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
   );
 }
 
-// Step 6 — Silenciar e Bloquear (swipe animation)
+// Step 6 Silenciar e Bloquear (swipe animation)
 function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const [animating, setAnimating] = useState(false);
 
@@ -715,10 +723,10 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
   );
 }
 
-// Step 7 — Final
+// Step 7 Final
 function StepFinal({ onComplete, onRestart }: { onComplete: () => void; onRestart: () => void }) {
   return (
-    <div className="flex flex-col items-center h-full px-8 text-center gap-6 bg-gradient-to-b from-[#124854] to-[#1F3A5F] overflow-y-auto py-8 justify-center">
+    <div className="flex flex-col items-center min-h-full px-8 text-center gap-6 bg-gradient-to-b from-[#124854] to-[#1F3A5F] overflow-y-auto py-12 justify-center safe-area-inset-top">
       <div className="flex flex-col items-center gap-4">
         <img src={katuuLogo} alt="Katuu" className="h-16 object-contain" />
         <h2 className="text-2xl font-bold text-white">Pronto!</h2>
