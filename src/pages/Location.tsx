@@ -555,12 +555,12 @@ export default function Location() {
                   <Textarea
                     placeholder="Ex: Aberto a conversar."
                     value={expressionText}
-                    onChange={(e) => setExpressionText(e.target.value.slice(0, 140))}
+                    onChange={(e) => setExpressionText(e.target.value.slice(0, 80))}
                     className="min-h-[100px] rounded-xl resize-none"
-                    maxLength={140}
+                    maxLength={80}
                   />
                   <p className="text-xs text-muted-foreground text-right mt-1">
-                    {expressionText.length}/140
+                    {expressionText.length}/80
                   </p>
                 </div>
                 <Button

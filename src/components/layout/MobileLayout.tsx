@@ -14,7 +14,10 @@ export function MobileLayout({ children, showNav = true, showHeader = true, fixe
   return (
     <div className={`mobile-container bg-background flex flex-col ${fixedHeight ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
       {showHeader && <AppHeader version={headerVersion} />}
-      <main className={`flex-1 overflow-hidden ${showNav ? 'pb-20' : ''}`}>
+      <main
+        className={`flex-1 overflow-y-auto ${fixedHeight ? 'overflow-hidden' : ''}`}
+        style={showNav ? { paddingBottom: 'calc(64px + max(8px, env(safe-area-inset-bottom, 8px)))' } : undefined}
+      >
         {children}
       </main>
       {showNav && <BottomNav />}

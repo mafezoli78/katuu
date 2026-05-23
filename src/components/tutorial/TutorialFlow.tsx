@@ -82,8 +82,8 @@ function TooltipCallout({ text, onAction }: { text: string; onAction: () => void
   return (
     <div className="bg-primary text-primary-foreground rounded-xl p-3 shadow-lg relative">
       <p className="text-sm leading-relaxed mb-2">{text}</p>
-      <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg text-sm font-semibold" onClick={onAction}>
-        Ok
+      <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg text-sm font-semibold w-full" onClick={onAction}>
+        Ok, entendi
       </Button>
       <div className="absolute -top-2 right-6 w-4 h-4 bg-primary rotate-45" />
     </div>
@@ -95,7 +95,7 @@ function TooltipCallout({ text, onAction }: { text: string; onAction: () => void
 // ---------------------------------------------------------------------------
 function StepFooter({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
   return (
-    <div className="px-6 py-4 flex gap-3 safe-area-inset-bottom">
+    <div className="sticky bottom-0 bg-background border-t border-border px-6 py-4 flex gap-3 safe-area-inset-bottom z-10">
       <Button variant="outline" onClick={onBack} className="flex-1 h-11 rounded-xl">
         Voltar
       </Button>
@@ -113,14 +113,14 @@ function StepFooter({ onBack, onNext }: { onBack: () => void; onNext: () => void
 // Step 0 — Welcome
 function StepWelcome({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center h-full px-8 text-center gap-8 bg-gradient-to-b from-[#124854] to-[#1F3A5F]">
+    <div className="flex flex-col items-center h-full px-8 text-center gap-6 bg-gradient-to-b from-[#124854] to-[#1F3A5F] overflow-y-auto py-8 justify-center">
       <div className="flex flex-col items-center gap-4">
         <img src={katuuLogo} alt="Katuu" className="h-16 object-contain" />
         <h1 className="text-2xl font-bold text-white leading-tight">
           Bem-vindo ao Katuu
         </h1>
         <p className="text-white/70 text-base leading-relaxed max-w-xs">
-          O Katuu mostra pessoas que estão no <strong className="text-white">mesmo lugar que você</strong>, abertas para uma conversa agora.
+          O Katuu mostra pessoas que estão <strong className="text-white">no mesmo lugar que você</strong>, dispostas a conversar. Agora!
         </p>
       </div>
 
@@ -136,7 +136,7 @@ function StepWelcome({ onNext, onSkip }: { onNext: () => void; onSkip: () => voi
         
       </div>
 
-      <div className="flex flex-col gap-3 w-full max-w-xs safe-area-inset-bottom">
+      <div className="flex flex-col gap-3 w-full max-w-xs safe-area-inset-bottom mt-auto">
         <Button onClick={onNext} className="w-full py-3.5 rounded-2xl bg-accent text-accent-foreground font-semibold text-base shadow hover:bg-accent/90">
           Ver como funciona
         </Button>
@@ -180,7 +180,7 @@ function StepLocais({ onNext, onBack }: { onNext: () => void; onBack: () => void
         </div>
       </div>
 
-      <div className="flex-1 px-6 overflow-y-auto">
+      <div className="flex-1 px-6 overflow-y-auto pb-4">
         <div className="space-y-2">
           {/* Places list */}
           {FICTIONAL_PLACES.map((p, i) => (
@@ -595,7 +595,7 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
               <p className="text-sm font-semibold mb-1">Aceno enviado para {waved}!</p>
               <p className="text-sm text-muted-foreground mb-2">Agora {waved} recebe uma notificação e pode aceitar ou ignorar. Se aceitar, o chat abre automaticamente.</p>
               <Button onClick={() => setAccepted(true)} className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-sm font-semibold" size="sm">
-                Simular: {waved} aceitou! 🎉
+                Simular: {waved} aceitou
               </Button>
             </div>
           )}
@@ -635,22 +635,22 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
       <div className="flex-1 px-6 overflow-y-auto">
         <div className="flex flex-col gap-4 mt-2">
           {/* Swipe demo with CSS animation */}
-          <div className="relative overflow-hidden rounded-xl shadow-sm border border-border">
+          <div className="relative rounded-xl shadow-sm border border-border overflow-hidden">
             {/* Actions background */}
-            <div className="absolute right-0 top-0 bottom-0 flex flex-col" style={{ width: 80 }}>
-              <button className="flex-1 flex flex-col items-center justify-center gap-1">
+            <div className="absolute right-0 top-0 bottom-0 flex flex-col" style={{ width: 100 }}>
+              <button className="flex-1 flex flex-col items-center justify-center gap-1 bg-muted">
                 <VolumeX size={18} className="text-foreground/70" />
-                <span className="text-sm text-foreground/70 font-medium">Silenciar</span>
+                <span className="text-xs text-foreground/70 font-medium">Silenciar</span>
               </button>
-              <button className="flex-1 flex flex-col items-center justify-center gap-1">
-                <Ban size={18} className="text-foreground/70" />
-                <span className="text-sm text-foreground/70 font-medium">Bloquear</span>
+              <button className="flex-1 flex flex-col items-center justify-center gap-1 bg-muted/70">
+                <Ban size={18} className="text-destructive" />
+                <span className="text-xs text-destructive font-medium">Bloquear</span>
               </button>
             </div>
 
-            {/* Card with swipe animation — matching standard card pattern */}
+            {/* Card with swipe animation */}
             <div
-              className="bg-card"
+              className="bg-card relative z-10"
               style={{
                 animation: animating ? 'tutorial-swipe 2s ease-in-out 0s 2 forwards' : 'none',
               }}
@@ -718,7 +718,7 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
 // Step 7 — Final
 function StepFinal({ onComplete, onRestart }: { onComplete: () => void; onRestart: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center h-full px-8 text-center gap-8 bg-gradient-to-b from-[#124854] to-[#1F3A5F]">
+    <div className="flex flex-col items-center h-full px-8 text-center gap-6 bg-gradient-to-b from-[#124854] to-[#1F3A5F] overflow-y-auto py-8 justify-center">
       <div className="flex flex-col items-center gap-4">
         <img src={katuuLogo} alt="Katuu" className="h-16 object-contain" />
         <h2 className="text-2xl font-bold text-white">Pronto!</h2>
@@ -730,7 +730,7 @@ function StepFinal({ onComplete, onRestart }: { onComplete: () => void; onRestar
         </p>
       </div>
 
-      <div className="flex flex-col gap-3 w-full max-w-xs safe-area-inset-bottom">
+      <div className="flex flex-col gap-3 w-full max-w-xs safe-area-inset-bottom mt-auto">
         <Button onClick={onComplete} className="w-full py-4 rounded-2xl bg-accent text-accent-foreground font-bold text-base shadow-lg hover:bg-accent/90">
           Começar a usar o Katuu
         </Button>

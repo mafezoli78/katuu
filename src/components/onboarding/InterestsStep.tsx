@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useInterestCategories } from '@/hooks/useInterestCategories';
@@ -9,12 +9,12 @@ interface InterestsStepProps {
   onToggleInterest: (interestId: string) => void;
   onNext: () => void;
   onBack: () => void;
+  categoryIndex: number;
+  setCategoryIndex: (index: number) => void;
 }
 
-
-export function InterestsStep({ selectedInterests, onToggleInterest, onNext, onBack }: InterestsStepProps) {
+export function InterestsStep({ selectedInterests, onToggleInterest, onNext, onBack, categoryIndex, setCategoryIndex }: InterestsStepProps) {
   const { categories, loading } = useInterestCategories();
-  const [categoryIndex, setCategoryIndex] = useState(0);
 
   const currentCategory = categories[categoryIndex];
 
@@ -25,32 +25,52 @@ export function InterestsStep({ selectedInterests, onToggleInterest, onNext, onB
       .map(i => i.id);
   }, [categories, selectedInterests]);
 
-  const handleSelectTag = useCallback((interestId: string) => {
-    const previousInCategory = getSelectedInCategory(categoryIndex);
+  const handleSelectTag = useCallback((interestId: string, isNoneOption: boolean) => {
+    const selectedInCurrent = getSelectedInCategory(categoryIndex);
 
-    // Deselect previous selections in this category
-    previousInCategory.forEach(id => onToggleInterest(id));
-
-    // If not "none", select the new tag
-    onToggleInterest(interestId);
-
-    // Advance after brief delay for visual feedback
-    setTimeout(() => {
-      if (categoryIndex < categories.length - 1) {
-        setCategoryIndex(prev => prev + 1);
-      } else {
-        onNext();
+    if (isNoneOption) {
+      // "Nenhuma delas" — deseleciona tudo da categoria e avança
+      selectedInCurrent.forEach(id => onToggleInterest(id));
+      if (!selectedInCurrent.includes(interestId)) {
+        onToggleInterest(interestId);
       }
-    }, 200);
-  }, [categoryIndex, categories.length, getSelectedInCategory, onToggleInterest, onNext]);
+      setTimeout(() => {
+        if (categoryIndex < categories.length - 1) {
+          setCategoryIndex(categoryIndex + 1);
+        } else {
+          onNext();
+        }
+      }, 200);
+      return;
+    }
+
+    // Se "Nenhuma delas" estava selecionada, remove ela primeiro
+    const noneOption = currentCategory?.interests.find(i =>
+      i.name.toLowerCase().includes('nenhum') || i.name.toLowerCase().includes('nenhuma')
+    );
+    if (noneOption && selectedInCurrent.includes(noneOption.id)) {
+      onToggleInterest(noneOption.id);
+    }
+
+    // Toggle normal
+    onToggleInterest(interestId);
+  }, [categoryIndex, categories, currentCategory, getSelectedInCategory, onToggleInterest, onNext, setCategoryIndex]);
+
+  const handleContinue = useCallback(() => {
+    if (categoryIndex < categories.length - 1) {
+      setCategoryIndex(categoryIndex + 1);
+    } else {
+      onNext();
+    }
+  }, [categoryIndex, categories.length, setCategoryIndex, onNext]);
 
   const handleBack = useCallback(() => {
     if (categoryIndex > 0) {
-      setCategoryIndex(prev => prev - 1);
+      setCategoryIndex(categoryIndex - 1);
     } else {
       onBack();
     }
-  }, [categoryIndex, onBack]);
+  }, [categoryIndex, onBack, setCategoryIndex]);
 
   if (loading || categories.length === 0) {
     return (
@@ -81,23 +101,24 @@ export function InterestsStep({ selectedInterests, onToggleInterest, onNext, onB
         {/* Category title */}
         <div>
           <h2 className="text-lg font-semibold text-foreground">{currentCategory.name}</h2>
-{categoryIndex === 0 ? (
-  <p className="text-sm text-muted-foreground">
-    Suas escolhas ajudam a encontrar pessoas com interesses parecidos — ninguém verá essas informações no seu perfil.
-  </p>
-) : (
-  <p className="text-sm text-muted-foreground">Escolha o que mais combina com você</p>
-)}
+          {categoryIndex === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Suas escolhas ajudam a encontrar pessoas com interesses parecidos — ninguém verá essas informações no seu perfil.
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">Escolha quantas quiser</p>
+          )}
         </div>
 
         {/* Tags */}
         <div className="flex flex-wrap gap-2">
           {currentCategory.interests.map((interest) => {
             const isSelected = selectedInCurrent.includes(interest.id);
+            const isNoneOption = interest.name.toLowerCase().includes('nenhum') || interest.name.toLowerCase().includes('nenhuma');
             return (
               <button
                 key={interest.id}
-                onClick={() => handleSelectTag(interest.id)}
+                onClick={() => handleSelectTag(interest.id, isNoneOption)}
                 className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isSelected
                     ? 'bg-accent text-accent-foreground'
@@ -110,11 +131,20 @@ export function InterestsStep({ selectedInterests, onToggleInterest, onNext, onB
           })}
         </div>
 
-        {/* Back button */}
-        <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1">
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </Button>
+        {/* Actions */}
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1">
+            <ArrowLeft className="h-4 w-4" />
+            Voltar
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleContinue}
+            className="ml-auto bg-accent text-accent-foreground hover:bg-accent/90"
+          >
+            {categoryIndex < categories.length - 1 ? 'Continuar' : 'Concluir'}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

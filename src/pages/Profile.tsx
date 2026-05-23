@@ -24,10 +24,7 @@ import {
 } from 'lucide-react';
 import { APP_VERSION } from '@/version';
 
-const MIN_BIO_LENGTH = 40;
-const MAX_BIO_LENGTH = 150;
-const MAX_INTERESTS = 10;
-const MAX_PER_CATEGORY = 4;
+const MAX_BIO_LENGTH = 80;
 
 const GENDER_LABEL: Record<string, string> = {
   man: 'Homem',
@@ -114,8 +111,6 @@ export default function Profile() {
     });
 
     if (!isSelected) {
-      if (selectedInterests.length >= MAX_INTERESTS) return;
-      if (getCategoryCount(categoryId) >= MAX_PER_CATEGORY) return;
       setSelectedInterests(prev => [
         ...prev.filter(i => i !== noneId),
         interestId,
@@ -146,14 +141,7 @@ export default function Profile() {
       toast({ variant: 'destructive', title: 'Gênero é obrigatório' });
       return false;
     }
-    if (!bio.trim()) {
-      toast({ variant: 'destructive', title: 'Bio é obrigatória' });
-      return false;
-    }
-    if (bio.trim().length < MIN_BIO_LENGTH) {
-      toast({ variant: 'destructive', title: `Bio deve ter pelo menos ${MIN_BIO_LENGTH} caracteres` });
-      return false;
-    }
+
     if (selectedInterests.length < 3) {
       toast({ variant: 'destructive', title: 'Selecione pelo menos 3 interesses' });
       return false;
@@ -198,8 +186,6 @@ export default function Profile() {
 
   const getBioStatus = () => {
     const length = bio.trim().length;
-    if (length === 0) return { color: 'text-muted-foreground', message: `0/${MAX_BIO_LENGTH}` };
-    if (length < MIN_BIO_LENGTH) return { color: 'text-amber-500', message: `${length}/${MAX_BIO_LENGTH} (mín. ${MIN_BIO_LENGTH})` };
     return { color: 'text-muted-foreground', message: `${length}/${MAX_BIO_LENGTH}` };
   };
 
@@ -265,7 +251,7 @@ export default function Profile() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Bio *</Label>
+                  <Label className="text-sm font-medium">Bio (opcional)</Label>
                   <Textarea
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
@@ -282,7 +268,7 @@ export default function Profile() {
                 {/* Interesses no modo edição */}
                 <div>
                   <Label className="text-sm font-medium">
-                    Interesses <span className="text-muted-foreground font-normal">(3–{MAX_INTERESTS})</span>
+                    Interesses <span className="text-muted-foreground font-normal">(mín. 3)</span>
                   </Label>
                   <div className="space-y-4 mt-2">
                     {categories.map((category) => {
@@ -292,15 +278,11 @@ export default function Profile() {
                           <div className="flex items-center justify-between mb-2">
                             <p className="text-sm font-semibold">{category.name}</p>
                             {catCount > 0 && (
-                              <span className="text-xs text-muted-foreground">{catCount}/{MAX_PER_CATEGORY}</span>
                             )}
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {category.interests.map((interest) => {
                               const isSelected = selectedInterests.includes(interest.id);
-                              const categoryFull = catCount >= MAX_PER_CATEGORY && !isSelected;
-                              const maxReached = selectedInterests.length >= MAX_INTERESTS && !isSelected;
-                              const disabled = categoryFull || maxReached;
                               return (
                                 <Badge
                                   key={interest.id}
@@ -308,11 +290,9 @@ export default function Profile() {
                                   className={`cursor-pointer py-1.5 px-3 rounded-lg transition-all ${
                                     isSelected
                                       ? 'bg-katu-green text-white hover:bg-katu-green/90'
-                                      : disabled
-                                        ? 'opacity-40 cursor-not-allowed'
-                                        : 'hover:bg-muted'
+                                      :                                         : 'hover:bg-muted'
                                   }`}
-                                  onClick={() => !disabled && toggleInterest(interest.id, category.id)}
+                                  onClick={() => toggleInterest(interest.id, category.id)}
                                 >
                                   {interest.name}
                                   {isSelected && <Check className="ml-1.5 h-3 w-3" />}

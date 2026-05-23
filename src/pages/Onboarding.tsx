@@ -31,6 +31,7 @@ export default function Onboarding() {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [ageError, setAgeError] = useState('');
+  const [categoryIndex, setCategoryIndex] = useState(0);
 
   useEffect(() => {
     if (!user) {
@@ -91,6 +92,10 @@ export default function Onboarding() {
   };
 
   const handleComplete = async () => {
+    if (selectedInterests.length < 3) {
+      toast({ variant: 'destructive', title: 'Selecione pelo menos 3 interesses para continuar' });
+      return;
+    }
     setSaving(true);
     try {
       const { error: profileError } = await updateProfile({
@@ -136,9 +141,8 @@ export default function Onboarding() {
         {[1, 2].map((s) => (
           <div
             key={s}
-            className={`h-2 w-12 rounded-full transition-colors ${
-              s <= step ? 'bg-accent' : 'bg-muted'
-            }`}
+            className={`h-2 w-12 rounded-full transition-colors ${s <= step ? 'bg-accent' : 'bg-muted'
+              }`}
           />
         ))}
       </div>
@@ -202,11 +206,11 @@ export default function Onboarding() {
                   placeholder="Uma breve descrição sobre você..."
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  maxLength={150}
+                  maxLength={80}
                   rows={3}
                 />
                 <p className="text-xs text-muted-foreground text-right">
-                  {bio.length}/150
+                  {bio.length}/80
                 </p>
               </div>
 
@@ -228,6 +232,8 @@ export default function Onboarding() {
             onToggleInterest={toggleInterest}
             onNext={handleComplete}
             onBack={() => setStep(1)}
+            categoryIndex={categoryIndex}
+            setCategoryIndex={setCategoryIndex}
           />
         )}
       </div>

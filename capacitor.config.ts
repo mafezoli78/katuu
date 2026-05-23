@@ -6,6 +6,9 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
   },
+  android: {
+    backgroundColor: '#1F3A5F',
+  },
   plugins: {
     SocialLogin: {
       google: {

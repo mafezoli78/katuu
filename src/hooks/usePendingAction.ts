@@ -36,7 +36,11 @@ export function usePendingAction() {
 
       if (error) {
         logger.debug(`[usePendingAction] ❌ Activation failed: ${error.message}`);
-        navigate(fallbackPath, { replace: true });
+        if (error.message?.includes('PROFILE_INCOMPLETE')) {
+          navigate('/onboarding', { replace: true });
+        } else {
+          navigate(fallbackPath, { replace: true });
+        }
         return;
       }
 
