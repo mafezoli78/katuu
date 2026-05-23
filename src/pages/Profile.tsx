@@ -191,6 +191,24 @@ export default function Profile() {
 
   const bioStatus = getBioStatus();
 
+  const profileLoading = !profile;
+
+  if (profileLoading) {
+    return (
+      <MobileLayout headerVersion={APP_VERSION}>
+        <div className="p-4 space-y-4">
+          <Card className="border-0 shadow-sm">
+            <CardContent className="pt-6 space-y-3">
+              <div className="h-7 w-48 bg-muted rounded-lg animate-pulse" />
+              <div className="h-4 w-24 bg-muted rounded-lg animate-pulse" />
+              <div className="h-4 w-full bg-muted rounded-lg animate-pulse" />
+            </CardContent>
+          </Card>
+        </div>
+      </MobileLayout>
+    );
+  }
+
   return (
     <MobileLayout headerVersion={APP_VERSION}>
       <div className="p-4 space-y-4 page-fade pb-24">
@@ -290,7 +308,7 @@ export default function Profile() {
                                   className={`cursor-pointer py-1.5 px-3 rounded-lg transition-all ${
                                     isSelected
                                       ? 'bg-katu-green text-white hover:bg-katu-green/90'
-                                      :                                         : 'hover:bg-muted'
+                                      : 'hover:bg-muted'
                                   }`}
                                   onClick={() => toggleInterest(interest.id, category.id)}
                                 >
