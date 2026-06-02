@@ -10,7 +10,10 @@ import { NormalizedWave, NormalizedConversation, NormalizedMute, NormalizedBlock
 import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
 import { SwipeActions } from '@/components/home/SwipeActions';
 import { calculateAge } from '@/utils/date';
-import { Flag } from 'lucide-react';
+import { Flag, Hand, Briefcase, Users, Flame } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Textarea } from '@/components/ui/textarea';
+import { WaveIntention, INTENTION_CONFIG } from '@/hooks/useWaves';
 import { ReportModal } from '@/components/shared/ReportModal';
 
 const BUTTON_WIDTH = 140;
@@ -25,7 +28,7 @@ interface PersonCardProps {
   conversations: NormalizedConversation[];
   activeMutes: NormalizedMute[];
   blocks: NormalizedBlock[];
-  onWave: (toUserId: string) => void;
+  onWave: (toUserId: string, intention: WaveIntention, message?: string) => void;
   onMute: (userId: string) => Promise<void>;
   onBlock: (userId: string) => Promise<void>;
   openCardId: string | null;
@@ -51,6 +54,9 @@ export function PersonCard({
   const [photoOpen, setPhotoOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showIntentionDialog, setShowIntentionDialog] = useState(false);
+  const [selectedIntention, setSelectedIntention] = useState<WaveIntention | null>(null);
+  const [intentionMessage, setIntentionMessage] = useState('');
 
   const { state, button, isVisible } = useMemo(() => {
     if (!user?.id || !placeId) {
@@ -165,12 +171,20 @@ export function PersonCard({
 
   const initials = person.profile.nome?.[0]?.toUpperCase() || '?';
 
+  const handleConfirmWave = async () => {
+    if (!selectedIntention) return;
+    setShowIntentionDialog(false);
+    setIsSending(true);
+    await onWave(person.id, selectedIntention, intentionMessage || undefined);
+    setIsSending(false);
+    setSelectedIntention(null);
+    setIntentionMessage('');
+  };
+
   const handleButtonClick = async () => {
     switch (button.action) {
       case 'wave':
-        setIsSending(true);
-        await onWave(person.id);
-        setIsSending(false);
+        setShowIntentionDialog(true);
         break;
       case 'open_waves':
         navigate('/waves');
@@ -199,6 +213,26 @@ export function PersonCard({
   };
 
   const shouldAnimateIcon = state === InteractionState.NONE || state === InteractionState.WAVE_RECEIVED;
+
+  const activeIntention: WaveIntention | null = useMemo(() => {
+    const wave = [...sentWaves, ...receivedWaves].find(w =>
+      (w.de_user_id === user?.id && w.para_user_id === person.id) ||
+      (w.para_user_id === user?.id && w.de_user_id === person.id)
+    );
+    if (wave && (wave as any).intention) return (wave as any).intention as WaveIntention;
+    const conv = conversations.find(c =>
+      (c.user1_id === user?.id && c.user2_id === person.id) ||
+      (c.user2_id === user?.id && c.user1_id === person.id)
+    );
+    if (conv && (conv as any).intention) return (conv as any).intention as WaveIntention;
+    return null;
+  }, [sentWaves, receivedWaves, conversations, user?.id, person.id]);
+
+  const IntentionIcon = activeIntention === 'open' ? Hand
+    : activeIntention === 'professional' ? Briefcase
+    : activeIntention === 'social' ? Users
+    : activeIntention === 'connection' ? Flame
+    : null;
 
   const ctaButton = (
     <Button
@@ -275,27 +309,37 @@ export function PersonCard({
                           <span className="text-muted-foreground font-normal">, {age}</span>
                         )}
                       </div>
-                      {/* Botão denúncia — fora do overflow-hidden para não ser cortado */}
-                      <button
-                        className="text-muted-foreground hover:text-destructive p-1 -mt-1 -mr-1 rounded transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowReportModal(true);
-                        }}
-                        aria-label="Denunciar"
-                      >
-                        <Flag className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-1 -mt-1 -mr-1">
+                        {activeIntention && IntentionIcon && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button
+                                className="p-1.5 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <IntentionIcon className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48 p-2 text-sm" side="left">
+                              <p className="font-semibold">{INTENTION_CONFIG[activeIntention].label}</p>
+                              <p className="text-muted-foreground text-xs mt-0.5">{INTENTION_CONFIG[activeIntention].description}</p>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                        <button
+                          className="text-muted-foreground hover:text-destructive p-1 rounded transition-colors"
+                          onClick={(e) => { e.stopPropagation(); setShowReportModal(true); }}
+                          aria-label="Denunciar"
+                        >
+                          <Flag className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
 
                     {person.assuntoAtual ? (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        <span className="font-medium text-foreground">Aqui:</span> {person.assuntoAtual}
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{person.assuntoAtual}</p>
                     ) : person.profile.bio ? (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        <span className="font-medium text-foreground">Sobre mim:</span> {person.profile.bio}
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{person.profile.bio}</p>
                     ) : null}
                   </div>
 
@@ -320,6 +364,56 @@ export function PersonCard({
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Dialog de intenção — centralizado */}
+      <Dialog open={showIntentionDialog} onOpenChange={setShowIntentionDialog}>
+        <DialogContent className="max-w-sm rounded-2xl px-6 py-6">
+          <DialogTitle className="text-center text-base font-bold mb-4">Como você quer se conectar?</DialogTitle>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            {(['open', 'professional', 'social', 'connection'] as WaveIntention[]).map((key) => {
+              const Icon = key === 'open' ? Hand : key === 'professional' ? Briefcase : key === 'social' ? Users : Flame;
+              const cfg = INTENTION_CONFIG[key];
+              return (
+                <button
+                  key={key}
+                  onClick={() => setSelectedIntention(key)}
+                  className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all text-left ${
+                    selectedIntention === key ? 'border-accent bg-accent/10' : 'border-border hover:border-accent/50'
+                  }`}
+                >
+                  <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <Icon className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">{cfg.label}</p>
+                    <p className="text-xs text-muted-foreground leading-tight">{cfg.description}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {selectedIntention && (
+            <div className="mb-4">
+              <p className="text-sm text-muted-foreground mb-1.5">Mensagem opcional</p>
+              <Textarea
+                value={intentionMessage}
+                onChange={(e) => setIntentionMessage(e.target.value.slice(0, 80))}
+                placeholder="Ex: Vi que você também é de TI..."
+                className="resize-none h-16 text-sm"
+                maxLength={80}
+              />
+              <p className="text-right text-xs text-muted-foreground mt-1">{intentionMessage.length}/80</p>
+            </div>
+          )}
+          <Button
+            onClick={handleConfirmWave}
+            disabled={!selectedIntention}
+            className="w-full h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
+          >
+            Acenar
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       {/* ReportModal fora do overflow-hidden */}
       <ReportModal

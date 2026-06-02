@@ -8,11 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { Eye, Check, X, Loader2, Inbox, Send } from 'lucide-react';
+import { Eye, Check, X, Loader2, Inbox, Send, Hand, Briefcase, Users, Flame } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { getSignedSelfieUrls } from '@/lib/storage';
 import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from '@/components/ui/use-toast';
+import { INTENTION_CONFIG, WaveIntention } from '@/hooks/useWaves';
 
 interface WaveWithProfile {
   id: string;
@@ -21,6 +24,9 @@ interface WaveWithProfile {
   expires_at: string | null;
   status: 'pending' | 'accepted' | 'expired';
   de_user_id: string;
+  intention?: WaveIntention;
+  intention_message?: string | null;
+  checkin_selfie_url?: string | null;
   profile: {
     nome: string | null;
     foto_url: string | null;
@@ -46,6 +52,7 @@ export default function Waves() {
   const [sentWithProfiles, setSentWithProfiles] = useState<WaveWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingWaveId, setProcessingWaveId] = useState<string | null>(null);
+  const [photoModal, setPhotoModal] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -64,15 +71,23 @@ export default function Waves() {
 
       const receivedData: WaveWithProfile[] = [];
       for (const wave of receivedWaves) {
-        const [profileRes, locationRes] = await Promise.all([
+        const [profileRes, locationRes, presenceRes] = await Promise.all([
           supabase.from('profiles').select('nome, foto_url').eq('id', wave.de_user_id).single(),
-          supabase.from('locations').select('nome').eq('id', wave.location_id).maybeSingle()
+          supabase.from('locations').select('nome').eq('id', wave.location_id).maybeSingle(),
+          supabase.from('presence').select('checkin_selfie_url').eq('user_id', wave.de_user_id).eq('ativo', true).maybeSingle()
         ]);
 
         let locationName = locationRes.data?.nome;
         if (!locationName) {
           const placeRes = await supabase.from('places').select('nome').eq('id', wave.location_id).maybeSingle();
           locationName = placeRes.data?.nome || 'Local desconhecido';
+        }
+
+        // Resolve signed URL da selfie
+        let selfieUrl: string | null = presenceRes.data?.checkin_selfie_url || null;
+        if (selfieUrl && !selfieUrl.startsWith('http')) {
+          const signed = await getSignedSelfieUrls([selfieUrl]);
+          selfieUrl = signed.get(selfieUrl) || null;
         }
 
         if (profileRes.data) {
@@ -83,6 +98,9 @@ export default function Waves() {
             expires_at: wave.expires_at,
             status: wave.status,
             de_user_id: wave.de_user_id,
+            intention: (wave as any).intention || 'open',
+            intention_message: (wave as any).intention_message || null,
+            checkin_selfie_url: selfieUrl,
             profile: profileRes.data,
             location: { nome: locationName }
           });
@@ -226,67 +244,78 @@ export default function Waves() {
                   const expiration = formatExpiration(wave.expires_at);
                   const isProcessing = processingWaveId === wave.id;
 
+                  const IntentionIcon = wave.intention === 'open' ? Hand
+                    : wave.intention === 'professional' ? Briefcase
+                    : wave.intention === 'social' ? Users
+                    : Flame;
+
                   return (
                     <Card
                       key={wave.id}
                       className={`border-0 shadow-sm overflow-hidden ${!wave.visualizado ? 'ring-2 ring-accent/50' : ''}`}
                       onClick={() => !wave.visualizado && markAsRead(wave.id)}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="h-12 w-12 rounded-lg overflow-hidden ring-2 ring-background shadow bg-katu-blue flex items-center justify-center shrink-0">
-                            {wave.profile.foto_url ? (
-                              <img src={wave.profile.foto_url} alt={wave.profile.nome || ''} className="h-full w-full object-cover" />
+                      <CardContent className="p-0">
+                        <div className="flex">
+                          {/* FOTO — clicável para ampliar */}
+                          <div
+                            className="w-[36%] flex items-center p-2.5 cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); if (wave.checkin_selfie_url) setPhotoModal(wave.checkin_selfie_url); }}
+                          >
+                            {wave.checkin_selfie_url ? (
+                              <img src={wave.checkin_selfie_url} alt={wave.profile.nome || ''} className="w-full aspect-square object-cover rounded-lg" />
                             ) : (
-                              <span className="text-white font-semibold">
+                              <div className="w-full aspect-square flex items-center justify-center font-bold text-xl bg-muted text-muted-foreground rounded-lg">
                                 {wave.profile.nome?.[0]?.toUpperCase() || '?'}
-                              </span>
+                              </div>
                             )}
                           </div>
-                          <div className="flex-1">
-                            <p className="font-semibold">Alguém acenou para você! 👋</p>
-                            <p className="text-sm text-muted-foreground">
-                              em {wave.location.nome} • {formatTime(wave.criado_em)}
-                            </p>
-                            {expiration && (
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {expiration}
-                              </p>
-                            )}
-                          </div>
-                          {!wave.visualizado && (
-                            <span className="h-3 w-3 rounded-full bg-accent animate-pulse" />
-                          )}
-                        </div>
 
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            className="flex-1 h-10 rounded-xl"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleIgnoreWave(wave.id);
-                            }}
-                            disabled={isProcessing}
-                          >
-                            <X className="h-4 w-4 mr-1.5" />
-                            Ignorar
-                          </Button>
-                          <Button
-                            className="flex-1 h-10 rounded-xl bg-katu-green hover:bg-katu-green/90 text-white"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAcceptWave(wave);
-                            }}
-                            disabled={isProcessing}
-                          >
-                            {isProcessing ? (
-                              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                            ) : (
-                              <Check className="h-4 w-4 mr-1.5" />
-                            )}
-                            Aceitar
-                          </Button>
+                          {/* CONTEÚDO */}
+                          <div className="flex-1 flex flex-col justify-between p-4">
+                            <div>
+                              <div className="flex items-start justify-between">
+                                <div className="font-semibold text-base">{wave.profile.nome}</div>
+                                {!wave.visualizado && (
+                                  <span className="h-3 w-3 rounded-full bg-accent animate-pulse mt-1" />
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <IntentionIcon className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+                                <span className="text-sm font-medium text-foreground">{INTENTION_CONFIG[wave.intention || 'open']?.label}</span>
+                              </div>
+                              {wave.intention_message && (
+                                <p className="text-sm text-muted-foreground italic mt-1">"{wave.intention_message}"</p>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {wave.location.nome} • {formatTime(wave.criado_em)}
+                              </p>
+                              {expiration && (
+                                <p className="text-xs text-muted-foreground">{expiration}</p>
+                              )}
+                            </div>
+                            <div className="flex gap-2 mt-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 h-9 rounded-xl"
+                                onClick={(e) => { e.stopPropagation(); handleIgnoreWave(wave.id); }}
+                                disabled={isProcessing}
+                              >
+                                <X className="h-4 w-4 mr-1" />
+                                Ignorar
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="flex-1 h-9 rounded-xl bg-katu-green hover:bg-katu-green/90 text-white"
+                                onClick={(e) => { e.stopPropagation(); handleAcceptWave(wave); }}
+                                disabled={isProcessing}
+                              >
+                                {isProcessing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
+                                Aceitar
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -354,6 +383,15 @@ export default function Waves() {
           </TabsContent>
         </Tabs>
       </div>
+      {/* Dialog ampliação de selfie */}
+      <Dialog open={!!photoModal} onOpenChange={(v) => !v && setPhotoModal(null)}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden rounded-2xl">
+          <DialogTitle className="sr-only">Foto ampliada</DialogTitle>
+          {photoModal && (
+            <img src={photoModal} alt="Selfie" className="w-full object-cover" />
+          )}
+        </DialogContent>
+      </Dialog>
     </MobileLayout>
   );
 }

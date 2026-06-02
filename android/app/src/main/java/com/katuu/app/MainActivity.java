@@ -9,8 +9,6 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Habilita edge-to-edge — permite que o app desenhe atrás das barras do sistema
-        // Os insets são tratados via CSS com env(safe-area-inset-*)
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         requestPermissions(new String[]{
             Manifest.permission.CAMERA,

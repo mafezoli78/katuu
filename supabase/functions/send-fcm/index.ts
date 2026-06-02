@@ -8,8 +8,6 @@ console.log('[send-fcm] Starts with:', rawAccount?.substring(0, 20));
 
 const FIREBASE_SERVICE_ACCOUNT = JSON.parse(rawAccount!);
 
-const FIREBASE_SERVICE_ACCOUNT = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT' )!);
-
 // ... (Funções getAccessToken e sendToToken permanecem as mesmas) ...
 
 Deno.serve(async (req) => {

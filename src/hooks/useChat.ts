@@ -136,19 +136,25 @@ export function useChat(options?: UseChatOptions) {
 
       if (!updated.ativo) {
         const wasEndedByMe = updated.encerrado_por === user?.id;
+        const motivo = updated.encerrado_motivo || 'manual';
 
-        if (!wasEndedByMe) {
+        // Só mostra toast se o chat estiver ativo E foi encerrado por outro
+        if (!wasEndedByMe && chatState.conversation?.id === updated.id) {
+          const isPresenceEnd = motivo === 'presence_end';
           toast({
-            title: 'A outra pessoa encerrou a conversa',
+            title: isPresenceEnd
+              ? 'A outra pessoa saiu do local'
+              : 'A outra pessoa encerrou a conversa',
             description: 'As mensagens foram apagadas',
           });
         }
 
+        // Fecha o chat se estiver aberto
         if (chatState.conversation?.id === updated.id) {
           setChatState({
             isActive: false,
             conversation: null,
-            endedReason: updated.encerrado_motivo || 'manual',
+            endedReason: motivo,
             wasEndedByMe,
             isRecoverable: false,
           });

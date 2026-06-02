@@ -3,12 +3,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { NormalizedMute, NormalizedBlock } from '@/hooks/useInteractionData';
+import type { WaveIntention } from '@/hooks/useWaves';
 
 interface UseHomeActionsParams {
   placeId: string | null;
   activeMutes: NormalizedMute[];
   blocks: NormalizedBlock[];
-  sendWave: (toUserId: string, placeId: string) => Promise<{ error: Error | null }>;
+  sendWave: (toUserId: string, placeId: string, intention: WaveIntention, message?: string) => Promise<{ error: Error | null }>;
   refetchInteractionData: () => Promise<void>;
 }
 
@@ -22,9 +23,9 @@ export function useHomeActions({
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const handleWave = useCallback(async (toUserId: string) => {
+  const handleWave = useCallback(async (toUserId: string, intention: WaveIntention, message?: string) => {
     if (!placeId) return;
-    const { error } = await sendWave(toUserId, placeId);
+    const { error } = await sendWave(toUserId, placeId, intention, message);
     if (error) {
       toast({ variant: 'destructive', title: error.message });
     } else {

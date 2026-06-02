@@ -16,7 +16,7 @@ export function MobileLayout({ children, showNav = true, showHeader = true, fixe
       {showHeader && <AppHeader version={headerVersion} />}
       <main
         className={`flex-1 overflow-y-auto ${fixedHeight ? 'overflow-hidden' : ''}`}
-        style={showNav ? { paddingBottom: 'calc(64px + max(8px, env(safe-area-inset-bottom, 8px)))' } : undefined}
+        style={showNav ? { paddingBottom: 'calc(64px + var(--safe-area-inset-bottom))' } : undefined}
       >
         {children}
       </main>

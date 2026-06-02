@@ -28,6 +28,7 @@ export default function Chat() {
     closeChat,
     endChat,
     clearEndedReason,
+    refetchConversations,
     loading: chatLoading,
   } = useChat({ presenceState, currentPresence });
 
@@ -57,8 +58,11 @@ export default function Chat() {
       markAsRead(targetConversation.id);
       openChat(targetConversation);
       setSearchParams({}, { replace: true });
+    } else if (!chatLoading) {
+      // Conversa ainda não carregada — força refetch
+      refetchConversations();
     }
-  }, [conversationIdParam, activeConversations, chatState.isActive, openChat, setSearchParams, markAsRead]);
+  }, [conversationIdParam, activeConversations, chatState.isActive, chatLoading, openChat, setSearchParams, markAsRead, refetchConversations]);
 
   const previousEndedRef = useRef<string | null>(null);
 

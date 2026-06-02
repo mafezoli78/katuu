@@ -8,6 +8,7 @@ const config: CapacitorConfig = {
   },
   android: {
     backgroundColor: '#1F3A5F',
+    allowMixedContent: true,
   },
   plugins: {
     SocialLogin: {

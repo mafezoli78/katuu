@@ -5,6 +5,7 @@ import { RefreshCw, Users } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import type { PersonNearby } from '@/hooks/usePeopleNearby';
 import type { NormalizedWave, NormalizedConversation, NormalizedMute, NormalizedBlock } from '@/hooks/useInteractionData';
+import type { WaveIntention } from '@/hooks/useWaves';
 
 interface PeopleListProps {
   people: PersonNearby[];
@@ -17,7 +18,7 @@ interface PeopleListProps {
   loading: boolean;
   openCardId: string | null;
   onSwipeOpen: (id: string | null) => void;
-  onWave: (toUserId: string) => void;
+  onWave: (toUserId: string, intention: WaveIntention, message?: string) => void;
   onMute: (userId: string) => Promise<void>;
   onBlock: (userId: string) => Promise<void>;
   onRefresh: () => void;

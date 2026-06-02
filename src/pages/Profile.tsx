@@ -295,8 +295,6 @@ export default function Profile() {
                         <div key={category.id}>
                           <div className="flex items-center justify-between mb-2">
                             <p className="text-sm font-semibold">{category.name}</p>
-                            {catCount > 0 && (
-                            )}
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {category.interests.map((interest) => {
@@ -305,11 +303,10 @@ export default function Profile() {
                                 <Badge
                                   key={interest.id}
                                   variant={isSelected ? 'default' : 'outline'}
-                                  className={`cursor-pointer py-1.5 px-3 rounded-lg transition-all ${
-                                    isSelected
+                                  className={`cursor-pointer py-1.5 px-3 rounded-lg transition-all ${isSelected
                                       ? 'bg-katu-green text-white hover:bg-katu-green/90'
                                       : 'hover:bg-muted'
-                                  }`}
+                                    }`}
                                   onClick={() => toggleInterest(interest.id, category.id)}
                                 >
                                   {interest.name}
@@ -437,10 +434,10 @@ export default function Profile() {
                 Mostrar tutorial novamente
               </Button>
             </CardContent>
- </Card>
+          </Card>
         )}
 
-{/* Sair */}
+        {/* Sair */}
         {!editing && (
           <Button
             variant="outline"

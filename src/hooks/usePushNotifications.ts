@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -65,17 +66,27 @@ export function usePushNotifications() {
           console.error('[Push] Erro de registro FCM:', err);
         });
 
-        // Notificação recebida com app aberto
+        // Notificação recebida com app aberto — exibe toast interno
         PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
           console.log('[Push] Notificação recebida:', notification);
+          toast({
+            title: notification.title || 'Nova notificação',
+            description: notification.body || '',
+            duration: 4000,
+          });
         });
 
-        // Usuário tocou na notificação
+        // Usuário tocou na notificação — navega para URL interna
         PushNotifications.addListener('pushNotificationActionPerformed', (action: any) => {
           console.log('[Push] Ação na notificação:', action);
           const url = action.notification?.data?.url;
           if (url) {
-            window.location.href = url;
+            if (url.startsWith('/')) {
+              window.location.hash = url;
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            } else {
+              window.location.href = url;
+            }
           }
         });
 

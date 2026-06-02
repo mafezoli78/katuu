@@ -64,8 +64,8 @@ export function ChatWindow({ conversation, onClose, onEndChat }: ChatWindowProps
     <>
       {/* Header fixo no topo — respeita safe-area-inset-top */}
       <div
-        className="fixed top-0 left-0 right-0 z-40 flex items-end justify-between px-4 pb-3 border-b bg-card"
-        style={{ paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))' }}
+        className="fixed top-0 left-0 right-0 z-40 flex items-end justify-between px-4 pb-3 border-b bg-card pt-safe"
+        style={{ minHeight: 'calc(64px + var(--safe-area-inset-top))' }}
       >
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-9 w-9 -ml-2" onClick={onClose}>
@@ -120,8 +120,8 @@ export function ChatWindow({ conversation, onClose, onEndChat }: ChatWindowProps
       <div
         className="fixed left-0 right-0 overflow-y-auto p-4"
         style={{
-          top: 'calc(73px + env(safe-area-inset-top, 0px))',
-          bottom: 'calc(136px + env(safe-area-inset-bottom, 0px))',
+          top: 'calc(64px + var(--safe-area-inset-top))',
+          bottom: 'calc(136px + var(--safe-area-inset-bottom))',
         }}
       >
         {loading ? (
@@ -166,7 +166,7 @@ export function ChatWindow({ conversation, onClose, onEndChat }: ChatWindowProps
       <div
         className="fixed left-0 right-0 px-4 border-t bg-card flex items-center"
         style={{
-          bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
+          bottom: 'calc(64px + var(--safe-area-inset-bottom))',
           height: 72,
         }}
       >

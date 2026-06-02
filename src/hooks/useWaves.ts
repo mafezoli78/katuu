@@ -26,6 +26,15 @@ export interface Wave {
   accepted_by: string | null;
 }
 
+export type WaveIntention = 'open' | 'professional' | 'social' | 'connection';
+
+export const INTENTION_CONFIG: Record<WaveIntention, { label: string; description: string }> = {
+  open:         { label: 'Aberto',        description: 'Aberto a qualquer tipo de interação' },
+  professional: { label: 'Profissional',  description: 'Networking ou troca de ideias' },
+  social:       { label: 'Social',        description: 'Conversa e novas amizades' },
+  connection:   { label: 'Conexão',       description: 'Interesse em conhecer melhor' },
+};
+
 export interface Conversation {
   id: string;
   user1_id: string;
@@ -114,7 +123,7 @@ export function useWaves() {
    * Send a wave to another user at a specific place.
    * USA A FUNÇÃO CANÔNICA de interactionRules.ts para validação.
    */
-  const sendWave = async (toUserId: string, placeId: string) => {
+  const sendWave = async (toUserId: string, placeId: string, intention: WaveIntention = 'open', intentionMessage?: string) => {
     if (!user) return { error: new Error('Not authenticated') };
 
     if (!placeId) {
@@ -132,6 +141,8 @@ export function useWaves() {
       const { data: waveId, error: rpcError } = await supabase.rpc('send_wave', {
         p_to_user_id: toUserId,
         p_place_id: placeId,
+        p_intention: intention,
+        p_intention_message: intentionMessage?.trim() || null,
       });
 
       if (rpcError) {

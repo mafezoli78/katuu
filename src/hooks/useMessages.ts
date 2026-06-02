@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/lib/logger';
+import { toast } from '@/components/ui/use-toast';
 
 export interface Message {
   id: string;
@@ -66,6 +67,16 @@ export function useMessages(conversationId: string | null) {
             if (prev.some(m => m.id === newMessage.id)) return prev;
             return [...prev, newMessage];
           });
+          // Notifica internamente se a mensagem for de outro usuário
+          if (newMessage.sender_id !== user.id) {
+            toast({
+              title: 'Nova mensagem',
+              description: newMessage.conteudo.length > 60
+                ? newMessage.conteudo.slice(0, 60) + '...'
+                : newMessage.conteudo,
+              duration: 3000,
+            });
+          }
         }
       )
       .subscribe((status) => {
