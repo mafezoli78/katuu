@@ -28,8 +28,6 @@ export function usePeopleNearby(placeId: string | null) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
-  const blocksChannelRef = useRef<RealtimeChannel | null>(null);
-  const mutesChannelRef = useRef<RealtimeChannel | null>(null);
 
   // Mark unmounted
   useEffect(() => {
@@ -139,62 +137,10 @@ export function usePeopleNearby(placeId: string | null) {
     };
   }, [placeId, scheduleFetch]);
 
-  // Realtime: blocks
-  useEffect(() => {
-    if (!user?.id) return;
-
-    if (blocksChannelRef.current) {
-      supabase.removeChannel(blocksChannelRef.current);
-    }
-
-    blocksChannelRef.current = supabase
-      .channel(`people-blocks-${user.id}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'user_blocks',
-      }, scheduleFetch)
-      .subscribe();
-
-    return () => {
-      if (blocksChannelRef.current) {
-        supabase.removeChannel(blocksChannelRef.current);
-        blocksChannelRef.current = null;
-      }
-    };
-  }, [user?.id, scheduleFetch]);
-
-  // Realtime: mutes
-  useEffect(() => {
-    if (!user?.id) return;
-
-    if (mutesChannelRef.current) {
-      supabase.removeChannel(mutesChannelRef.current);
-    }
-
-    mutesChannelRef.current = supabase
-      .channel(`people-mutes-${user.id}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'user_mutes',
-      }, scheduleFetch)
-      .subscribe();
-
-    return () => {
-      if (mutesChannelRef.current) {
-        supabase.removeChannel(mutesChannelRef.current);
-        mutesChannelRef.current = null;
-      }
-    };
-  }, [user?.id, scheduleFetch]);
-
   // Global cleanup
   useEffect(() => {
     return () => {
       if (presenceChannelRef.current) supabase.removeChannel(presenceChannelRef.current);
-      if (blocksChannelRef.current) supabase.removeChannel(blocksChannelRef.current);
-      if (mutesChannelRef.current) supabase.removeChannel(mutesChannelRef.current);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);

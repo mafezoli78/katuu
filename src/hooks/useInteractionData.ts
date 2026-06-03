@@ -5,17 +5,9 @@ import { useConversations } from '@/hooks/useConversations';
 import { toast } from '@/components/ui/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
 
-/**
- * Hook para buscar todos os dados necessários para interação entre usuários.
- * 
- * Usa tipos Supabase canônicos (Tables<>) em vez de interfaces manuais.
- * Retorna dados normalizados para waves, conversas, mutes e blocks.
- */
-
-// Tipos normalizados derivados das tabelas Supabase
 export type NormalizedWave = Pick<Tables<'waves'>,
   'id' | 'de_user_id' | 'para_user_id' | 'place_id' | 'status' | 'expires_at' | 'ignore_cooldown_until'
-> & { place_id: string }; // place_id é obrigatório após normalização
+> & { place_id: string };
 
 export type NormalizedConversation = Pick<Tables<'conversations'>,
   'id' | 'user1_id' | 'user2_id' | 'place_id' | 'ativo' | 'encerrado_por' | 'reinteracao_permitida_em'
@@ -40,14 +32,9 @@ interface UseInteractionDataResult {
 }
 
 /**
- * Busca todos os dados de interação para um local específico.
- * Mantém subscription realtime para conversations evitando flickering.
- * 
- * IMPORTANTE: Este hook NUNCA limpa os dados durante refetch.
- * Dados anteriores são mantidos até que novos dados cheguem.
- * Isso garante que o botão do card nunca volte para "Acenar" durante um chat ativo.
- * 
- * @param placeId - ID do local atual (obrigatório para normalização)
+ * Busca todos os dados de interação via RPC consolidada (get_interaction_context).
+ * Uma única query substitui as 5 queries paralelas anteriores.
+ * Canais Realtime para mutes e blocks removidos — gerenciados pelo RealtimeContext.
  */
 export function useInteractionData(placeId: string | null): UseInteractionDataResult {
   const { user } = useAuth();
@@ -58,31 +45,20 @@ export function useInteractionData(placeId: string | null): UseInteractionDataRe
   const [activeMutes, setActiveMutes] = useState<NormalizedMute[]>([]);
   const [blocks, setBlocks] = useState<NormalizedBlock[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // Refs para evitar race conditions e re-criação de callbacks
+
   const fetchIdRef = useRef(0);
   const userIdRef = useRef<string | undefined>(undefined);
   const placeIdRef = useRef<string | null>(null);
-  // Track wave IDs that already triggered the ignore cooldown toast (prevents duplicates)
   const toastedIgnoreCooldownWaveIds = useRef<Set<string>>(new Set());
-  
-  // Atualizar refs quando valores mudam
-  useEffect(() => {
-    userIdRef.current = user?.id;
-  }, [user?.id]);
-  
-  useEffect(() => {
-    placeIdRef.current = placeId;
-  }, [placeId]);
 
-  // Função de fetch estável (não recria em cada render)
+  useEffect(() => { userIdRef.current = user?.id; }, [user?.id]);
+  useEffect(() => { placeIdRef.current = placeId; }, [placeId]);
+
   const fetchData = useCallback(async () => {
     const currentUserId = userIdRef.current;
     const currentPlaceId = placeIdRef.current;
-    
+
     if (!currentUserId || !currentPlaceId) {
-      // IMPORTANTE: Só limpar dados se realmente não há user/place
-      // Isso acontece apenas na saída do local, não durante refetch
       setSentWaves([]);
       setReceivedWaves([]);
       setConversations([]);
@@ -92,111 +68,46 @@ export function useInteractionData(placeId: string | null): UseInteractionDataRe
       return;
     }
 
-    // Incrementar ID para detectar chamadas obsoletas
     const currentFetchId = ++fetchIdRef.current;
 
     try {
-      const now = new Date().toISOString();
-
-      // Buscar tudo em paralelo
-      const [
-        sentResult,
-        receivedResult,
-        conversationsResult,
-        mutesResult,
-        blocksResult
-      ] = await Promise.all([
-        // 1. Acenos enviados (pendentes + expirados com cooldown ativo)
-        supabase
-          .from('waves')
-          .select('id, de_user_id, para_user_id, place_id, location_id, status, expires_at, ignore_cooldown_until')
-          .eq('de_user_id', currentUserId)
-          .in('status', ['pending', 'expired']),
-        
-        // 2. Acenos recebidos (pendentes, não expirados)
-        supabase
-          .from('waves')
-          .select('id, de_user_id, para_user_id, place_id, location_id, status, expires_at, ignore_cooldown_until')
-          .eq('para_user_id', currentUserId)
-          .in('status', ['pending', 'expired']),
-        
-        // 3. Conversas (ativas OU em cooldown neste local)
-        supabase
-          .from('conversations')
-          .select('id, user1_id, user2_id, place_id, ativo, encerrado_por, reinteracao_permitida_em')
-          .eq('place_id', currentPlaceId)
-          .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`),
-        
-        // 4. Silenciamentos ativos (não expirados)
-        supabase
-          .from('user_mutes')
-          .select('id, user_id, muted_user_id, expira_em')
-          .eq('user_id', currentUserId)
-          .gt('expira_em', now),
-        
-        // 5. Bloqueios (como autor ou alvo)
-        supabase
-          .from('user_blocks')
-          .select('id, user_id, blocked_user_id')
-          .or(`user_id.eq.${currentUserId},blocked_user_id.eq.${currentUserId}`)
-      ]);
-
-      // Se esta chamada ficou obsoleta (outra mais recente foi feita), ignorar
-      if (currentFetchId !== fetchIdRef.current) {
-        return;
-      }
-
-      // Normalizar waves (usar place_id, fallback para location_id)
-      const normalizeWave = (wave: any): NormalizedWave => ({
-        id: wave.id,
-        de_user_id: wave.de_user_id,
-        para_user_id: wave.para_user_id,
-        place_id: wave.place_id || wave.location_id || '',
-        status: wave.status,
-        expires_at: wave.expires_at,
-        ignore_cooldown_until: wave.ignore_cooldown_until ?? null,
+      // Uma única RPC substitui as 5 queries paralelas
+      const { data, error } = await supabase.rpc('get_interaction_context', {
+        p_place_id: currentPlaceId,
       });
 
-      // IMPORTANTE: Só atualizar se temos dados válidos (sem erro)
-      // Isso garante que dados anteriores são mantidos em caso de erro de rede
-      if (!sentResult.error && sentResult.data) {
-        setSentWaves(sentResult.data.map(normalizeWave).filter(w => w.place_id));
-      }
+      if (currentFetchId !== fetchIdRef.current) return;
+      if (error) throw error;
 
-      if (!receivedResult.error && receivedResult.data) {
-        setReceivedWaves(receivedResult.data.map(normalizeWave).filter(w => w.place_id));
-      }
+      const ctx = data as any;
 
-      if (!conversationsResult.error && conversationsResult.data) {
-        setConversations(conversationsResult.data as NormalizedConversation[]);
-      }
+      const normalizeWave = (w: any): NormalizedWave => ({
+        id: w.id,
+        de_user_id: w.de_user_id,
+        para_user_id: w.para_user_id,
+        place_id: w.place_id || '',
+        status: w.status,
+        expires_at: w.expires_at,
+        ignore_cooldown_until: w.ignore_cooldown_until ?? null,
+      });
 
-      if (!mutesResult.error && mutesResult.data) {
-        setActiveMutes(mutesResult.data as NormalizedMute[]);
-      }
-
-      if (!blocksResult.error && blocksResult.data) {
-        setBlocks(blocksResult.data as NormalizedBlock[]);
-      }
+      setSentWaves((ctx.sent_waves || []).map(normalizeWave).filter((w: NormalizedWave) => w.place_id));
+      setReceivedWaves((ctx.received_waves || []).map(normalizeWave).filter((w: NormalizedWave) => w.place_id));
+      setConversations(ctx.conversations || []);
+      setActiveMutes(ctx.mutes || []);
+      setBlocks(ctx.blocks || []);
 
     } catch (error) {
       console.error('[useInteractionData] Error fetching data:', error);
-      // Em caso de erro, NÃO limpar dados existentes
-      // Mantém o último estado válido
     } finally {
-      // Só marcar loading=false se esta é a chamada mais recente
-      if (currentFetchId === fetchIdRef.current) {
-        setLoading(false);
-      }
+      if (currentFetchId === fetchIdRef.current) setLoading(false);
     }
-  }, []); // Dependências vazias - usa refs para valores atuais
+  }, []);
 
-  // Fetch inicial e quando placeId/user mudam
   useEffect(() => {
     if (user?.id && placeId) {
       fetchData();
     } else if (!user?.id || !placeId) {
-      // Limpar dados apenas quando realmente não há contexto
       setSentWaves([]);
       setReceivedWaves([]);
       setConversations([]);
@@ -206,149 +117,72 @@ export function useInteractionData(placeId: string | null): UseInteractionDataRe
     }
   }, [user?.id, placeId, fetchData]);
 
-  // Escuta atualizações de conversas via listener centralizado do useConversations
-  // Isso evita o erro "cannot add postgres_changes callbacks" ao unificar o canal
+  // Escuta atualizações de conversas via listener centralizado
   useEffect(() => {
     if (!user?.id || !placeId) return;
-
     const unsubscribe = addConversationUpdateListener((payload) => {
       const record = payload.new as any;
       const oldRecord = payload.old as any;
-      
-      const involvesUser = 
-        record?.user1_id === user.id || 
-        record?.user2_id === user.id ||
-        oldRecord?.user1_id === user.id ||
-        oldRecord?.user2_id === user.id;
-      
-      const isCurrentPlace = 
-        record?.place_id === placeId ||
-        oldRecord?.place_id === placeId;
-
-      if (involvesUser && isCurrentPlace) {
-        fetchData();
-      }
+      const involvesUser =
+        record?.user1_id === user.id || record?.user2_id === user.id ||
+        oldRecord?.user1_id === user.id || oldRecord?.user2_id === user.id;
+      const isCurrentPlace =
+        record?.place_id === placeId || oldRecord?.place_id === placeId;
+      if (involvesUser && isCurrentPlace) fetchData();
     });
-
     return () => unsubscribe();
   }, [user?.id, placeId, fetchData, addConversationUpdateListener]);
 
-  // Realtime subscription para waves
-  // Garante que acenos enviados/recebidos reflitam imediatamente
+  // Canal Realtime apenas para waves — mutes e blocks são gerenciados globalmente
   useEffect(() => {
     if (!user?.id || !placeId) return;
 
     const channel = supabase
       .channel(`interaction-waves-${placeId}-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'waves',
-        },
-        (payload) => {
-          const record = payload.new as any;
-          const oldRecord = payload.old as any;
-          
-          const involvesUser = 
-            record?.de_user_id === user.id || 
-            record?.para_user_id === user.id ||
-            oldRecord?.de_user_id === user.id ||
-            oldRecord?.para_user_id === user.id;
-          
-          const isCurrentPlace = 
-            record?.place_id === placeId ||
-            oldRecord?.place_id === placeId;
-          
-          if (involvesUser && isCurrentPlace) {
-            if (payload.eventType === 'INSERT' && record?.para_user_id === user.id && record?.status === 'pending') {
-              toast({ title: 'Você recebeu um aceno! 👋' });
-            }
-            // Toast para remetente quando aceno é ignorado com cooldown
-            if (
-              payload.eventType === 'UPDATE' &&
-              record?.status === 'expired' &&
-              record?.de_user_id === user.id &&
-              record?.ignore_cooldown_until &&
-              new Date(record.ignore_cooldown_until) > new Date() &&
-              !toastedIgnoreCooldownWaveIds.current.has(record.id)
-            ) {
-              toastedIgnoreCooldownWaveIds.current.add(record.id);
-              toast({
-                title: 'A pessoa está indisponível no momento',
-                description: 'Tente novamente mais tarde.',
-              });
-            }
-            fetchData();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'waves' }, (payload) => {
+        const record = payload.new as any;
+        const oldRecord = payload.old as any;
+        const involvesUser =
+          record?.de_user_id === user.id || record?.para_user_id === user.id ||
+          oldRecord?.de_user_id === user.id || oldRecord?.para_user_id === user.id;
+        const isCurrentPlace =
+          record?.place_id === placeId || oldRecord?.place_id === placeId;
+
+        if (involvesUser && isCurrentPlace) {
+          if (payload.eventType === 'INSERT' && record?.para_user_id === user.id && record?.status === 'pending') {
+            toast({ title: 'Você recebeu um aceno! 👋' });
           }
+          if (
+            payload.eventType === 'UPDATE' &&
+            record?.status === 'expired' &&
+            record?.de_user_id === user.id &&
+            record?.ignore_cooldown_until &&
+            new Date(record.ignore_cooldown_until) > new Date() &&
+            !toastedIgnoreCooldownWaveIds.current.has(record.id)
+          ) {
+            toastedIgnoreCooldownWaveIds.current.add(record.id);
+            toast({ title: 'A pessoa está indisponível no momento', description: 'Tente novamente mais tarde.' });
+          }
+          fetchData();
         }
-      )
+      })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user?.id, placeId, fetchData]);
 
-  // Realtime subscription para user_mutes
-  // RLS já filtra por user_id = auth.uid(), então qualquer evento recebido é relevante
-  // Não verificar involvesUser pois DELETE events podem não ter payload.old completo
+  // Listener global para mutes e blocks — dispara refetch quando mudam
   useEffect(() => {
     if (!user?.id) return;
 
     const channel = supabase
-      .channel(`interaction-mutes-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_mutes',
-        },
-        () => {
-          fetchData();
-        }
-      )
+      .channel(`global-mutes-blocks-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_mutes' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_blocks' }, () => fetchData())
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user?.id, fetchData]);
 
-  // Realtime subscription para user_blocks
-  // RLS já filtra por user_id/blocked_user_id = auth.uid(), qualquer evento é relevante
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const channel = supabase
-      .channel(`interaction-blocks-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_blocks',
-        },
-        () => {
-          fetchData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, fetchData]);
-
-  return {
-    sentWaves,
-    receivedWaves,
-    conversations,
-    activeMutes,
-    blocks,
-    loading,
-    refetch: fetchData,
-  };
+  return { sentWaves, receivedWaves, conversations, activeMutes, blocks, loading, refetch: fetchData };
 }
