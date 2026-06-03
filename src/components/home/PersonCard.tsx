@@ -1,12 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { InteractionState, deriveFacts, getInteractionState } from '@/lib/interactionRules';
-import { useAuth } from '@/contexts/AuthContext';
+import { InteractionState } from '@/lib/interactionRules';
 import { PersonNearby } from '@/hooks/usePeopleNearby';
-import { NormalizedWave, NormalizedConversation, NormalizedMute, NormalizedBlock } from '@/hooks/useInteractionData';
 import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
 import { SwipeActions } from '@/components/home/SwipeActions';
 import { calculateAge } from '@/utils/date';
@@ -22,12 +20,12 @@ const SNAP_THRESHOLD = 0.4;
 
 interface PersonCardProps {
   person: PersonNearby;
-  placeId: string;
-  sentWaves: NormalizedWave[];
-  receivedWaves: NormalizedWave[];
-  conversations: NormalizedConversation[];
-  activeMutes: NormalizedMute[];
-  blocks: NormalizedBlock[];
+  state: InteractionState;
+  button: { label: string; disabled: boolean; action: string; conversationId?: string };
+  isVisible: boolean;
+  isMutedByMe: boolean;
+  isBlockedByMe: boolean;
+  activeIntention: WaveIntention | null;
   onWave: (toUserId: string, intention: WaveIntention, message?: string) => void;
   onMute: (userId: string) => Promise<void>;
   onBlock: (userId: string) => Promise<void>;
@@ -37,12 +35,12 @@ interface PersonCardProps {
 
 export function PersonCard({
   person,
-  placeId,
-  sentWaves,
-  receivedWaves,
-  conversations,
-  activeMutes,
-  blocks,
+  state,
+  button,
+  isVisible,
+  isMutedByMe,
+  isBlockedByMe,
+  activeIntention,
   onWave,
   onMute,
   onBlock,
@@ -50,7 +48,6 @@ export function PersonCard({
   onSwipeOpen,
 }: PersonCardProps) {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [photoOpen, setPhotoOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -58,40 +55,7 @@ export function PersonCard({
   const [selectedIntention, setSelectedIntention] = useState<WaveIntention | null>(null);
   const [intentionMessage, setIntentionMessage] = useState('');
 
-  const { state, button, isVisible } = useMemo(() => {
-    if (!user?.id || !placeId) {
-      return {
-        state: InteractionState.NONE,
-        button: { label: 'Acenar', disabled: true, action: 'none' as const },
-        isVisible: true,
-      };
-    }
 
-    const data = {
-      blocks: blocks.map(b => ({ user_id: b.user_id, blocked_user_id: b.blocked_user_id })),
-      mutes: activeMutes.map(m => ({ user_id: m.user_id, muted_user_id: m.muted_user_id, expira_em: m.expira_em })),
-      conversations: conversations.map(c => ({
-        id: c.id, user1_id: c.user1_id, user2_id: c.user2_id,
-        place_id: c.place_id, ativo: c.ativo,
-        encerrado_por: c.encerrado_por, reinteracao_permitida_em: c.reinteracao_permitida_em,
-      })),
-      waves: [...sentWaves, ...receivedWaves].map(w => ({
-        id: w.id, de_user_id: w.de_user_id, para_user_id: w.para_user_id,
-        place_id: w.place_id, status: w.status, expires_at: w.expires_at,
-        ignore_cooldown_until: (w as any).ignore_cooldown_until ?? null,
-      })),
-    };
-
-    const facts = deriveFacts(user.id, person.id, placeId, new Date(), data);
-    return getInteractionState(facts);
-  }, [user?.id, person.id, placeId, sentWaves, receivedWaves, conversations, activeMutes, blocks]);
-
-  const isMutedByMe = activeMutes.some(
-    m => m.user_id === user?.id && m.muted_user_id === person.id
-  );
-  const isBlockedByMe = blocks.some(
-    b => b.user_id === user?.id && b.blocked_user_id === person.id
-  );
 
   const [translateX, setTranslateX] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -213,20 +177,6 @@ export function PersonCard({
   };
 
   const shouldAnimateIcon = state === InteractionState.NONE || state === InteractionState.WAVE_RECEIVED;
-
-  const activeIntention: WaveIntention | null = useMemo(() => {
-    const wave = [...sentWaves, ...receivedWaves].find(w =>
-      (w.de_user_id === user?.id && w.para_user_id === person.id) ||
-      (w.para_user_id === user?.id && w.de_user_id === person.id)
-    );
-    if (wave && (wave as any).intention) return (wave as any).intention as WaveIntention;
-    const conv = conversations.find(c =>
-      (c.user1_id === user?.id && c.user2_id === person.id) ||
-      (c.user2_id === user?.id && c.user1_id === person.id)
-    );
-    if (conv && (conv as any).intention) return (conv as any).intention as WaveIntention;
-    return null;
-  }, [sentWaves, receivedWaves, conversations, user?.id, person.id]);
 
   const IntentionIcon = activeIntention === 'open' ? Hand
     : activeIntention === 'professional' ? Briefcase
