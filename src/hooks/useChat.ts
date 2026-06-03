@@ -108,32 +108,38 @@ export function useChat(options?: UseChatOptions) {
     if (!user) return;
 
     const unsubscribe = addConversationUpdateListener((payload) => {
-      const updated = payload.new as any;
-      if (!updated.ativo) {
-        const wasEndedByMe = updated.encerrado_por === user.id;
-        const motivo = updated.encerrado_motivo || 'manual';
+      // Trata DELETE (hard-delete) e UPDATE com ativo=false (soft-delete legado)
+      const isDelete = payload.eventType === 'DELETE';
+      const record = isDelete ? payload.old as any : payload.new as any;
 
-        if (!wasEndedByMe && chatState.conversation?.id === updated.id) {
-          toast({
-            title: motivo === 'presence_end'
-              ? 'A outra pessoa saiu do local'
-              : 'A outra pessoa encerrou a conversa',
-            description: 'As mensagens foram apagadas',
-          });
-        }
+      if (!isDelete && record.ativo) return; // UPDATE com ativo=true, ignora
 
-        if (chatState.conversation?.id === updated.id) {
-          setChatState({
-            isActive: false,
-            conversation: null,
-            endedReason: motivo,
-            wasEndedByMe,
-            isRecoverable: false,
-          });
-        }
+      const conversationId = record.id;
+      const wasEndedByMe = isDelete
+        ? false // DELETE por cascade — outro usuário saiu
+        : record.encerrado_por === user.id;
+      const motivo = isDelete ? 'presence_end' : (record.encerrado_motivo || 'manual');
 
-        refetchConversations();
+      if (!wasEndedByMe && chatState.conversation?.id === conversationId) {
+        toast({
+          title: motivo === 'presence_end'
+            ? 'A outra pessoa saiu do local'
+            : 'A outra pessoa encerrou a conversa',
+          description: 'As mensagens foram apagadas',
+        });
       }
+
+      if (chatState.conversation?.id === conversationId) {
+        setChatState({
+          isActive: false,
+          conversation: null,
+          endedReason: motivo,
+          wasEndedByMe,
+          isRecoverable: false,
+        });
+      }
+
+      refetchConversations();
     });
 
     return () => unsubscribe();

@@ -126,12 +126,22 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
 
     const handleRealtimeEvent = async (payload: any) => {
       console.log('[ConversationsContext] Evento Realtime recebido:', payload.eventType);
-      const conv = payload.new as Conversation;
 
-      // Filtro de segurança para garantir que o evento pertence ao usuário atual
+      // DELETE: payload.new é vazio — usa payload.old
+      // UPDATE/INSERT: usa payload.new
+      const conv = (payload.eventType === 'DELETE' ? payload.old : payload.new) as Conversation;
+
+      // Filtro de segurança
       if (conv.user1_id !== user.id && conv.user2_id !== user.id) return;
 
       updateListeners.current.forEach(listener => listener(payload));
+
+      if (payload.eventType === 'DELETE') {
+        // Remove da lista local imediatamente sem aguardar refetch
+        setConversations(prev => prev.filter(c => c.id !== conv.id));
+        knownConversationIds.current.delete(conv.id);
+        return;
+      }
 
       if (payload.eventType === 'INSERT' && !knownConversationIds.current.has(conv.id) && conv.ativo) {
         knownConversationIds.current.add(conv.id);
