@@ -51,7 +51,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
   const fetchConversations = useCallback(async () => {
     // Log crucial para depuração no Logcat
     console.log('[ConversationsContext] Iniciando fetchConversations para usuário:', user?.id);
-    
+
     if (!user) {
       console.log('[ConversationsContext] Sem usuário, limpando conversas');
       setConversations([]);
@@ -85,7 +85,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
           supabase.from('places').select('nome').eq('id', conv.place_id).maybeSingle(),
           supabase.from('locations').select('nome').eq('id', conv.place_id).maybeSingle()
         ]);
-        
+
         placeName = placeRes.data?.nome || locationRes.data?.nome || 'Local desconhecido';
 
         return {
@@ -114,8 +114,8 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
         const presenceMap = new Map(presences?.map(p => [p.user_id, p.checkin_selfie_url]));
         const selfiePaths = (presences || [])
           .map(p => p.checkin_selfie_url)
-          .filter((p): p is string => !!p && !p.startsWith('http' ));
-        
+          .filter((p): p is string => !!p && !p.startsWith('http'));
+
         const signedUrls = selfiePaths.length > 0 ? await getSignedSelfieUrls(selfiePaths) : new Map();
 
         conversationsWithDetails.forEach(c => {
@@ -146,7 +146,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     const handleRealtimeEvent = async (payload: any) => {
       console.log('[ConversationsContext] Evento Realtime recebido:', payload.eventType);
       const conv = payload.new as Conversation;
-      
+
       // Filtro de segurança para garantir que o evento pertence ao usuário atual
       if (conv.user1_id !== user.id && conv.user2_id !== user.id) return;
 
@@ -159,7 +159,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
           const { data: profile } = await supabase.from('profiles').select('nome').eq('id', conv.user1_id).single();
           toast({
             title: 'Chat iniciado! 🎉',
-            description: `Você agora pode conversar com ${profile?.nome || 'Alguém'}`, 
+            description: `Você agora pode conversar com ${profile?.nome || 'Alguém'}`,
             action: (
               <ToastAction altText="Abrir chat" onClick={() => navigate(`/chat?conversationId=${conv.id}`)}>
                 <MessageCircle className="h-4 w-4 mr-1" /> Abrir chat
@@ -189,7 +189,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
       });
 
     channelRef.current = channel;
-    
+
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
@@ -199,7 +199,10 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
   }, [user?.id, fetchConversations, navigate]);
 
   const deactivateConversation = async (conversationId: string) => {
-    const { error } = await supabase.from('conversations').update({ ativo: false }).eq('id', conversationId);
+    const { error } = await supabase.rpc('end_conversation', {
+      p_conversation_id: conversationId,
+      p_motivo: 'manual',
+    });
     if (!error) fetchConversations();
     return { error };
   };
@@ -209,13 +212,13 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ConversationsContext.Provider value={{ 
-      conversations, 
-      loading, 
-      refetch: fetchConversations, 
-      deactivateConversation, 
-      getConversationWithUser, 
-      addConversationUpdateListener 
+    <ConversationsContext.Provider value={{
+      conversations,
+      loading,
+      refetch: fetchConversations,
+      deactivateConversation,
+      getConversationWithUser,
+      addConversationUpdateListener
     }}>
       {children}
     </ConversationsContext.Provider>
