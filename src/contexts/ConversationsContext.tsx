@@ -61,68 +61,49 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('conversations')
-        .select(`
-          *,
-          user1_profile:profiles!conversations_user1_id_fkey (id, nome, foto_url),
-          user2_profile:profiles!conversations_user2_id_fkey (id, nome, foto_url)
-        `)
-        .eq('ativo', true)
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-        .order('criado_em', { ascending: false });
-
+      // Uma única RPC substitui N+1 queries (places + locations + presence por conversa)
+      const { data, error } = await supabase.rpc('get_active_conversations');
       if (error) throw error;
 
-      console.log(`[ConversationsContext] ${data?.length || 0} conversas encontradas no banco`);
+      const rows = (data as any[]) || [];
+      console.log(`[ConversationsContext] ${rows.length} conversas encontradas no banco`);
 
-      const conversationsWithDetails: ConversationWithDetails[] = await Promise.all((data || []).map(async (conv: any) => {
-        const isUser1 = conv.user1_id === user.id;
-        const otherProfile = isUser1 ? conv.user2_profile : conv.user1_profile;
+      // Resolve signed URLs para selfies (batch)
+      const selfiePaths = rows
+        .map((r: any) => r.other_user_selfie_url)
+        .filter((p: any): p is string => !!p && !p.startsWith('http'));
 
-        let placeName = 'Local desconhecido';
-        const [placeRes, locationRes] = await Promise.all([
-          supabase.from('places').select('nome').eq('id', conv.place_id).maybeSingle(),
-          supabase.from('locations').select('nome').eq('id', conv.place_id).maybeSingle()
-        ]);
+      const signedUrls = selfiePaths.length > 0 ? await getSignedSelfieUrls(selfiePaths) : new Map();
 
-        placeName = placeRes.data?.nome || locationRes.data?.nome || 'Local desconhecido';
-
+      const conversationsWithDetails: ConversationWithDetails[] = rows.map((r: any) => {
+        const rawSelfie = r.other_user_selfie_url || null;
+        const selfieUrl = rawSelfie && signedUrls.has(rawSelfie) ? signedUrls.get(rawSelfie)! : rawSelfie;
         return {
-          ...conv,
+          id: r.id,
+          user1_id: r.user1_id,
+          user2_id: r.user2_id,
+          place_id: r.place_id,
+          ativo: r.ativo,
+          criado_em: r.criado_em,
+          encerrado_por: r.encerrado_por,
+          encerrado_em: r.encerrado_em,
+          encerrado_motivo: r.encerrado_motivo,
+          reinteracao_permitida_em: r.reinteracao_permitida_em,
+          origem_wave_id: r.origem_wave_id,
+          intention: r.intention,
+          intention_message: r.intention_message,
           otherUser: {
-            id: otherProfile.id,
-            nome: otherProfile.nome,
-            foto_url: otherProfile.foto_url,
-            checkin_selfie_url: null,
+            id: r.other_user_id,
+            nome: r.other_user_nome,
+            foto_url: r.other_user_foto_url,
+            checkin_selfie_url: selfieUrl,
           },
           place: {
-            id: conv.place_id,
-            nome: placeName
+            id: r.place_id,
+            nome: r.place_nome,
           },
         };
-      }));
-
-      const otherUserIds = conversationsWithDetails.map(c => c.otherUser.id);
-      if (otherUserIds.length > 0) {
-        const { data: presences } = await supabase
-          .from('presence')
-          .select('user_id, checkin_selfie_url')
-          .in('user_id', otherUserIds)
-          .eq('ativo', true);
-
-        const presenceMap = new Map(presences?.map(p => [p.user_id, p.checkin_selfie_url]));
-        const selfiePaths = (presences || [])
-          .map(p => p.checkin_selfie_url)
-          .filter((p): p is string => !!p && !p.startsWith('http'));
-
-        const signedUrls = selfiePaths.length > 0 ? await getSignedSelfieUrls(selfiePaths) : new Map();
-
-        conversationsWithDetails.forEach(c => {
-          const rawPath = presenceMap.get(c.otherUser.id) || null;
-          c.otherUser.checkin_selfie_url = (rawPath && signedUrls.has(rawPath)) ? signedUrls.get(rawPath)! : rawPath;
-        });
-      }
+      });
 
       knownConversationIds.current = new Set(conversationsWithDetails.map(c => c.id));
       setConversations(conversationsWithDetails);
