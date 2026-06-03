@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRealtimeContext } from '@/contexts/RealtimeContext';
 import { useConversations } from '@/hooks/useConversations';
 import { toast } from '@/components/ui/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
@@ -39,6 +40,7 @@ interface UseInteractionDataResult {
 export function useInteractionData(placeId: string | null): UseInteractionDataResult {
   const { user } = useAuth();
   const { addConversationUpdateListener } = useConversations();
+  const { addListener: addRealtimeListener } = useRealtimeContext();
   const [sentWaves, setSentWaves] = useState<NormalizedWave[]>([]);
   const [receivedWaves, setReceivedWaves] = useState<NormalizedWave[]>([]);
   const [conversations, setConversations] = useState<NormalizedConversation[]>([]);
@@ -171,18 +173,14 @@ export function useInteractionData(placeId: string | null): UseInteractionDataRe
     return () => { supabase.removeChannel(channel); };
   }, [user?.id, placeId, fetchData]);
 
-  // Listener global para mutes e blocks — dispara refetch quando mudam
+  // Consome eventos de mutes e blocks do RealtimeContext centralizado
   useEffect(() => {
     if (!user?.id) return;
-
-    const channel = supabase
-      .channel(`global-mutes-blocks-${user.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_mutes' }, () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_blocks' }, () => fetchData())
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [user?.id, fetchData]);
+    const unsubscribe = addRealtimeListener((table) => {
+      if (table === 'user_mutes' || table === 'user_blocks') fetchData();
+    });
+    return () => unsubscribe();
+  }, [user?.id, fetchData, addRealtimeListener]);
 
   return { sentWaves, receivedWaves, conversations, activeMutes, blocks, loading, refetch: fetchData };
 }

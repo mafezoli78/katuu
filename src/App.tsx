@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ConversationsProvider } from "@/contexts/ConversationsContext";
+import { RealtimeProvider } from "@/contexts/RealtimeContext";
 import { useTutorial } from "@/hooks/useTutorial";
 import { TutorialFlow } from "@/components/tutorial/TutorialFlow";
 import { useAutoPushSubscription } from "@/hooks/useAutoPushSubscription";
@@ -306,10 +307,12 @@ const App = () => (
       <AuthProvider>
         <BrowserRouter>
           <ConversationsProvider>
+            <RealtimeProvider>
             <TooltipProvider>
               <Toaster />
               <AppRoutes />
             </TooltipProvider>
+            </RealtimeProvider>
           </ConversationsProvider>
         </BrowserRouter>
       </AuthProvider>

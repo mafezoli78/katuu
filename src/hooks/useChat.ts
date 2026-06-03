@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConversations, ConversationWithDetails } from './useConversations';
@@ -24,132 +24,104 @@ interface UseChatOptions {
   currentPresence: { place_id: string } | null;
 }
 
+const INITIAL_STATE: ChatState = {
+  isActive: false,
+  conversation: null,
+  endedReason: null,
+  wasEndedByMe: false,
+  isRecoverable: false,
+};
+
 export function useChat(options?: UseChatOptions) {
   const { user } = useAuth();
-  const { conversations, loading: conversationsLoading, refetch: refetchConversations, deactivateConversation, addConversationUpdateListener } = useConversations();
-  const [chatState, setChatState] = useState<ChatState>({
-    isActive: false,
-    conversation: null,
-    endedReason: null,
-    wasEndedByMe: false,
-    isRecoverable: false,
-  });
-  const previousLogicalState = useRef<PresenceLogicalState | null>(null);
+  const {
+    conversations,
+    loading: conversationsLoading,
+    refetch: refetchConversations,
+    deactivateConversation,
+    addConversationUpdateListener,
+  } = useConversations();
 
-  // Reage a transições de estado de presença
+  const [chatState, setChatState] = useState<ChatState>(INITIAL_STATE);
+
+  // Único efeito para reagir a mudanças de presença
+  // Substitui os dois useEffects anteriores com lógica sobreposta
   useEffect(() => {
-    if (!options?.presenceState) return;
-    
-    const currentLogicalState = options.presenceState.logicalState;
-    const endReason = options.presenceState.endReason;
-    const prevState = previousLogicalState.current;
-    
-    if (prevState !== null && prevState !== currentLogicalState) {
-      logger.debug(`[useChat] Presence state transition: ${prevState} → ${currentLogicalState}`);
+    if (!options?.presenceState || !chatState.isActive) return;
+
+    const { logicalState, endReason } = options.presenceState;
+    const isHumanAction = endReason?.isHumanInitiated ?? false;
+
+    if (logicalState === 'ended') {
+      logger.debug(`[useChat] Presence ended (${isHumanAction ? 'human' : 'technical'})`);
+      setChatState(prev => ({
+        ...prev,
+        isActive: false,
+        conversation: isHumanAction ? null : prev.conversation,
+        endedReason: isHumanAction ? 'presence_end' : 'system_suspended',
+        wasEndedByMe: isHumanAction,
+        isRecoverable: !isHumanAction,
+      }));
+      return;
     }
-    
-    if (currentLogicalState === 'ended' && prevState !== 'ended' && chatState.isActive) {
-      const isHumanAction = endReason?.isHumanInitiated ?? true;
-      
-      if (isHumanAction) {
-        logger.debug('[useChat] Presence ended (human action) - clearing active chat definitively');
-        setChatState({
-          isActive: false,
-          conversation: null,
-          endedReason: 'presence_end',
-          wasEndedByMe: true,
-          isRecoverable: false,
-        });
-      } else {
-        logger.debug('[useChat] Presence ended (technical) - marking as recoverable');
-        setChatState(prev => ({
-          ...prev,
-          isActive: false,
-          endedReason: 'system_suspended',
-          wasEndedByMe: false,
-          isRecoverable: true,
-        }));
-      }
-    }
-    
-    if (currentLogicalState === 'suspended' && prevState === 'active' && chatState.isActive) {
-      logger.debug('[useChat] Presence suspended - marking chat as suspended (recoverable)');
+
+    if (logicalState === 'suspended') {
+      logger.debug('[useChat] Presence suspended - chat recoverable');
       setChatState(prev => ({
         ...prev,
         endedReason: 'system_suspended',
         wasEndedByMe: false,
         isRecoverable: true,
       }));
+      return;
     }
-    
-    if (currentLogicalState === 'active' && prevState === 'suspended') {
-      logger.debug('[useChat] Presence reactivated - chat may recover');
-      if (chatState.isRecoverable && chatState.endedReason === 'system_suspended') {
-        setChatState(prev => ({
-          ...prev,
-          endedReason: null,
-          isRecoverable: false,
-        }));
-      }
-    }
-    
-    previousLogicalState.current = currentLogicalState;
-  }, [options?.presenceState?.logicalState, options?.presenceState?.endReason, chatState.isActive, chatState.isRecoverable]);
 
+    if (logicalState === 'active' && chatState.isRecoverable && chatState.endedReason === 'system_suspended') {
+      logger.debug('[useChat] Presence reactivated - recovering chat');
+      setChatState(prev => ({
+        ...prev,
+        endedReason: null,
+        isRecoverable: false,
+      }));
+    }
+  }, [options?.presenceState?.logicalState, options?.presenceState?.endReason]);
+
+  // Reage quando currentPresence some (saída do local)
   useEffect(() => {
-    if (!options) return;
-    
-    const { currentPresence, presenceState } = options;
-    const endReason = presenceState?.endReason;
-    
-    if (currentPresence === null && chatState.isActive) {
-      const isHumanAction = endReason?.isHumanInitiated ?? false;
-      
-      if (isHumanAction) {
-        logger.debug('[useChat] currentPresence is null (human action) - forcing cleanup');
-        setChatState({
-          isActive: false,
-          conversation: null,
-          endedReason: 'presence_end',
-          wasEndedByMe: true,
-          isRecoverable: false,
-        });
-      } else {
-        logger.debug('[useChat] currentPresence is null (technical) - marking suspended');
-        setChatState(prev => ({
-          ...prev,
-          endedReason: 'system_suspended',
-          wasEndedByMe: false,
-          isRecoverable: true,
-        }));
-      }
-    }
-  }, [options?.currentPresence, options?.presenceState?.endReason, chatState.isActive]);
+    if (!options || options.currentPresence !== null || !chatState.isActive) return;
 
-  // Escuta atualizações de conversas via listener centralizado do useConversations
-  // Sem criar canal Realtime próprio — elimina o conflito de canais
+    const isHumanAction = options.presenceState?.endReason?.isHumanInitiated ?? false;
+    logger.debug(`[useChat] currentPresence null (${isHumanAction ? 'human' : 'technical'})`);
+
+    setChatState(prev => ({
+      ...prev,
+      isActive: false,
+      conversation: isHumanAction ? null : prev.conversation,
+      endedReason: isHumanAction ? 'presence_end' : 'system_suspended',
+      wasEndedByMe: isHumanAction,
+      isRecoverable: !isHumanAction,
+    }));
+  }, [options?.currentPresence]);
+
+  // Escuta atualizações de conversas via listener centralizado
   useEffect(() => {
     if (!user) return;
 
     const unsubscribe = addConversationUpdateListener((payload) => {
       const updated = payload.new as any;
-
       if (!updated.ativo) {
-        const wasEndedByMe = updated.encerrado_por === user?.id;
+        const wasEndedByMe = updated.encerrado_por === user.id;
         const motivo = updated.encerrado_motivo || 'manual';
 
-        // Só mostra toast se o chat estiver ativo E foi encerrado por outro
         if (!wasEndedByMe && chatState.conversation?.id === updated.id) {
-          const isPresenceEnd = motivo === 'presence_end';
           toast({
-            title: isPresenceEnd
+            title: motivo === 'presence_end'
               ? 'A outra pessoa saiu do local'
               : 'A outra pessoa encerrou a conversa',
             description: 'As mensagens foram apagadas',
           });
         }
 
-        // Fecha o chat se estiver aberto
         if (chatState.conversation?.id === updated.id) {
           setChatState({
             isActive: false,
@@ -172,55 +144,27 @@ export function useChat(options?: UseChatOptions) {
       console.error('[useChat] Cannot open chat: conversation has no place_id');
       return;
     }
-    
-    setChatState({
-      isActive: true,
-      conversation,
-      endedReason: null,
-      wasEndedByMe: false,
-      isRecoverable: false,
-    });
+    setChatState({ isActive: true, conversation, endedReason: null, wasEndedByMe: false, isRecoverable: false });
   }, []);
 
   const closeChat = useCallback(() => {
-    setChatState({
-      isActive: false,
-      conversation: null,
-      endedReason: null,
-      wasEndedByMe: false,
-      isRecoverable: false,
-    });
+    setChatState(INITIAL_STATE);
   }, []);
 
   const endChat = useCallback(async (reason: ConversationEndReason = 'manual') => {
     if (!chatState.conversation || !user) return { error: new Error('No active chat') };
 
     const conversationId = chatState.conversation.id;
-
     try {
       const { error } = await supabase.rpc('end_conversation', {
         p_conversation_id: conversationId,
         p_motivo: reason,
       });
 
-      if (error) {
-        if (error.message.includes('END_CONV_ALREADY_ENDED')) {
-          logger.debug('[useChat] Conversation already ended');
-        } else {
-          throw error;
-        }
-      }
+      if (error && !error.message.includes('END_CONV_ALREADY_ENDED')) throw error;
 
       logger.debug('[useChat] Chat ended via RPC:', reason);
-
-      setChatState({
-        isActive: false,
-        conversation: null,
-        endedReason: reason,
-        wasEndedByMe: true,
-        isRecoverable: false,
-      });
-
+      setChatState({ isActive: false, conversation: null, endedReason: reason, wasEndedByMe: true, isRecoverable: false });
       refetchConversations();
       return { error: null };
     } catch (error) {
@@ -229,19 +173,10 @@ export function useChat(options?: UseChatOptions) {
     }
   }, [chatState.conversation, user, refetchConversations]);
 
-  const endAllChatsForPresence = useCallback(async (_placeId?: string) => {
+  const endAllChatsForPresence = useCallback(async () => {
     if (!user) return;
-
-    logger.debug('[useChat] Presence ended - cleaning up local chat state (DB handled by end_presence_cascade)');
-
-    setChatState({
-      isActive: false,
-      conversation: null,
-      endedReason: 'presence_end',
-      wasEndedByMe: true,
-      isRecoverable: false,
-    });
-
+    logger.debug('[useChat] Presence ended - cleaning up local chat state');
+    setChatState({ isActive: false, conversation: null, endedReason: 'presence_end', wasEndedByMe: true, isRecoverable: false });
     refetchConversations();
   }, [user, refetchConversations]);
 
