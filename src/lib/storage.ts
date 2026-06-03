@@ -2,22 +2,29 @@ import { supabase } from '@/integrations/supabase/client';
 
 const SIGNED_URL_EXPIRY_SECONDS = 3600; // 1 hour
 
+// Tamanhos para transformação de imagem
+// feed: thumbnail para lista de pessoas e conversas
+// full: ampliação ao tocar na foto
+const TRANSFORM_FEED = { width: 200, height: 200, resize: 'cover' as const };
+const TRANSFORM_FULL = { width: 800, height: 800, resize: 'cover' as const };
+
 /**
  * Generate a signed URL for a checkin selfie file path.
  * Returns null if path is empty/null or signing fails.
  */
-export async function getSignedSelfieUrl(filePath: string | null): Promise<string | null> {
+export async function getSignedSelfieUrl(
+  filePath: string | null,
+  size: 'feed' | 'full' = 'feed'
+): Promise<string | null> {
   if (!filePath) return null;
-
+  const transform = size === 'full' ? TRANSFORM_FULL : TRANSFORM_FEED;
   const { data, error } = await supabase.storage
     .from('checkin-selfies')
-    .createSignedUrl(filePath, SIGNED_URL_EXPIRY_SECONDS);
-
+    .createSignedUrl(filePath, SIGNED_URL_EXPIRY_SECONDS, { transform });
   if (error) {
     console.error('[storage] Failed to create signed URL:', error.message);
     return null;
   }
-
   return data.signedUrl;
 }
 
@@ -25,15 +32,19 @@ export async function getSignedSelfieUrl(filePath: string | null): Promise<strin
  * Generate signed URLs for multiple file paths in batch.
  * Returns a map of filePath -> signedUrl.
  */
-export async function getSignedSelfieUrls(filePaths: string[]): Promise<Map<string, string>> {
+export async function getSignedSelfieUrls(
+  filePaths: string[],
+  size: 'feed' | 'full' = 'feed'
+): Promise<Map<string, string>> {
   const result = new Map<string, string>();
   const validPaths = filePaths.filter(Boolean);
-
   if (validPaths.length === 0) return result;
+
+  const transform = size === 'full' ? TRANSFORM_FULL : TRANSFORM_FEED;
 
   const { data, error } = await supabase.storage
     .from('checkin-selfies')
-    .createSignedUrls(validPaths, SIGNED_URL_EXPIRY_SECONDS);
+    .createSignedUrls(validPaths, SIGNED_URL_EXPIRY_SECONDS, { transform });
 
   if (error) {
     console.error('[storage] Failed to create signed URLs:', error.message);
