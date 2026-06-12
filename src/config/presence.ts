@@ -28,6 +28,19 @@ export const GPS_ACCURACY_THRESHOLD_METERS = 50;
 // Evita encerramento por flutuação momentânea de GPS
 export const GPS_EXIT_THRESHOLD_COUNT = 3;
 
+// ============================================================================
+// SAÍDA POR GPS — DESLIGADA (decisão de produto, jun/2026)
+// ============================================================================
+// GPS indoor deriva 50-200m e transições de app (ex: abrir a câmera) geram
+// leituras ruins no resume, causando expulsões falsas. A sessão é um
+// compromisso social com o lugar: sair 15 min (comprar cerveja) não deve
+// apagar acenos e chats. Saídas válidas: MANUAL e TEMPO (2h).
+// O GPS continua sendo usado para INTEGRIDADE NA ENTRADA: o watcher roda só
+// até a primeira leitura dentro do raio (baseline), dispara confirm_presence
+// no backend e é encerrado (economia de bateria).
+// Para reativar a expulsão por GPS, basta voltar esta flag para true.
+export const GPS_EXIT_ENABLED = false;
+
 /**
  * Calcula a distância entre duas coordenadas usando a fórmula de Haversine.
  * @returns Distância em metros

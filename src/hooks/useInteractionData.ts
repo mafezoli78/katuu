@@ -12,7 +12,7 @@ export type NormalizedWave = Pick<Tables<'waves'>,
 
 export type NormalizedConversation = Pick<Tables<'conversations'>,
   'id' | 'user1_id' | 'user2_id' | 'place_id' | 'ativo' | 'encerrado_por' | 'reinteracao_permitida_em'
->;
+> & { has_messages?: boolean };
 
 export type NormalizedMute = Pick<Tables<'user_mutes'>,
   'id' | 'user_id' | 'muted_user_id' | 'expira_em'
@@ -123,6 +123,11 @@ export function useInteractionData(placeId: string | null): UseInteractionDataRe
   useEffect(() => {
     if (!user?.id || !placeId) return;
     const unsubscribe = addConversationUpdateListener((payload) => {
+      // DELETE chega só com a primary key (RLS) — refetch incondicional
+      if (payload.eventType === 'DELETE') {
+        fetchData();
+        return;
+      }
       const record = payload.new as any;
       const oldRecord = payload.old as any;
       const involvesUser =
@@ -151,9 +156,8 @@ export function useInteractionData(placeId: string | null): UseInteractionDataRe
           record?.place_id === placeId || oldRecord?.place_id === placeId;
 
         if (involvesUser && isCurrentPlace) {
-          if (payload.eventType === 'INSERT' && record?.para_user_id === user.id && record?.status === 'pending') {
-            toast({ title: 'Você recebeu um aceno! 👋' });
-          }
+          // Toast de aceno recebido agora é responsabilidade do
+          // GlobalNotifications (funciona em qualquer tela)
           if (
             payload.eventType === 'UPDATE' &&
             record?.status === 'expired' &&

@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { PasswordChangeDialog } from '@/components/profile/PasswordChangeDialog';
+import { SelfCard } from '@/components/profile/SelfCard';
 import { DateOfBirthPicker } from '@/components/profile/DateOfBirthPicker';
 import {
   LogOut, Check, User, Heart, Pencil, X,
@@ -47,6 +48,7 @@ export default function Profile() {
   const [dataNascimento, setDataNascimento] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [gender, setGender] = useState<Gender | null>(null);
+  const [genderCustom, setGenderCustom] = useState('');
   const [loading, setLoading] = useState(false);
 
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -61,6 +63,7 @@ export default function Profile() {
       setBio(profile.bio || '');
       setDataNascimento(profile.data_nascimento || '');
       setGender(profile.gender ?? null);
+      setGenderCustom(profile.gender_custom || '');
     }
     setSelectedInterests(interests.map(i => i.interest_id));
   }, [profile, interests]);
@@ -158,6 +161,7 @@ export default function Profile() {
         bio: bio.trim(),
         data_nascimento: dataNascimento,
         gender,
+        gender_custom: gender === 'other' ? (genderCustom.trim() || null) : null,
       });
       await updateInterests(selectedInterests);
       toast({ title: 'Perfil atualizado!' });
@@ -176,6 +180,7 @@ export default function Profile() {
       setBio(profile.bio || '');
       setDataNascimento(profile.data_nascimento || '');
       setGender(profile.gender ?? null);
+      setGenderCustom(profile.gender_custom || '');
     }
     setSelectedInterests(interests.map(i => i.interest_id));
   };
@@ -212,6 +217,9 @@ export default function Profile() {
   return (
     <MobileLayout headerVersion={APP_VERSION}>
       <div className="p-4 space-y-4 page-fade pb-24">
+
+        {/* SELF CARD — como as pessoas te veem no local atual (some sem presença) */}
+        {!editing && <SelfCard />}
 
         {/* BLOCO 1 — Perfil */}
         <Card className="border-0 shadow-sm">
@@ -255,7 +263,13 @@ export default function Profile() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Gênero *</Label>
-                  <Select value={gender ?? ''} onValueChange={(v) => setGender(v as Gender)}>
+                  <Select
+                    value={gender ?? ''}
+                    onValueChange={(v) => {
+                      setGender(v as Gender);
+                      if (v !== 'other') setGenderCustom('');
+                    }}
+                  >
                     <SelectTrigger className="mt-1.5 rounded-xl">
                       <SelectValue placeholder="Selecione seu gênero" />
                     </SelectTrigger>
@@ -267,6 +281,15 @@ export default function Profile() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {gender === 'other' && (
+                    <Input
+                      placeholder="Como você se identifica? (opcional)"
+                      value={genderCustom}
+                      onChange={(e) => setGenderCustom(e.target.value.slice(0, 30))}
+                      maxLength={30}
+                      className="mt-2 h-11 rounded-xl"
+                    />
+                  )}
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Bio (opcional)</Label>
@@ -346,7 +369,9 @@ export default function Profile() {
                   </p>
                   {gender && (
                     <p className="text-sm text-muted-foreground mt-0.5">
-                      {GENDER_LABEL[gender] || gender}
+                      {gender === 'other' && profile?.gender_custom
+                        ? profile.gender_custom
+                        : (GENDER_LABEL[gender] || gender)}
                     </p>
                   )}
                 </div>

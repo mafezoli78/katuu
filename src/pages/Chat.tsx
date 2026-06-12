@@ -9,8 +9,9 @@ import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { ConversationsList } from '@/components/chat/ConversationsList';
 import { toast } from '@/components/ui/use-toast';
-import { MessageCircle, MessageSquare, Loader2 } from 'lucide-react';
+import { MessageCircle, Loader2, MapPin } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 export default function Chat() {
   const { user } = useAuth();
@@ -19,7 +20,7 @@ export default function Chat() {
   const isKeyboardVisible = useKeyboardVisible();
   const conversationIdParam = searchParams.get('conversationId');
 
-  const { presenceState, currentPresence } = usePresence();
+  const { presenceState, currentPresence, currentPlace, loading: presenceLoading } = usePresence();
 
   const {
     chatState,
@@ -111,6 +112,36 @@ export default function Chat() {
     );
   }
 
+  // Mesma regra dos acenos: conversas só existem dentro de uma sessão.
+  // Sem presença ativa, replica o estado vazio da página de Acenos.
+  if (!presenceLoading && !currentPlace?.id) {
+    return (
+      <MobileLayout>
+        <div className="p-4 page-fade">
+          <div className="flex items-center gap-2 mb-4">
+            <MessageCircle className="h-5 w-5 text-katu-blue" />
+            <h1 className="text-xl font-bold">Conversas</h1>
+          </div>
+          <Card className="border-0 shadow-sm">
+            <CardContent className="py-10 text-center">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <MapPin className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <p className="text-muted-foreground font-medium">Você não está em nenhum local</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                As conversas acontecem dentro de uma sessão. Entre em um local para conversar com pessoas próximas.
+              </p>
+              <Button onClick={() => navigate('/location')} className="mt-4 rounded-xl gap-2">
+                <MapPin className="h-4 w-4" />
+                Escolher local
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </MobileLayout>
+    );
+  }
+
   return (
     <MobileLayout>
       <div className="p-4 page-fade">
@@ -123,7 +154,7 @@ export default function Chat() {
           Conversas ativas com pessoas no mesmo local
         </p>
 
-        {chatLoading ? (
+        {chatLoading || presenceLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-katu-blue" />
           </div>
@@ -131,7 +162,7 @@ export default function Chat() {
           <Card className="border-0 shadow-sm">
             <CardContent className="py-10 text-center">
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <MessageSquare className="h-8 w-8 text-muted-foreground" />
+                <MessageCircle className="h-8 w-8 text-muted-foreground" />
               </div>
               <p className="text-muted-foreground font-medium">Nenhuma conversa ativa</p>
               <p className="text-sm text-muted-foreground mt-1">

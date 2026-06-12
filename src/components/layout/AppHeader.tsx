@@ -1,8 +1,10 @@
 import logoKatuu from '@/assets/logo-katuu-oficial.png';
+import { APP_VERSION } from '@/version';
 
 interface AppHeaderProps {
   showLogo?: boolean;
   className?: string;
+  /** Default: APP_VERSION de src/version.ts — fonte única da verdade */
   version?: string;
 }
 

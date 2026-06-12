@@ -11,6 +11,11 @@ import { useAuth } from '@/contexts/AuthContext';
  * O useInteractionData é a fonte de verdade para o estado do botão no PersonCard.
  * Este hook NÃO deve ser usado para determinar se uma ação é permitida - 
  * a validação deve sempre ir ao banco via função canônica.
+ * 
+ * LIMPEZA DE WAVES: é responsabilidade EXCLUSIVA do backend
+ * (end_presence_cascade expira waves pendentes na saída do local).
+ * A antiga deleteUserWaves (DELETE no cliente) foi removida — era código
+ * morto e o padrão DELETE quebrava o Realtime para os demais usuários.
  */
 
 export interface Wave {
@@ -185,6 +190,7 @@ export function useWaves() {
     if (errorMessage.includes('WAVE_NO_PRESENCE_SENDER')) return 'Você precisa estar presente neste local';
     if (errorMessage.includes('WAVE_NO_PRESENCE_RECIPIENT')) return 'Esta pessoa não está mais neste local';
     if (errorMessage.includes('WAVE_RATE_LIMIT')) return 'Limite de acenos atingido. Aguarde um pouco.';
+    if (errorMessage.includes('USER_SUSPENDED')) return 'Sua conta está temporariamente suspensa';
     return 'Erro ao enviar aceno';
   };
 
@@ -254,6 +260,7 @@ export function useWaves() {
     if (errorMessage.includes('ACCEPT_WAVE_NO_PRESENCE_SENDER')) return 'A outra pessoa não está mais neste local';
     if (errorMessage.includes('ACCEPT_WAVE_NO_PRESENCE_RECIPIENT')) return 'Você precisa estar presente neste local';
     if (errorMessage.includes('ACCEPT_WAVE_ALREADY_ACCEPTED')) return 'Este aceno já foi aceito';
+    if (errorMessage.includes('USER_SUSPENDED')) return 'Sua conta está temporariamente suspensa';
     return 'Erro ao aceitar aceno';
   };
 
@@ -317,21 +324,6 @@ export function useWaves() {
     );
   };
 
-  // Delete all waves for current user (called when presence ends)
-  const deleteUserWaves = async () => {
-    if (!user) return;
-
-    await supabase
-      .from('waves')
-      .delete()
-      .or(`de_user_id.eq.${user.id},para_user_id.eq.${user.id}`)
-      .eq('status', 'pending');
-
-    setSentWaves([]);
-    setReceivedWaves([]);
-    setUnreadCount(0);
-  };
-
   return {
     sentWaves,
     receivedWaves,
@@ -344,7 +336,6 @@ export function useWaves() {
     markAsRead,
     markAllAsRead,
     hasWavedTo,
-    deleteUserWaves,
     refetch: fetchWaves,
   };
 }

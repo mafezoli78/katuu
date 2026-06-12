@@ -45,6 +45,8 @@ export interface InteractionFacts {
   isMutedByA: boolean;
   /** Existe conversa ativa entre A↔B neste place */
   hasActiveChat: boolean;
+  /** A conversa ativa já tem mensagens (estado permanente na sessão) */
+  hasMessages: boolean;
   /** Existe conversa encerrada com cooldown ativo */
   hasCooldown: boolean;
   /** Se hasCooldown, A foi quem encerrou */
@@ -71,6 +73,8 @@ export interface InteractionButtonConfig {
   disabled: boolean;
   action: 'wave' | 'open_waves' | 'open_chat' | 'none';
   conversationId?: string;
+  /** CHAT_ACTIVE: conversa já tem mensagens (define rótulo/cor; badge é por não lidas) */
+  hasMessages?: boolean;
 }
 
 /**
@@ -140,15 +144,19 @@ export function getInteractionState(facts: InteractionFacts): InteractionResult 
   }
 
   // 3. CHAT ATIVO - pode abrir conversa
+  // Rótulo NÃO regride: com qualquer mensagem na conversa, fica
+  // "Chat em andamento" mesmo após tudo lido. Badge de não lidas é
+  // responsabilidade da UI (unreadCount), separada do rótulo.
   if (facts.hasActiveChat) {
     return {
       state: InteractionState.CHAT_ACTIVE,
       stateName: 'CHAT_ACTIVE',
       button: {
-        label: 'Chat em andamento',
+        label: facts.hasMessages ? 'Chat em andamento' : 'Aceno aceito',
         disabled: false,
         action: 'open_chat',
         conversationId: facts.conversationId,
+        hasMessages: facts.hasMessages,
       },
       isVisible: true,
     };
@@ -269,6 +277,8 @@ export interface ConversationRecord {
   ativo: boolean;
   encerrado_por: string | null;
   reinteracao_permitida_em: string | null;
+  /** Vem do get_interaction_context; opcional para retrocompatibilidade */
+  has_messages?: boolean;
 }
 
 export interface WaveRecord {
@@ -345,6 +355,7 @@ export function deriveFacts(
   const conversation = pairConversations[0] ?? undefined;
 
   const hasActiveChat = conversation?.ativo === true;
+  const hasMessages = hasActiveChat && conversation?.has_messages === true;
   const hasAnyConversation = conversation !== undefined;
   const closedByA = hasAnyConversation && !conversation.ativo && conversation.encerrado_por === userA;
 
@@ -387,6 +398,7 @@ export function deriveFacts(
     isBlockedByOther,
     isMutedByA,
     hasActiveChat,
+    hasMessages,
     hasCooldown,
     cooldownByA,
     hasAnyConversation,

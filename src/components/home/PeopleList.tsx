@@ -24,6 +24,7 @@ interface PeopleListProps {
   onMute: (userId: string) => Promise<void>;
   onBlock: (userId: string) => Promise<void>;
   onRefresh: () => void;
+  unreadCounts?: Record<string, number>;
 }
 
 export function PeopleList({
@@ -41,6 +42,7 @@ export function PeopleList({
   onMute,
   onBlock,
   onRefresh,
+  unreadCounts = {},
 }: PeopleListProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { user } = useAuth();
@@ -56,6 +58,7 @@ export function PeopleList({
         id: c.id, user1_id: c.user1_id, user2_id: c.user2_id,
         place_id: c.place_id, ativo: c.ativo,
         encerrado_por: c.encerrado_por, reinteracao_permitida_em: c.reinteracao_permitida_em,
+        has_messages: c.has_messages,
       })),
       waves: [...sentWaves, ...receivedWaves].map(w => ({
         id: w.id, de_user_id: w.de_user_id, para_user_id: w.para_user_id,
@@ -66,7 +69,7 @@ export function PeopleList({
 
     const map = new Map<string, {
       state: InteractionState;
-      button: { label: string; disabled: boolean; action: string; conversationId?: string };
+      button: { label: string; disabled: boolean; action: string; conversationId?: string; hasMessages?: boolean };
       isVisible: boolean;
       isMutedByMe: boolean;
       isBlockedByMe: boolean;
@@ -154,6 +157,10 @@ export function PeopleList({
               isMutedByMe={interactionStates.get(person.id)?.isMutedByMe ?? false}
               isBlockedByMe={interactionStates.get(person.id)?.isBlockedByMe ?? false}
               activeIntention={interactionStates.get(person.id)?.activeIntention ?? null}
+              unreadCount={(() => {
+                const convId = interactionStates.get(person.id)?.button?.conversationId;
+                return convId ? (unreadCounts[convId] || 0) : 0;
+              })()}
               onWave={onWave}
               onMute={onMute}
               onBlock={onBlock}

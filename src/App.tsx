@@ -11,6 +11,7 @@ import { TutorialFlow } from "@/components/tutorial/TutorialFlow";
 import { useAutoPushSubscription } from "@/hooks/useAutoPushSubscription";
 import { supabase } from '@/integrations/supabase/client';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { GlobalNotifications } from '@/components/shared/GlobalNotifications';
 
 const Splash = lazy(() => import("./pages/Splash"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -24,6 +25,14 @@ const Debug = lazy(() => import("./pages/Debug"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+
+// Chave do retry automático de carga (1 tentativa por sessão)
+const CHUNK_RETRY_KEY = 'katuu-chunk-retry';
+
+const isChunkLoadError = (error: Error | null) =>
+  !!error &&
+  /Loading chunk|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i
+    .test(error.message);
 
 // ============================================================
 // ERROR BOUNDARY - Captura erros de renderização
@@ -99,15 +108,18 @@ class AppErrorBoundary extends React.Component<
 
 // ============================================================
 // ERROR BOUNDARY PARA LAZY LOADING
+// Retry automático (1 tentativa por sessão) antes do fallback manual:
+// erros de chunk acontecem tipicamente logo após atualização do app,
+// quando o WebView ainda referencia assets antigos.
 // ============================================================
 
 class LazyErrorBoundary extends React.Component<
   { children: React.ReactNode; fallback?: React.ReactNode },
-  { hasError: boolean; error: Error | null }
+  { hasError: boolean; error: Error | null; autoRetrying: boolean }
 > {
   constructor(props: { children: React.ReactNode; fallback?: React.ReactNode }) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, autoRetrying: false };
   }
 
   static getDerivedStateFromError(error: Error) {
@@ -116,10 +128,32 @@ class LazyErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("[LazyErrorBoundary] Erro ao carregar componente:", error, errorInfo);
+
+    // Retry automático: só para erro de carga de chunk e só 1 vez por sessão
+    const alreadyRetried = sessionStorage.getItem(CHUNK_RETRY_KEY) === '1';
+    if (isChunkLoadError(error) && !alreadyRetried) {
+      sessionStorage.setItem(CHUNK_RETRY_KEY, '1');
+      this.setState({ autoRetrying: true });
+      window.location.reload();
+    }
   }
+
+  handleManualRetry = () => {
+    this.setState({ hasError: false, error: null, autoRetrying: false });
+    window.location.reload();
+  };
 
   render() {
     if (this.state.hasError) {
+      // Durante o retry automático, mostra loader em vez do erro
+      if (this.state.autoRetrying) {
+        return (
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="animate-pulse-soft text-muted-foreground">Carregando...</div>
+          </div>
+        );
+      }
+
       return (
         this.props.fallback || (
           <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-8">
@@ -129,10 +163,7 @@ class LazyErrorBoundary extends React.Component<
             </p>
 
             <button
-              onClick={() => {
-                this.setState({ hasError: false, error: null });
-                window.location.reload();
-              }}
+              onClick={this.handleManualRetry}
               className="px-6 py-2 bg-primary text-primary-foreground rounded-xl font-semibold"
             >
               Tentar novamente
@@ -247,6 +278,11 @@ function AppRoutes() {
   useAutoPushSubscription();
   usePushNotifications();
 
+  // App carregou com sucesso: libera o retry automático para futuras sessões
+  useEffect(() => {
+    sessionStorage.removeItem(CHUNK_RETRY_KEY);
+  }, []);
+
   if (authLoading || tutorialLoading) {
     return <PageLoader />;
   }
@@ -260,6 +296,7 @@ function AppRoutes() {
       <LazyErrorBoundary>
         <Suspense fallback={<PageLoader />}>
           <DeepLinkHandler />
+          <GlobalNotifications />
           <Routes>
             <Route path="/" element={<PostLoginRedirect />} />
             <Route path="/home" element={<Home />} />

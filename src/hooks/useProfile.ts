@@ -16,6 +16,7 @@ export interface Profile {
   bio: string | null;
   foto_url: string | null;
   gender: Gender | null;
+  gender_custom: string | null;
   criado_em: string;
   atualizado_em: string;
 }

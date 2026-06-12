@@ -21,11 +21,12 @@ const SNAP_THRESHOLD = 0.4;
 interface PersonCardProps {
   person: PersonNearby;
   state: InteractionState;
-  button: { label: string; disabled: boolean; action: string; conversationId?: string };
+  button: { label: string; disabled: boolean; action: string; conversationId?: string; hasMessages?: boolean };
   isVisible: boolean;
   isMutedByMe: boolean;
   isBlockedByMe: boolean;
   activeIntention: WaveIntention | null;
+  unreadCount?: number;
   onWave: (toUserId: string, intention: WaveIntention, message?: string) => void;
   onMute: (userId: string) => Promise<void>;
   onBlock: (userId: string) => Promise<void>;
@@ -41,6 +42,7 @@ export function PersonCard({
   isMutedByMe,
   isBlockedByMe,
   activeIntention,
+  unreadCount = 0,
   onWave,
   onMute,
   onBlock,
@@ -49,6 +51,7 @@ export function PersonCard({
 }: PersonCardProps) {
   const navigate = useNavigate();
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [momentoOpen, setMomentoOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showIntentionDialog, setShowIntentionDialog] = useState(false);
@@ -134,6 +137,20 @@ export function PersonCard({
     : null;
 
   const initials = person.profile.nome?.[0]?.toUpperCase() || '?';
+  const firstName = person.profile.nome?.split(' ')[0] || person.profile.nome;
+
+  const genderLabel = person.profile.gender === 'other' && person.profile.gender_custom
+    ? person.profile.gender_custom
+    : person.profile.gender
+      ? (person.profile.gender === 'man' ? 'Homem'
+        : person.profile.gender === 'woman' ? 'Mulher'
+        : person.profile.gender === 'non_binary' ? 'Não-binário'
+        : 'Outro')
+      : null;
+
+  // Texto exibido no card: momento atual tem prioridade sobre a bio
+  const momentoText = person.assuntoAtual || person.profile.bio || null;
+  const momentoTitle = person.assuntoAtual ? `Momento de ${firstName}` : `Sobre ${firstName}`;
 
   const handleConfirmWave = async () => {
     if (!selectedIntention) return;
@@ -167,14 +184,21 @@ export function PersonCard({
     switch (state) {
       case InteractionState.NONE:
         return 'bg-accent text-accent-foreground hover:bg-accent/90';
+      case InteractionState.WAVE_SENT:
+        return 'bg-muted text-muted-foreground cursor-default';
       case InteractionState.WAVE_RECEIVED:
         return 'bg-katu-green text-white hover:bg-katu-green/90';
       case InteractionState.CHAT_ACTIVE:
-        return 'bg-primary text-primary-foreground hover:bg-primary/90';
+        return button.hasMessages
+          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+          : 'bg-secondary text-secondary-foreground hover:bg-secondary/90';
       default:
-        return 'bg-muted text-muted-foreground';
+        return 'bg-muted text-muted-foreground cursor-default';
     }
   };
+
+  // Rótulo vem pronto do interactionRules (fonte canônica) — não regride
+  // quando as não-lidas zeram; o badge é a única parte ligada ao unreadCount.
 
   const shouldAnimateIcon = state === InteractionState.NONE || state === InteractionState.WAVE_RECEIVED;
 
@@ -186,12 +210,17 @@ export function PersonCard({
 
   const ctaButton = (
     <Button
-      className={`w-full h-11 rounded-xl font-semibold ${getButtonStyles()}`}
+      className={`w-full h-11 rounded-xl font-semibold relative ${getButtonStyles()}`}
       disabled={button.disabled || isSending}
       onClick={handleButtonClick}
     >
       <HandshakeIcon className={`h-5 w-5 mr-2 ${shouldAnimateIcon ? 'animate-wave' : ''}`} />
       {button.label}
+      {state === InteractionState.CHAT_ACTIVE && unreadCount > 0 && (
+        <span className="absolute -top-2 -right-2 bg-accent text-accent-foreground text-xs rounded-full min-w-5 h-5 px-1.5 flex items-center justify-center font-semibold shadow-sm">
+          {unreadCount > 9 ? '9+' : unreadCount}
+        </span>
+      )}
     </Button>
   );
 
@@ -254,10 +283,7 @@ export function PersonCard({
                   <div>
                     <div className="flex items-start justify-between">
                       <div className="font-semibold text-base">
-                        {person.profile.nome?.split(' ')[0] || person.profile.nome}
-                        {age !== null && (
-                          <span className="text-muted-foreground font-normal">, {age}</span>
-                        )}
+                        {firstName}
                       </div>
                       <div className="flex items-center gap-1 -mt-1 -mr-1">
                         {activeIntention && IntentionIcon && (
@@ -286,11 +312,24 @@ export function PersonCard({
                       </div>
                     </div>
 
-                    {person.assuntoAtual ? (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{person.assuntoAtual}</p>
-                    ) : person.profile.bio ? (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{person.profile.bio}</p>
-                    ) : null}
+                    {/* Tag de gênero + idade ("Homem • 40") */}
+                    {(genderLabel || age !== null) && (
+                      <span className="inline-block text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full mt-1">
+                        {genderLabel}
+                        {genderLabel && age !== null && ' • '}
+                        {age !== null && age}
+                      </span>
+                    )}
+
+                    {/* Momento/bio: 2 linhas + toque para expandir */}
+                    {momentoText && (
+                      <p
+                        className="text-sm text-muted-foreground mt-1 line-clamp-2 cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); setMomentoOpen(true); }}
+                      >
+                        {momentoText}
+                      </p>
+                    )}
                   </div>
 
                   <div className="mt-3">{ctaButton}</div>
@@ -311,6 +350,16 @@ export function PersonCard({
                 className="w-full max-w-md mx-auto aspect-square object-cover rounded-lg"
               />
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal do momento/bio completo */}
+        <Dialog open={momentoOpen} onOpenChange={setMomentoOpen}>
+          <DialogContent className="max-w-sm rounded-2xl">
+            <DialogTitle className="text-base font-bold">{momentoTitle}</DialogTitle>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+              {momentoText}
+            </p>
           </DialogContent>
         </Dialog>
       </div>
@@ -370,7 +419,7 @@ export function PersonCard({
         open={showReportModal}
         onClose={() => setShowReportModal(false)}
         reportedUserId={person.id}
-        reportedUserName={person.profile.nome?.split(' ')[0] || 'Usuário'}
+        reportedUserName={firstName || 'Usuário'}
         contexto="home"
       />
     </>

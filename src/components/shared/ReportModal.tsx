@@ -9,8 +9,9 @@ interface ReportModalProps {
   onClose: () => void;
   reportedUserId: string;
   reportedUserName: string;
-  contexto: 'chat' | 'home';
+  contexto: 'chat' | 'home' | 'wave';
   conversationId?: string;
+  placeId?: string;
   onChatEnd?: () => void;
 }
 
@@ -21,6 +22,7 @@ export function ReportModal({
   reportedUserName,
   contexto,
   conversationId,
+  placeId,
   onChatEnd,
 }: ReportModalProps) {
   const [selectedMotivo, setSelectedMotivo] = useState<string | null>(null);
@@ -33,6 +35,7 @@ export function ReportModal({
       motivo: selectedMotivo,
       contexto,
       conversationId,
+      placeId,
       onChatEnd,
     });
     setSelectedMotivo(null);

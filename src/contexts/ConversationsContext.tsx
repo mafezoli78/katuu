@@ -120,6 +120,21 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     fetchConversations();
   }, [user?.id, fetchConversations]);
 
+  // Refetch ao voltar do background: eventos Realtime perdidos enquanto o
+  // WebView estava suspenso não são reentregues — visibilitychange cobre o
+  // resume do app nativo sem depender de plugin do Capacitor.
+  useEffect(() => {
+    if (!user) return;
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[ConversationsContext] App visível novamente — refetch');
+        fetchConversations();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [user?.id, fetchConversations]);
+
   // Efeito de Realtime: Gerencia a inscrição de forma limpa
   useEffect(() => {
     if (!user) return;
@@ -131,17 +146,24 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
       // UPDATE/INSERT: usa payload.new
       const conv = (payload.eventType === 'DELETE' ? payload.old : payload.new) as Conversation;
 
-      // Filtro de segurança
+      // DELETE: com RLS habilitado, o Realtime envia APENAS a primary key no
+      // payload.old (mesmo com REPLICA IDENTITY FULL) — user1_id/user2_id
+      // chegam undefined. Por isso o filtro aqui é por id conhecido: se o id
+      // está em knownConversationIds, a conversa era deste usuário.
+      if (payload.eventType === 'DELETE') {
+        const convId = (conv as any)?.id;
+        if (convId && knownConversationIds.current.has(convId)) {
+          updateListeners.current.forEach(listener => listener(payload));
+          setConversations(prev => prev.filter(c => c.id !== convId));
+          knownConversationIds.current.delete(convId);
+        }
+        return;
+      }
+
+      // Filtro de segurança (INSERT/UPDATE têm o registro completo)
       if (conv.user1_id !== user.id && conv.user2_id !== user.id) return;
 
       updateListeners.current.forEach(listener => listener(payload));
-
-      if (payload.eventType === 'DELETE') {
-        // Remove da lista local imediatamente sem aguardar refetch
-        setConversations(prev => prev.filter(c => c.id !== conv.id));
-        knownConversationIds.current.delete(conv.id);
-        return;
-      }
 
       if (payload.eventType === 'INSERT' && !knownConversationIds.current.has(conv.id) && conv.ativo) {
         knownConversationIds.current.add(conv.id);

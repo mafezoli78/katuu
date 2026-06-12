@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRealtimeContext } from '@/contexts/RealtimeContext';
 import { Profile } from './useProfile';
 import { getSignedSelfieUrls } from '@/lib/storage';
 
@@ -22,6 +23,7 @@ export interface PersonNearby {
  */
 export function usePeopleNearby(placeId: string | null) {
   const { user } = useAuth();
+  const { addListener: addRealtimeListener } = useRealtimeContext();
   const [people, setPeople] = useState<PersonNearby[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -67,6 +69,8 @@ export function usePeopleNearby(placeId: string | null) {
           foto_url: row.foto_url,
           bio: row.bio,
           data_nascimento: row.data_nascimento,
+          gender: row.gender || null,
+          gender_custom: row.gender_custom || null,
           criado_em: '',
           atualizado_em: '',
         } as Profile,
@@ -127,6 +131,13 @@ export function usePeopleNearby(placeId: string | null) {
         table: 'presence',
         filter: `place_id=eq.${placeId}`,
       }, scheduleFetch)
+      // Filtros server-side NÃO se aplicam a DELETE (payload só tem PK):
+      // sem este listener extra, quem sai do local vira fantasma no feed
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'presence',
+      }, scheduleFetch)
       .subscribe();
 
     return () => {
@@ -136,6 +147,15 @@ export function usePeopleNearby(placeId: string | null) {
       }
     };
   }, [placeId, scheduleFetch]);
+
+  // Reage a blocks/mutes via RealtimeContext centralizado (sem canal próprio)
+  useEffect(() => {
+    if (!user?.id) return;
+    const unsubscribe = addRealtimeListener((table) => {
+      if (table === 'user_blocks' || table === 'user_mutes') scheduleFetch();
+    });
+    return () => unsubscribe();
+  }, [user?.id, addRealtimeListener, scheduleFetch]);
 
   // Global cleanup
   useEffect(() => {

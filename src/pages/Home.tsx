@@ -6,6 +6,7 @@ import { usePeopleNearby } from '@/hooks/usePeopleNearby';
 import { useWaves } from '@/hooks/useWaves';
 import { useInteractionData } from '@/hooks/useInteractionData';
 import { useHomeActions } from '@/hooks/useHomeActions';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 import { useToast } from '@/components/ui/use-toast';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { PresenceStatusCard } from '@/components/home/PresenceStatusCard';
@@ -46,6 +47,9 @@ export default function Home() {
     blocks,
     refetch: refetchInteractionData,
   } = useInteractionData(currentPlace?.id || null);
+
+  const conversationIds = conversations.map(c => c.id);
+  const { unreadCounts } = useUnreadMessages(conversationIds);
 
   const { handleWave, handleMute, handleBlock } = useHomeActions({
     placeId: currentPlace?.id || null,
@@ -213,6 +217,7 @@ export default function Home() {
           onMute={handleMute}
           onBlock={handleBlock}
           onRefresh={handleRefreshPeople}
+          unreadCounts={unreadCounts}
         />
       </div>
     </MobileLayout>

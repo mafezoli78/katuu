@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Katuu — Email confirmado</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(to bottom, #124854, #1F3A5F);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: white;
+      padding: 24px;
+      text-align: center;
+    }
+    img.logo { width: 160px; height: auto; margin-bottom: 24px; }
+    .check {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: rgba(107, 142, 127, 0.25);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 16px;
+    }
+    h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 8px; }
+    p { color: rgba(255,255,255,0.7); font-size: 0.95rem; margin-bottom: 28px; max-width: 300px; }
+    .btn {
+      display: inline-block;
+      background: white;
+      color: #124854;
+      font-weight: 600;
+      font-size: 1rem;
+      padding: 14px 32px;
+      border-radius: 999px;
+      text-decoration: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .hint { margin-top: 16px; font-size: 0.8rem; color: rgba(255,255,255,0.4); }
+  </style>
+</head>
+<body>
+  <img class="logo" src="img/logo-katuu.png" alt="Katuu" />
+  <div class="check">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6B8E7F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+  </div>
+  <h1 id="title">Email confirmado!</h1>
+  <p id="subtitle">Sua conta está pronta. Abra o Katuu e faça login para começar.</p>
+  <a class="btn" href="com.katuu.app://auth">Abrir o Katuu</a>
+  <p class="hint">Se o app não abrir, abra o Katuu manualmente e faça login.</p>
+
+  <script>
+    // Se o Supabase redirecionar com erro (token expirado/consumido),
+    // os parâmetros chegam no hash: #error=...&error_description=...
+    const params = new URLSearchParams(window.location.hash.replace('#', ''));
+    const error = params.get('error');
+    if (error) {
+      document.getElementById('title').textContent = 'Link expirado';
+      document.getElementById('subtitle').textContent =
+        'Este link já foi usado ou expirou. Abra o Katuu e solicite um novo email de confirmação.';
+      document.querySelector('.check').style.background = 'rgba(244, 162, 97, 0.25)';
+      document.querySelector('.check svg').setAttribute('stroke', '#F4A261');
+      document.querySelector('.check svg').innerHTML =
+        '<line x1="12" y1="8" x2="12" y2="13"></line><circle cx="12" cy="16.5" r="0.5"></circle>';
+    }
+  </script>
+</body>
+</html>

@@ -5,6 +5,7 @@ import {
   GPS_CHECK_INTERVAL_MS,
   GPS_EXIT_THRESHOLD_COUNT,
   GPS_ACCURACY_THRESHOLD_METERS,
+  GPS_EXIT_ENABLED,
   calculateDistanceMeters,
 } from '@/config/presence';
 import { PresenceEndReason, END_REASON_MESSAGES } from '@/types/presence';
@@ -20,8 +21,17 @@ interface UsePresenceGPSOptions {
 }
 
 /**
- * Sub-hook: GPS monitoring for presence radius enforcement.
- * GPS NEVER ends presence directly — reports to backend which decides.
+ * Sub-hook: GPS monitoring for presence.
+ *
+ * Com GPS_EXIT_ENABLED = false (atual):
+ *   O GPS valida apenas a ENTRADA — primeira leitura dentro do raio
+ *   estabelece o baseline, dispara confirm_presence no backend e o
+ *   monitoramento é ENCERRADO (economia de bateria). Nenhuma leitura
+ *   jamais expulsa o usuário do local.
+ *
+ * Com GPS_EXIT_ENABLED = true (legado):
+ *   Após o baseline, leituras fora do raio são contadas e, ao atingir
+ *   o threshold, o backend decide encerrar a presença.
  */
 export function usePresenceGPS({
   userId,
@@ -139,6 +149,14 @@ export function usePresenceGPS({
         if (!baselineEstablishedRef.current) {
           baselineEstablishedRef.current = true;
           confirmPresenceOnBackend();
+
+          // Saída por GPS desligada: com o baseline confirmado, o GPS já
+          // cumpriu seu papel (integridade na entrada). Encerra o watcher
+          // e economiza bateria pelo resto da sessão.
+          if (!GPS_EXIT_ENABLED) {
+            logger.debug('[GPS] ✅ Baseline confirmado — monitoramento encerrado (GPS_EXIT_ENABLED=false)');
+            stopGPSMonitoring();
+          }
         }
         return;
       }
@@ -150,6 +168,11 @@ export function usePresenceGPS({
         return;
       }
 
+      // Saída por GPS desligada: leituras fora do raio nunca expulsam.
+      // (Na prática este ponto nem é alcançado, pois o watcher é encerrado
+      // no baseline — guarda dupla por segurança.)
+      if (!GPS_EXIT_ENABLED) return;
+
       outsideRadiusCountRef.current++;
       logger.debug(`[GPS] Outside radius (${outsideRadiusCountRef.current}/${GPS_EXIT_THRESHOLD_COUNT})`);
 
@@ -158,7 +181,7 @@ export function usePresenceGPS({
         reportGPSExitToBackend();
       }
     },
-    [confirmPresenceOnBackend, reportGPSExitToBackend]
+    [confirmPresenceOnBackend, reportGPSExitToBackend, stopGPSMonitoring]
   );
 
   const startGPSMonitoring = useCallback(() => {

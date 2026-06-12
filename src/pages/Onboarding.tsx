@@ -28,6 +28,7 @@ export default function Onboarding() {
   const [dataNascimento, setDataNascimento] = useState('');
   const [bio, setBio] = useState('');
   const [gender, setGender] = useState<Gender | ''>('');
+  const [genderCustom, setGenderCustom] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [ageError, setAgeError] = useState('');
@@ -47,6 +48,7 @@ export default function Onboarding() {
       if (profile.data_nascimento) setDataNascimento(profile.data_nascimento);
       if (profile.bio) setBio(profile.bio);
       if (profile.gender) setGender(profile.gender);
+      if (profile.gender_custom) setGenderCustom(profile.gender_custom);
     }
   }, [profile]);
 
@@ -103,6 +105,7 @@ export default function Onboarding() {
         data_nascimento: dataNascimento,
         bio: bio.trim() || null,
         gender: gender as Gender,
+        gender_custom: gender === 'other' ? (genderCustom.trim() || null) : null,
       });
 
       if (profileError) {
@@ -185,7 +188,13 @@ export default function Onboarding() {
 
               <div className="space-y-2">
                 <Label>Gênero <span className="text-destructive">*</span></Label>
-                <Select value={gender} onValueChange={(v) => setGender(v as Gender)}>
+                <Select
+                  value={gender}
+                  onValueChange={(v) => {
+                    setGender(v as Gender);
+                    if (v !== 'other') setGenderCustom('');
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione seu gênero" />
                   </SelectTrigger>
@@ -197,6 +206,14 @@ export default function Onboarding() {
                     ))}
                   </SelectContent>
                 </Select>
+                {gender === 'other' && (
+                  <Input
+                    placeholder="Como você se identifica? (opcional)"
+                    value={genderCustom}
+                    onChange={(e) => setGenderCustom(e.target.value.slice(0, 30))}
+                    maxLength={30}
+                  />
+                )}
               </div>
 
               <div className="space-y-2">
