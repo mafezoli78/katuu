@@ -67,6 +67,12 @@
       document.querySelector('.check svg').setAttribute('stroke', '#F4A261');
       document.querySelector('.check svg').innerHTML =
         '<line x1="12" y1="8" x2="12" y2="13"></line><circle cx="12" cy="16.5" r="0.5"></circle>';
+    } else {
+      // Sucesso: redireciona automaticamente para o app após um instante,
+      // mantendo o botão como fallback caso o deep link não dispare.
+      setTimeout(() => {
+        window.location.href = 'com.katuu.app://auth';
+      }, 1500);
     }
   </script>
 </body>

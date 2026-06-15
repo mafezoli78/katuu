@@ -53,7 +53,7 @@ export function AuthPasswordStep({ email, onBack }: AuthPasswordStepProps) {
 const handleForgotPassword = async () => {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://app.katuu.com.br/reset-password',
+      redirectTo: 'https://app.katuu.com.br/reset-password.html',
     });
     
     if (error) {

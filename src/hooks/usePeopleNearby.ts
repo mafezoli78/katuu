@@ -138,6 +138,16 @@ export function usePeopleNearby(placeId: string | null) {
         schema: 'public',
         table: 'presence',
       }, scheduleFetch)
+      // SAÍDAS: o UPDATE ativo=false em presence é SUPRIMIDO pela RLS
+      // (policy exige ativo=true) — o cascade então "toca" o local
+      // (places.last_activity_at), que é visível a todos, e o feed
+      // escuta o local para saber que alguém saiu
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'places',
+        filter: `id=eq.${placeId}`,
+      }, scheduleFetch)
       .subscribe();
 
     return () => {

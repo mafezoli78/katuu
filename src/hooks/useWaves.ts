@@ -269,19 +269,14 @@ export function useWaves() {
     setReceivedWaves(prev => prev.filter(w => w.id !== waveId));
     setUnreadCount(prev => Math.max(0, prev - 1));
 
-    // Persist: set status to 'expired' with 2h cooldown
-    const { error } = await supabase
-      .from('waves')
-      .update({
-        status: 'expired',
-        visualizado: true,
-        ignored_at: new Date().toISOString(),
-        ignore_cooldown_until: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-      } as any)
-      .eq('id', waveId);
+    // Server-side: valida destinatário/status e crava o cooldown de 2h
+    // no SERVIDOR (antes era UPDATE direto com timestamp do cliente)
+    const { error } = await supabase.rpc('ignore_wave', { p_wave_id: waveId });
 
     if (error) {
       console.error('[useWaves] Error ignoring wave:', error);
+      // Rollback: ressincroniza com o banco
+      fetchWaves();
     }
   };
 

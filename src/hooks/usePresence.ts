@@ -274,7 +274,12 @@ export function usePresence() {
       }
     }
 
-    await supabase.from('presence').delete().eq('user_id', user.id);
+    // REMOVIDO: hard-delete de presence (supabase.from('presence').delete()).
+    // O cascade acima já encerra (ativo=false). O delete destruía o histórico
+    // (regra de negócio: efêmero p/ usuário, não p/ negócio) e gerava os
+    // eventos DELETE "fantasmas" no Realtime. Confirmação prévia (PASSO 0a do
+    // hardening): presence não tem unique(user_id, place_id), então linhas
+    // antigas inativas não conflitam com novas ativações.
 
     setCurrentPresence(null);
     setCurrentPlace(null);
@@ -392,35 +397,32 @@ export function usePresence() {
   ) => {
     if (!user) return { error: new Error('Not authenticated'), placeId: null, presenceId: null };
 
-    const expiresAt = new Date(Date.now() + TEMPORARY_PLACE_DURATION_MS).toISOString();
+    // Server-side: valida nome/coords, limita a 2 locais temporários ativos
+    // por usuário e crava o expires_at no SERVIDOR (antes era INSERT direto)
+    const { data: placeId, error: placeError } = await supabase.rpc('create_temporary_place', {
+      p_nome: nome.trim(),
+      p_lat: latitude,
+      p_lng: longitude,
+    });
 
-    const { data: placeData, error: placeError } = await supabase
-      .from('places')
-      .insert({
-        provider: 'user',
-        provider_id: `temp_${user.id}_${Date.now()}`,
-        nome: nome.trim(),
-        latitude,
-        longitude,
-        origem: 'user_created',
-        is_temporary: true,
-        created_by: user.id,
-        expires_at: expiresAt,
-        ativo: true,
-      })
-      .select('id')
-      .single();
-
-    if (placeError) {
+    if (placeError || !placeId) {
       console.error('[usePresence] Error creating temporary place:', placeError);
-      return { error: new Error('Não foi possível criar o local temporário'), placeId: null, presenceId: null };
+      const msg = placeError?.message || '';
+      const friendly = msg.includes('TEMP_PLACE_LIMIT_REACHED')
+        ? 'Você já tem locais temporários ativos demais. Aguarde expirarem.'
+        : msg.includes('TEMP_PLACE_NAME_TOO_SHORT')
+          ? 'O nome do local precisa ter pelo menos 3 caracteres'
+          : msg.includes('TEMP_PLACE_NAME_TOO_LONG')
+            ? 'O nome do local pode ter no máximo 60 caracteres'
+            : 'Não foi possível criar o local temporário';
+      return { error: new Error(friendly), placeId: null, presenceId: null };
     }
 
-    logger.debug(`[usePresence] ✅ Temporary place created: ${placeData.id}`);
-    const { error: presenceError, presenceId } = await activatePresenceAtPlace(placeData.id, intentionId, assuntoAtual);
+    logger.debug(`[usePresence] ✅ Temporary place created: ${placeId}`);
+    const { error: presenceError, presenceId } = await activatePresenceAtPlace(placeId as string, intentionId, assuntoAtual);
 
     if (presenceError) return { error: presenceError, placeId: null, presenceId: null };
-    return { error: null, placeId: placeData.id, presenceId };
+    return { error: null, placeId: placeId as string, presenceId };
   };
 
   const renewPresence = async () => {

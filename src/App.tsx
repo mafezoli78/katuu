@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ConversationsProvider } from "@/contexts/ConversationsContext";
 import { RealtimeProvider } from "@/contexts/RealtimeContext";
-import { useTutorial } from "@/hooks/useTutorial";
 import { TutorialFlow } from "@/components/tutorial/TutorialFlow";
 import { useAutoPushSubscription } from "@/hooks/useAutoPushSubscription";
 import { supabase } from '@/integrations/supabase/client';
@@ -271,9 +270,15 @@ function PostLoginRedirect() {
 // ROTAS PRINCIPAIS
 // ============================================================
 
+// Tutorial sob demanda: aberto pelo botão no Perfil; ao concluir, volta ao Perfil.
+// (O tutorial NÃO aparece mais na inicialização — confundia com o app real.)
+function TutorialPage() {
+  const navigate = useNavigate();
+  return <TutorialFlow onComplete={() => navigate('/profile', { replace: true })} />;
+}
+
 function AppRoutes() {
   const { user, loading: authLoading } = useAuth();
-  const { shouldShowTutorial, loading: tutorialLoading, dismissTutorial } = useTutorial();
 
   useAutoPushSubscription();
   usePushNotifications();
@@ -283,12 +288,8 @@ function AppRoutes() {
     sessionStorage.removeItem(CHUNK_RETRY_KEY);
   }, []);
 
-  if (authLoading || tutorialLoading) {
+  if (authLoading) {
     return <PageLoader />;
-  }
-
-  if (user && shouldShowTutorial) {
-    return <TutorialFlow onComplete={dismissTutorial} />;
   }
 
   if (user) {
@@ -305,6 +306,7 @@ function AppRoutes() {
             <Route path="/chat" element={<Chat />} />
             <Route path="/location" element={<Location />} />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/tutorial" element={<TutorialPage />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/reset-password" element={<ResetPassword />} />

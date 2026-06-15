@@ -16,12 +16,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { PasswordChangeDialog } from '@/components/profile/PasswordChangeDialog';
 import { SelfCard } from '@/components/profile/SelfCard';
 import { DateOfBirthPicker } from '@/components/profile/DateOfBirthPicker';
 import {
   LogOut, Check, User, Heart, Pencil, X,
-  Lock, RotateCcw, Settings,
+  Lock, HelpCircle, Settings,
 } from 'lucide-react';
 import { APP_VERSION } from '@/version';
 
@@ -50,8 +49,6 @@ export default function Profile() {
   const [gender, setGender] = useState<Gender | null>(null);
   const [genderCustom, setGenderCustom] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!user) navigate('/auth', { replace: true });
@@ -417,14 +414,10 @@ export default function Profile() {
             </CardHeader>
             <CardContent>
               {user?.app_metadata?.provider === 'email' ? (
-                <Button
-                  variant="outline"
-                  onClick={() => setPasswordDialogOpen(true)}
-                  className="w-full justify-start h-11 rounded-xl"
-                >
-                  <Lock className="h-4 w-4 mr-2" />
-                  Alterar senha
-                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Login efetuado com o email{' '}
+                  <span className="font-medium text-foreground">{user?.email}</span>
+                </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
                   Login efetuado via Google com a conta{' '}
@@ -448,15 +441,16 @@ export default function Profile() {
 
               <Button
                 variant="outline"
-                onClick={async () => {
-                  if (!user) return;
-                  await supabase.from('profiles').update({ tutorial_enabled: true }).eq('id', user.id);
-                  toast({ title: 'Tutorial reativado! Reinicie o app para vê-lo.' });
-                }}
-                className="w-full justify-start h-11 rounded-xl"
+                onClick={() => navigate('/tutorial')}
+                className="w-full justify-start h-auto py-3 rounded-xl"
               >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Mostrar tutorial novamente
+                <HelpCircle className="h-4 w-4 mr-2 shrink-0 text-katu-blue" />
+                <span className="flex flex-col items-start text-left">
+                  <span className="font-medium">Como o Katuu funciona?</span>
+                  <span className="text-xs text-muted-foreground font-normal">
+                    Veja o passo a passo.
+                  </span>
+                </span>
               </Button>
             </CardContent>
           </Card>
@@ -479,10 +473,6 @@ export default function Profile() {
 
 
       </div>
-      <PasswordChangeDialog
-        open={passwordDialogOpen}
-        onClose={() => setPasswordDialogOpen(false)}
-      />
     </MobileLayout>
   );
 }

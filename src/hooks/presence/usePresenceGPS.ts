@@ -62,7 +62,7 @@ export function usePresenceGPS({
     }
   }, []);
 
-  const confirmPresenceOnBackend = useCallback(async () => {
+  const confirmPresenceOnBackend = useCallback(async (lat?: number, lng?: number) => {
     const uid = userIdRef.current;
     const place = currentPlaceRef.current;
     if (!uid || !place) return false;
@@ -70,15 +70,21 @@ export function usePresenceGPS({
     try {
       const { data, error } = await supabase.rpc('confirm_presence', {
         p_place_id: place.id,
+        p_lat: lat ?? null,
+        p_lng: lng ?? null,
       });
 
       if (error) {
-        console.error('[GPS] Error confirming presence:', error);
+        if (error.message.includes('PRESENCE_TOO_FAR')) {
+          console.error('[GPS] Backend rejected confirmation: too far from place');
+        } else {
+          console.error('[GPS] Error confirming presence:', error);
+        }
         return false;
       }
 
       if (data) {
-        logger.debug('[GPS] ✅ Presence confirmed on backend');
+        logger.debug('[GPS] ✅ Presence confirmed on backend (with coords proof)');
       }
       return !!data;
     } catch (err) {
@@ -148,7 +154,7 @@ export function usePresenceGPS({
 
         if (!baselineEstablishedRef.current) {
           baselineEstablishedRef.current = true;
-          confirmPresenceOnBackend();
+          confirmPresenceOnBackend(latitude, longitude);
 
           // Saída por GPS desligada: com o baseline confirmado, o GPS já
           // cumpriu seu papel (integridade na entrada). Encerra o watcher

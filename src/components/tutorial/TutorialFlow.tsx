@@ -1,6 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect, useMemo } from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,8 +9,11 @@ import {
   Search, Plus, Clock, Users,
   VolumeX, Ban, ChevronLeft, Map, List,
   Store, RefreshCw, LogOut, AlertCircle, MessageCircle, X,
+  Sparkles, Briefcase, Coffee, Heart,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
+import { INTENTION_CONFIG, WaveIntention } from '@/hooks/useWaves';
 import katuuLogo from '@/assets/logo-katuu-oficial.png';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { TUTORIAL_CHARACTERS } from './tutorialCharacters';
@@ -29,6 +30,14 @@ interface Character {
 }
 
 const CHARACTERS: Character[] = TUTORIAL_CHARACTERS;
+
+// Ícones das quatro intenções do aceno (mesma linguagem outline do app)
+const INTENTION_ICONS: Record<WaveIntention, LucideIcon> = {
+  open: Sparkles,
+  professional: Briefcase,
+  social: Coffee,
+  connection: Heart,
+};
 
 const FICTIONAL_PLACES = [
   { name: 'Café do Ponto', count: 3 },
@@ -97,36 +106,43 @@ function StepFooter({ onBack, onNext }: { onBack: () => void; onNext: () => void
 // Step 0 — Tela inicial estilo login
 function StepWelcome({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) {
   return (
-    <div className="flex flex-col h-full bg-gradient-to-b from-[#124854] to-[#1F3A5F] overflow-y-auto">
-      {/* Área superior — logo, texto e fotos centralizados */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8 text-center gap-5">
-        <img src={katuuLogo} alt="Katuu" className="h-16 object-contain" />
-        <h1 className="text-2xl font-bold text-white leading-tight">
-          Seja bem-vindo
-        </h1>
-        <p className="text-white/70 text-base leading-relaxed max-w-xs">
-          O Katuu mostra pessoas que estão <strong className="text-white">no mesmo lugar que você</strong>, dispostas a conversar. Agora!
-        </p>
+    <div className="flex flex-col h-full bg-gradient-to-b from-[#124854] to-[#1F3A5F]">
+      
+      {/* Container centralizado */}
+      <div className="flex-1 flex items-center justify-center px-8">
+        
+        <div className="w-full max-w-sm flex flex-col items-center text-center gap-5">
+          <img src={katuuLogo} alt="Katuu" className="h-16 object-contain" />
 
-        {/* Avatares maiores */}
-        <div className="flex justify-center gap-6">
-          {CHARACTERS.map((c) => (
-            <div key={c.name} className="flex flex-col items-center gap-2">
-              <CharAvatar char={c} size="lg" showBadge />
-              <span className="text-sm text-white/70 font-medium">{c.name}</span>
-            </div>
-          ))}
+          <h1 className="text-2xl font-bold text-white leading-tight">
+            Seja bem-vindo
+          </h1>
+
+          <p className="text-white/70 text-base leading-relaxed">
+            O Katuu mostra pessoas que estão no mesmo lugar que você, dispostas a conversar. Agora!
+          </p>
+
+          {/* Avatares */}
+          <div className="flex justify-center gap-6">
+            {CHARACTERS.map((c) => (
+              <div key={c.name} className="flex flex-col items-center gap-2">
+                <CharAvatar char={c} size="lg" showBadge />
+                <span className="text-sm text-white/70 font-medium">{c.name}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Botão */}
+          <div className="w-full pt-4">
+            <Button
+              onClick={onNext}
+              className="w-full py-3.5 rounded-2xl bg-accent text-accent-foreground font-semibold text-base shadow hover:bg-accent/90"
+            >
+              Iniciar
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {/* Botões — centralizados com conteúdo */}
-      <div className="flex flex-col gap-2 px-8 pb-10">
-        <Button onClick={onNext} className="w-full py-3.5 rounded-2xl bg-accent text-accent-foreground font-semibold text-base shadow hover:bg-accent/90">
-          Ver como funciona
-        </Button>
-        <button onClick={onSkip} className="w-full py-2 text-white/40 text-sm hover:text-white/70 transition-colors">
-          Pular tutorial
-        </button>
       </div>
     </div>
   );
@@ -280,7 +296,7 @@ function StepMomento({ onNext, onBack }: { onNext: () => void; onBack: () => voi
                   <div>
                     <h3 className="font-semibold text-lg leading-tight">Café do Ponto</h3>
                     <span className="text-sm text-white/70 flex items-center gap-1">
-                      <Clock className="h-3 w-3" /> 2:00:00
+                      <Clock className="h-3 w-3" /> 120:00
                     </span>
                   </div>
                 </div>
@@ -300,7 +316,7 @@ function StepMomento({ onNext, onBack }: { onNext: () => void; onBack: () => voi
             <CardContent className="p-4">
               <p className="font-semibold text-sm mb-1">Seu momento aqui</p>
               <p className="text-base text-muted-foreground mb-3">
-                O que as pessoas precisam saber sobre você aqui e agora? Essa mensagem aparecerá no seu card para quem estiver no mesmo local.
+                Essa mensagem aparecerá no seu card para quem estiver no mesmo local e é opcional.
               </p>
               <Textarea
                 value={intention}
@@ -310,8 +326,8 @@ function StepMomento({ onNext, onBack }: { onNext: () => void; onBack: () => voi
                 className="resize-none h-16 cursor-default"
               />
               <p className="text-right text-sm text-muted-foreground mt-1">{intention.length}/80</p>
-              <p className="text-sm italic text-muted-foreground mt-2">
-                Esta etapa é opcional, mas essencial para boas conexões. Diga às pessoas como você está agora.
+              <p className="text-sm text-muted-foreground mt-2">
+                💡 Você poderá editar sua foto e sua mensagem pelo seu card, no Perfil - e quem estiver no local verá a mudança na hora.
               </p>
             </CardContent>
           </Card>
@@ -433,18 +449,28 @@ function StepPerfil({ onNext, onBack }: { onNext: () => void; onBack: () => void
   );
 }
 
-// Step 5 — Pessoas no local + Aceno
+// Step 5 — Pessoas no local + Aceno (com escolha de intenção)
 function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const [waved, setWaved] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
   const [photoModal, setPhotoModal] = useState<Character | null>(null);
+  const [intentionFor, setIntentionFor] = useState<Character | null>(null);
+  const [sentIntention, setSentIntention] = useState<WaveIntention | null>(null);
+
+  const chooseIntention = (key: WaveIntention) => {
+    if (intentionFor) {
+      setWaved(intentionFor.name);
+      setSentIntention(key);
+      setIntentionFor(null);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
       <div className="px-6 pt-4 pb-2">
         <h2 className="text-xl font-bold text-foreground">Pessoas no local</h2>
         <p className="text-muted-foreground text-sm mt-1">
-          Toque em <strong>Acenar</strong> para experimentar. Toque na foto para ampliar.
+          Quer testar como funciona? Então toque em <strong>Acenar</strong> e escolha a <strong>intenção</strong> do seu aceno. Se precisar, toque na foto para ampliá-la.
         </p>
       </div>
 
@@ -487,9 +513,10 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
                     </div>
                     <div className="flex-1 flex flex-col justify-between p-4">
                       <div>
-                        <div className="font-semibold text-base">
-                          {char.name}<span className="text-muted-foreground font-normal">, {char.age}</span>
-                        </div>
+                        <div className="font-semibold text-base">{char.name}</div>
+                        <span className="inline-block w-fit text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full mt-1">
+                          {char.age}
+                        </span>
                         <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                           <span className="font-medium text-foreground">Aqui:</span> {char.intention}
                         </p>
@@ -503,14 +530,14 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
                             disabled={!accepted}
                           >
                             {accepted ? (
-                              <><MessageCircle className="h-5 w-5 mr-2" /> Chat</>
+                              <><MessageCircle className="h-5 w-5 mr-2" /> Chat em andamento</>
                             ) : (
                               <><HandshakeIcon className="h-5 w-5 mr-2" /> Aceno enviado</>
                             )}
                           </Button>
                         ) : (
                           <Button
-                            onClick={() => setWaved(char.name)}
+                            onClick={() => setIntentionFor(char)}
                             className="w-full h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
                           >
                             <HandshakeIcon className="h-5 w-5 mr-2" /> Acenar
@@ -526,9 +553,11 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
 
           {waved && !accepted && (
             <div className="bg-accent/10 rounded-2xl p-3 border border-accent/20">
-              <p className="text-sm font-semibold mb-1">Aceno enviado para {waved}!</p>
+              <p className="text-sm font-semibold mb-1">
+                Aceno {sentIntention ? `"${INTENTION_CONFIG[sentIntention].label}"` : ''} enviado para {waved}!
+              </p>
               <p className="text-sm text-muted-foreground mb-2">
-                {waved} receberá uma notificação e poderá aceitar ou ignorar. Se aceitar, o chat abrirá automaticamente.
+                {waved} verá a intenção do seu aceno e poderá aceitar ou ignorar. Se aceitar, o chat abrirá automaticamente.
               </p>
               <Button onClick={() => setAccepted(true)} className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-sm font-semibold" size="sm">
                 Simular: {waved} aceitou
@@ -539,11 +568,47 @@ function StepAceno({ onNext, onBack }: { onNext: () => void; onBack: () => void 
           {accepted && (
             <div className="bg-katu-green/10 rounded-2xl p-3 border border-katu-green/20">
               <p className="text-sm text-katu-green font-semibold mb-1">Chat aberto com {waved}!</p>
-              <p className="text-sm text-muted-foreground">A conversa existe apenas enquanto vocês dois estiverem no mesmo local. Ao sair, o chat será encerrado.</p>
+              <p className="text-sm text-muted-foreground">
+                A conversa existe apenas enquanto vocês dois estiverem no mesmo local. Ao sair, o chat será encerrado e as mensagens apagadas.
+              </p>
+              <p className="text-sm text-muted-foreground mt-1.5">
+                💬 No chat, segure uma mensagem para <strong>reagir</strong> — e as suas você pode <strong>editar ou apagar</strong> por até 15 minutos.
+              </p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Dialog escolha de intenção — espelha o fluxo real do aceno */}
+      <Dialog open={!!intentionFor} onOpenChange={(v) => !v && setIntentionFor(null)}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogTitle className="text-base font-bold">
+            Qual a intenção do seu aceno{intentionFor ? ` para ${intentionFor.name}` : ''}?
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground -mt-1">
+            A pessoa verá sua intenção junto com o aceno — isso evita mal-entendidos.
+          </p>
+          <div className="flex flex-col gap-2 mt-1">
+            {(Object.keys(INTENTION_CONFIG) as WaveIntention[]).map((key) => {
+              const Icon = INTENTION_ICONS[key];
+              const { label, description } = INTENTION_CONFIG[key];
+              return (
+                <button
+                  key={key}
+                  onClick={() => chooseIntention(key)}
+                  className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-accent hover:bg-accent/5 transition-all text-left"
+                >
+                  <Icon className="h-5 w-5 text-katu-blue shrink-0" strokeWidth={1.5} />
+                  <span className="flex flex-col">
+                    <span className="text-sm font-semibold">{label}</span>
+                    <span className="text-xs text-muted-foreground">{description}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog ampliação de foto */}
       <Dialog open={!!photoModal} onOpenChange={(v) => !v && setPhotoModal(null)}>
@@ -619,9 +684,10 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
                 </div>
                 <div className="flex-1 flex flex-col justify-between p-4">
                   <div>
-                    <div className="font-semibold text-base">
-                      {CHARACTERS[0].name}<span className="text-muted-foreground font-normal">, {CHARACTERS[0].age}</span>
-                    </div>
+                    <div className="font-semibold text-base">{CHARACTERS[0].name}</div>
+                    <span className="inline-block w-fit text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full mt-1">
+                      {CHARACTERS[0].age}
+                    </span>
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                       <span className="font-medium text-foreground">Aqui:</span> {CHARACTERS[0].intention}
                     </p>
@@ -671,27 +737,35 @@ function StepControles({ onNext, onBack }: { onNext: () => void; onBack: () => v
 // Step 7 — Final estilo login
 function StepFinal({ onComplete, onRestart }: { onComplete: () => void; onRestart: () => void }) {
   return (
-    <div className="flex flex-col h-full bg-gradient-to-b from-[#124854] to-[#1F3A5F] overflow-y-auto">
-      {/* Área central com logo e texto */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8 text-center gap-5">
-        <img src={katuuLogo} alt="Katuu" className="h-16 object-contain" />
-        <h2 className="text-2xl font-bold text-white">Pronto!</h2>
-        <p className="text-white/70 text-base leading-relaxed max-w-xs">
-          Agora você sabe como o Katuu funciona. Veja quem está aqui com você <strong className="text-white">agora</strong>.
-        </p>
-        <p className="text-white/50 text-sm max-w-xs">
-          Você poderá rever este tutorial a qualquer momento em <strong className="text-white/70">Perfil → Configurações</strong>.
-        </p>
-      </div>
+    <div className="flex flex-col h-full bg-gradient-to-b from-[#124854] to-[#1F3A5F]">
+      
+      {/* Container centralizado */}
+      <div className="flex-1 flex items-center justify-center px-8">
+        
+        <div className="w-full max-w-sm flex flex-col items-center text-center gap-5">
+          <img src={katuuLogo} alt="Katuu" className="h-16 object-contain" />
 
-      {/* Botões */}
-      <div className="flex flex-col gap-2 px-8 pb-10">
-        <Button onClick={onComplete} className="w-full py-4 rounded-2xl bg-accent text-accent-foreground font-bold text-base shadow-lg hover:bg-accent/90">
-          Começar a usar o Katuu
-        </Button>
-        <button onClick={onRestart} className="w-full py-2 text-white/40 text-sm hover:text-white/70 transition-colors">
-          Ver tutorial novamente
-        </button>
+          <h2 className="text-2xl font-bold text-white">Pronto!</h2>
+
+          <p className="text-white/70 text-base leading-relaxed">
+            Agora você sabe como o Katuu funciona.
+          </p>
+
+          <p className="text-white/50 text-sm">
+            Você poderá rever este passo a passo sempre que quiser em Perfil.
+          </p>
+
+          {/* Botão */}
+          <div className="w-full pt-4">
+            <Button
+              onClick={onComplete}
+              className="w-full py-4 rounded-2xl bg-accent text-accent-foreground font-bold text-base shadow-lg hover:bg-accent/90"
+            >
+              Concluir
+            </Button>
+          </div>
+        </div>
+
       </div>
     </div>
   );
@@ -699,7 +773,6 @@ function StepFinal({ onComplete, onRestart }: { onComplete: () => void; onRestar
 
 // MAIN
 export function TutorialFlow({ onComplete }: TutorialFlowProps) {
-  const { user } = useAuth();
   const { isProfileComplete } = useProfile();
   const profileComplete = isProfileComplete();
 
@@ -713,23 +786,10 @@ export function TutorialFlow({ onComplete }: TutorialFlowProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const currentStep = steps[stepIndex];
 
-  const markCompleted = useCallback(async () => {
-    if (!user) return;
-    await supabase
-      .from('profiles')
-      .update({ tutorial_enabled: false })
-      .eq('id', user.id);
-  }, [user]);
-
-  const handleComplete = useCallback(async () => {
-    await markCompleted();
-    onComplete();
-  }, [markCompleted, onComplete]);
-
-  const handleSkip = useCallback(async () => {
-    await markCompleted();
-    onComplete();
-  }, [markCompleted, onComplete]);
+  // Tutorial é sob demanda (rota /tutorial): concluir/pular apenas
+  // devolve o controle a quem abriu — sem flags no banco.
+  const handleComplete = onComplete;
+  const handleSkip = onComplete;
 
   const next = () => setStepIndex((s) => Math.min(s + 1, steps.length - 1));
   const back = () => setStepIndex((s) => Math.max(s - 1, 0));
