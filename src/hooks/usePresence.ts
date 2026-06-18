@@ -173,10 +173,10 @@ export function usePresence() {
       }
 
       if (data) {
-        const lastActivity = new Date(data.ultima_atividade).getTime();
+        const expiresAt = new Date(data.expires_at).getTime();
         const now = Date.now();
 
-        if (now - lastActivity > PRESENCE_DURATION_MS) {
+        if (now > expiresAt) {
           endPresenceRef.current?.('expired').catch(err =>
             console.error('[usePresence] Error ending expired presence:', err)
           );
@@ -425,24 +425,23 @@ export function usePresence() {
     return { error: null, placeId: placeId as string, presenceId };
   };
 
+  const mapExtendPresenceError = (errorMessage: string): string => {
+    if (errorMessage.includes('EXTEND_COOLDOWN')) return 'Aguarde um pouco para estender novamente';
+    if (errorMessage.includes('EXTEND_MAX_REACHED')) return 'Você atingiu o limite de 8 horas neste local';
+    if (errorMessage.includes('EXTEND_NO_PRESENCE')) return 'Nenhuma presença ativa encontrada';
+    return 'Erro ao estender presença';
+  };
+
   const renewPresence = async () => {
     if (!user || !currentPresence) return { error: new Error('No active presence') };
 
-    const { error } = await supabase
-      .from('presence')
-      .update({ ultima_atividade: new Date().toISOString(), prorrogado: false })
-      .eq('id', currentPresence.id);
+    const { data: newExpiresAt, error } = await supabase.rpc('extend_presence' as any);
 
     if (error) {
-      if (error.message?.includes('RENEWAL_LIMIT') || error.code === 'P0001') {
-        logger.debug('[usePresence] ⏰ Renewal limit reached (2h max) - ending presence');
-        await endPresence('expired');
-        return { error: new Error('Presença atingiu o limite de 2 horas') };
-      }
-      return { error };
+      return { error: new Error(mapExtendPresenceError(error.message || '')) };
     }
 
-    timerHook.resetTimer();
+    timerHook.resetTimer(newExpiresAt as string);
     await fetchCurrentPresence();
     return { error: null };
   };

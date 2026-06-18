@@ -20,6 +20,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const Waves = lazy(() => import("./pages/Waves"));
 const Chat = lazy(() => import("./pages/Chat"));
 const Location = lazy(() => import("./pages/Location"));
+const Explore = lazy(() => import("./pages/Explore"));
 const Debug = lazy(() => import("./pages/Debug"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
@@ -305,6 +306,7 @@ function AppRoutes() {
             <Route path="/waves" element={<Waves />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/location" element={<Location />} />
+            <Route path="/explore/:placeId" element={<Explore />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/tutorial" element={<TutorialPage />} />
             <Route path="/terms" element={<Terms />} />

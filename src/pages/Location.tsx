@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { savePendingAction, getPendingAction, clearPendingAction } from '@/utils/pendingAction';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePresence, NearbyTemporaryPlace } from '@/hooks/usePresence';
@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, Users, MapPin, ArrowLeft } from 'lucide-react';
-import { Place, placesService, PROXIMITY_THRESHOLD_METERS, INITIAL_SEARCH_RADIUS_METERS, EXPANDED_SEARCH_RADIUS_METERS, MAX_SEARCH_RADIUS_METERS, MIN_RESULTS_FOR_EXPANSION } from '@/services/placesService';
+import { Place, placesService, PROXIMITY_THRESHOLD_METERS, EXPANDED_SEARCH_RADIUS_METERS } from '@/services/placesService';
 import { PlaceSelector } from '@/components/location/PlaceSelector';
 import { CheckinSelfie } from '@/components/location/CheckinSelfie';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,7 +22,10 @@ import { logger } from '@/lib/logger';
 export default function Location() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const navLocation = useLocation();
   const { toast } = useToast();
+  // Vindo do "Entrar" do Modo Explorar (/explore/:placeId) — pula a etapa de listagem
+  const preSelectedPlaceId = (navLocation.state as { preSelectedPlaceId?: string } | null)?.preSelectedPlaceId;
 
   const {
     intentions,
@@ -62,14 +65,10 @@ export default function Location() {
     try {
       await fetchNearbyTemporaryPlaces(lat, lng);
 
-      let results = await placesService.searchNearby({ latitude: lat, longitude: lng, radius: INITIAL_SEARCH_RADIUS_METERS, limit: 20 });
-
-      if (results.length < MIN_RESULTS_FOR_EXPANSION) {
-        results = await placesService.searchNearby({ latitude: lat, longitude: lng, radius: EXPANDED_SEARCH_RADIUS_METERS, limit: 20 });
-        if (results.length < MIN_RESULTS_FOR_EXPANSION) {
-          results = await placesService.searchNearby({ latitude: lat, longitude: lng, radius: MAX_SEARCH_RADIUS_METERS, limit: 20 });
-        }
-      }
+      // Foursquare é sempre consultado a 600m numa única ida; a expansão
+      // progressiva (300→600) de candidatos por proximidade acontece dentro
+      // da Edge search-places, sobre o cache do banco.
+      const results = await placesService.searchNearby({ latitude: lat, longitude: lng, radius: EXPANDED_SEARCH_RADIUS_METERS, limit: 20 });
 
       setPlaces(results);
 
@@ -89,7 +88,7 @@ export default function Location() {
     if (failed) {
       setTimeout(async () => {
         try {
-          const results = await placesService.searchNearby({ latitude: lat, longitude: lng, radius: MAX_SEARCH_RADIUS_METERS, limit: 20 });
+          const results = await placesService.searchNearby({ latitude: lat, longitude: lng, radius: EXPANDED_SEARCH_RADIUS_METERS, limit: 20 });
           setPlaces(results);
           if (results.length > 0 && results[0].distance_meters !== undefined) {
             if (results[0].distance_meters <= PROXIMITY_THRESHOLD_METERS) {
@@ -118,6 +117,12 @@ export default function Location() {
     if (loading) return;
     if (currentPresence) {
       navigate('/home', { replace: true });
+      return;
+    }
+    if (preSelectedPlaceId) {
+      setPermissionChecked(true);
+      setSelectedPlaceId(preSelectedPlaceId);
+      setStep('expression');
       return;
     }
     if (pendingRef.current) {
@@ -168,7 +173,7 @@ export default function Location() {
       setStep('detecting');
       handleRequestLocation();
     }
-  }, [user, navigate, loading, currentPresence]);
+  }, [user, navigate, loading, currentPresence, preSelectedPlaceId]);
 
   useEffect(() => {
     const pending = pendingRef.current;

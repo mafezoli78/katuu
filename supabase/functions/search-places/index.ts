@@ -484,66 +484,88 @@ Deno.serve(async (req) => {
       console.log(`[search-places] 💾 Persisted ${persistedCount}/${standardPlaces.length} places`);
     }
 
-    // Return places from database with distance and active user count
-    const latDelta = (radius * 2) / 111000;
-    const lngDelta = (radius * 2) / (111000 * Math.cos(latitude * Math.PI / 180));
+    // Return places from database with distance and active user count.
+    // Box steps are a geographic limit only — the DB SELECT has no ORDER BY
+    // distance (PostgREST can't sort by Haversine without an RPC), so we never
+    // cut by quantity before sorting. CANDIDATE_FETCH_CAP is a guard against a
+    // pathologically dense cache, not a proximity cut.
+    const BOX_STEPS_METERS = [300, 600];
+    const CANDIDATE_FETCH_CAP = 150;
 
-    let dbQuery = supabase
-      .from("places")
-      .select("*")
-      .eq("ativo", true)
-      .eq("is_temporary", false)
-      .gte("latitude", latitude - latDelta)
-      .lte("latitude", latitude + latDelta)
-      .gte("longitude", longitude - lngDelta)
-      .lte("longitude", longitude + lngDelta);
+    const fetchCuratedCandidates = async (boxRadiusMeters: number) => {
+      const latDelta = boxRadiusMeters / 111000;
+      const lngDelta = boxRadiusMeters / (111000 * Math.cos(latitude * Math.PI / 180));
 
-    if (query && query.trim()) {
-      dbQuery = dbQuery.ilike("nome", `%${query.trim()}%`);
-      console.log(`[search-places] 🔤 Filtering DB by name: "${query.trim()}"`);
-    }
+      let dbQuery = supabase
+        .from("places")
+        .select("*")
+        .eq("ativo", true)
+        .eq("is_temporary", false)
+        .gte("latitude", latitude - latDelta)
+        .lte("latitude", latitude + latDelta)
+        .gte("longitude", longitude - lngDelta)
+        .lte("longitude", longitude + lngDelta);
 
-    const { data: dbPlaces, error: dbError } = await dbQuery.limit(limit * 2);
+      if (query && query.trim()) {
+        dbQuery = dbQuery.ilike("nome", `%${query.trim()}%`);
+      }
 
-    if (dbError) {
-      console.error("[search-places] ❌ DB error:", dbError);
-      throw dbError;
-    }
+      const { data, error } = await dbQuery.limit(CANDIDATE_FETCH_CAP);
+      if (error) {
+        console.error("[search-places] ❌ DB error:", error);
+        throw error;
+      }
 
-    const filteredDbPlaces = (dbPlaces || []).filter(place => shouldIncludePlaceFromDb(place));
+      return (data || []).filter(place => shouldIncludePlaceFromDb(place));
+    };
 
-    const placesWithDistancePromises = filteredDbPlaces.map(async (place) => {
-      const R = 6371000;
-      const dLat = (place.latitude - latitude) * Math.PI / 180;
-      const dLon = (place.longitude - longitude) * Math.PI / 180;
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(latitude * Math.PI / 180) * Math.cos(place.latitude * Math.PI / 180) *
-                Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      const distance = R * c;
+    const curatedCandidates = await (async () => {
+      if (query && query.trim()) {
+        // Name search already requests the max radius (no progressive box).
+        console.log(`[search-places] 🔤 Filtering DB by name: "${query.trim()}"`);
+        return fetchCuratedCandidates(radius);
+      }
 
-      const { count } = await supabase
-        .from("presence")
-        .select("*", { count: "exact", head: true })
-        .eq("place_id", place.id)
-        .eq("ativo", true);
+      let candidates = await fetchCuratedCandidates(BOX_STEPS_METERS[0]);
+      for (const step of BOX_STEPS_METERS.slice(1)) {
+        if (candidates.length >= limit) break;
+        candidates = await fetchCuratedCandidates(step);
+      }
+      return candidates;
+    })();
 
-      return {
-        ...place,
-        distance_meters: Math.round(distance),
-        active_users: count || 0,
-      };
-    });
-
-    const placesWithDistance = (await Promise.all(placesWithDistancePromises))
+    const placesWithDistance = curatedCandidates
+      .map(place => {
+        const R = 6371000;
+        const dLat = (place.latitude - latitude) * Math.PI / 180;
+        const dLon = (place.longitude - longitude) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(latitude * Math.PI / 180) * Math.cos(place.latitude * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return { ...place, distance_meters: Math.round(R * c) };
+      })
       .sort((a, b) => a.distance_meters - b.distance_meters)
       .slice(0, limit);
 
-    console.log(`[search-places] 📤 Returning ${placesWithDistance.length} places (from ${dbPlaces?.length || 0} in DB, ${filteredDbPlaces.length} after curadoria)`);
+    // active_users count only runs for the final, already-trimmed list.
+    const placesWithActiveUsers = await Promise.all(
+      placesWithDistance.map(async (place) => {
+        const { count } = await supabase
+          .from("presence")
+          .select("*", { count: "exact", head: true })
+          .eq("place_id", place.id)
+          .eq("ativo", true);
+
+        return { ...place, active_users: count || 0 };
+      })
+    );
+
+    console.log(`[search-places] 📤 Returning ${placesWithActiveUsers.length} places (${curatedCandidates.length} curated candidates)`);
 
     return new Response(
       JSON.stringify({
-        places: placesWithDistance,
+        places: placesWithActiveUsers,
         source: providerSuccess ? provider.name : "cache",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

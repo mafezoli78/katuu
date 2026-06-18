@@ -16,11 +16,13 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { Clock, RefreshCw, LogOut, Store } from 'lucide-react';
 import { TemporaryPlaceIcon } from '@/components/icons/TemporaryPlaceIcon';
+import { PRESENCE_EXPIRING_SOON_THRESHOLD_MS } from '@/config/presence';
 
 interface PresenceStatusCardProps {
   placeName: string;
   isTemporary: boolean;
   formatRemainingTime: () => string;
+  remainingTime: number;
   renewPresence: () => Promise<{ error: any }>;
   deactivatePresence: () => void;
 }
@@ -29,15 +31,19 @@ export function PresenceStatusCard({
   placeName,
   isTemporary,
   formatRemainingTime,
+  remainingTime,
   renewPresence,
   deactivatePresence,
 }: PresenceStatusCardProps) {
   const { toast } = useToast();
+  const isExpiringSoon = remainingTime > 0 && remainingTime < PRESENCE_EXPIRING_SOON_THRESHOLD_MS;
 
   const handleRenew = useCallback(async () => {
     const { error } = await renewPresence();
     if (!error) {
-      toast({ title: 'Presença renovada', description: 'Mais 60 minutos neste local' });
+      toast({ title: 'Presença renovada', description: 'Seu tempo neste local foi estendido' });
+    } else {
+      toast({ variant: 'destructive', title: 'Não foi possível renovar', description: error.message });
     }
   }, [renewPresence, toast]);
 
@@ -61,7 +67,7 @@ export function PresenceStatusCard({
                     Temporário
                   </Badge>
                 )}
-                <span className="text-xs text-white/70 flex items-center gap-1">
+                <span className={`text-xs flex items-center gap-1 ${isExpiringSoon ? 'text-amber-200 font-medium' : 'text-white/70'}`}>
                   <Clock className="h-3 w-3" />
                   {formatRemainingTime()}
                 </span>
@@ -69,6 +75,12 @@ export function PresenceStatusCard({
             </div>
           </div>
         </div>
+
+        {isExpiringSoon && (
+          <div className="mb-3 px-3 py-2 rounded-lg bg-amber-500/20 text-amber-100 text-xs">
+            Sua presença está acabando — estenda para continuar neste local.
+          </div>
+        )}
 
         <div className="flex gap-2">
           <Button

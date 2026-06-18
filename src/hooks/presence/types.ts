@@ -16,6 +16,7 @@ export interface Presence {
   intention_id: string;
   inicio: string;
   ultima_atividade: string;
+  expires_at: string;
   ativo: boolean;
 }
 

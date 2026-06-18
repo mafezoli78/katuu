@@ -41,6 +41,10 @@ export const GPS_EXIT_THRESHOLD_COUNT = 3;
 // Para reativar a expulsão por GPS, basta voltar esta flag para true.
 export const GPS_EXIT_ENABLED = false;
 
+// Limiar para avisar que a presença está perto de expirar (em milissegundos)
+// Usado para destacar o botão de renovar antes do expires_at ser atingido
+export const PRESENCE_EXPIRING_SOON_THRESHOLD_MS = 10 * 60 * 1000;
+
 /**
  * Calcula a distância entre duas coordenadas usando a fórmula de Haversine.
  * @returns Distância em metros

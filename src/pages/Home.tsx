@@ -28,6 +28,7 @@ export default function Home() {
     currentPresence,
     currentPlace,
     formatRemainingTime,
+    remainingTime,
     renewPresence,
     deactivatePresence,
     lastEndReason,
@@ -198,6 +199,7 @@ export default function Home() {
           placeName={currentPlace.nome}
           isTemporary={currentPlace.is_temporary}
           formatRemainingTime={formatRemainingTime}
+          remainingTime={remainingTime}
           renewPresence={renewPresence}
           deactivatePresence={deactivatePresence}
         />

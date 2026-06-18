@@ -62,6 +62,7 @@ A partir desta data o trabalho se divide em três trilhos, cada ferramenta no qu
 
 ## 3. Regras de trabalho (inegociáveis)
 
+0. **COMUNICAÇÃO (regra do Fabricio, 17/06):** Claude é o Dev do sistema. Fabricio NÃO precisa de tutoriais, explicações longas ou justificativas técnicas — elas consomem sessão à toa. **Mudanças de regra de negócio DEVEM ser perguntadas ao Fabricio e explicadas** (essas valem a explicação). Fora isso: apenas implementar o que foi combinado. Direto ao ponto.
 1. **NUNCA reescrever arquivo sem ler o atual** (pedir upload/`cat` primeiro). No Claude Code isso é automático.
 2. **NUNCA deduzir schema** — padrão "Passo 0": consultar `snapshot_db.md` ou queries de catálogo antes de SQL que referencie nomes.
 3. **Manus = auditoria panorâmica** (ver §2). Cabeçalho anti-reciclagem (`prompt_manus_auditoria.md`): só o ZIP atual vale, só fatos com arquivo+linha+trecho, zero recomendações. ⚠️ Manus só vê imports estáticos em `src/` — imports dinâmicos (padrão Capacitor) e usos em configs fora de `src/` aparecem como "não usado" falsamente.
@@ -185,13 +186,22 @@ Suspensão derruba presença sem cascade → card do suspenso demora a sumir do 
 
 ## 10. Backlog — features/épicos
 
-- **Entrar / Explorar (NOVO — ideia desta sessão, NÃO desenhada como feature ainda).** "Entrar" = presença física confirmada, aparece no feed, interage com todos, é visível. "Explorar" = reconhecimento: vê quem ENTROU, mas é totalmente invisível (não aparece no feed de ninguém, não interage, não emite/recebe aceno) — exploradores não influenciam a decisão de quem está presente. Possível status agregado anônimo: "30 aqui, 20 explorando". Atratrativo: ver de fora quantos/quem está num local antes de decidir ir presencialmente. A autorregulação contra uso à distância fica embutida (explorador não interage). **Requer desenho de produto antes de implementar.**
+- **CENTRALIZAR ESTADO — PRÓXIMO ÉPICO PRIORITÁRIO (decisão Fabricio 17/06).** Princípio firmado: **uma fonte de verdade por coisa; todo mundo busca de lá em vez de refazer.** Hoje o estado está espalhado e cada tela cuida do seu — é a causa-raiz de uma CLASSE inteira de bugs de estado dessincronizado (card de presença não some do Perfil após expirar; "aceno aceito" não vira "chat em andamento"; e a confusão de "duas leituras de GPS divergentes" na investigação da listagem). Dois alvos concretos:
+  - **PresenceProvider global:** contexto único de React como fonte de verdade da presença. Todas as telas (Home, Location, Perfil) leem dele; quando a presença muda (expira/renova/encerra) ele avisa todos de uma vez. Hoje o estado vive espalhado em `usePresence`, `usePresenceTimer`, `usePresenceGPS`, `usePresenceLifecycle`, `usePresenceState` + cada tela consome do seu jeito. Cura por construção os descompassos entre telas, não por remendo em cada um.
+  - **Localização centralizada:** a posição GPS deveria ser lida e guardada num lugar único, com precisão/timestamp, e qualquer parte do app busca de lá quando precisar — em vez de cada arquivo ler o GPS do seu jeito (Explore lê no clique, Location na entrada, usePresenceGPS tem a sua). Foi essa fragmentação que gerou o falso diagnóstico de "leituras divergentes". Parar de refazer o que outro arquivo já faz.
+  - É trabalho de sessão dedicada (com plano), candidato a vir DEPOIS de fechar o explorador. Não conserta um bug — conserta a classe inteira.
+- **PAINEL ADMIN (NOVO — discutido 17/06, desenho NÃO iniciado; será tratado em conversa PRÓPRIA).** Site/área administrativa interna para relatórios sobre usuários, denúncias, estatísticas, suspensões. É DO FABRICIO (admin do Katuu), **distinto do Katuu Business** (que é app externo p/ donos de estabelecimento, vê só `active_users_count`). Não confundir os dois.
+  - **Decisão de segurança JÁ TOMADA (a nº1, vem antes de telas):** o painel precisa FURAR a RLS (acesso privilegiado a todos os dados). Caminho escolhido = **tabela `admin_users` + funções `SECURITY DEFINER` que checam "quem chama é admin?" no topo antes de retornar dados privilegiados.** Mesmo padrão que o Katuu já usa (`is_user_suspended`, `get_place_explore_feed`). NUNCA expor `service_role` no front (descartado). Backend próprio (Edge/servidor com service_role) é o caminho 3, para quando crescer — não agora.
+  - **Matéria-prima no banco (já mapeada):** `reports` (denúncias, com `evidence` jsonb, `status`, `revisado_por/_em`), `user_suspensions` (global/freeze, escalada 3→global 24h / 5→freeze), `audit_logs` (policy `USING false` — só via SECURITY DEFINER), + `profiles`/`presence`/`waves`/`messages`/`conversations`.
+  - **3 perguntas de escopo abertas (responder na conversa do painel):** (a) quem usa — só Fabricio, +moderadores, ou equipe; (b) o que FAZ além de ler — agir em denúncias (suspender/reverter/resolver), gerenciar usuários (banir/editar/apagar); (c) onde mora — site web separado, rota `/admin` no Katuu, ou a definir.
+  - **Pré-requisito de segurança correlato:** rotacionar a `service_role` hardcoded nas 3 funções de notificação ANTES de abrir frente admin (já é pendência de lançamento — ver §9).
+- **Entrar / Explorar:** ✅ banco + cliente implementados; reescrita da listagem e trava por categoria aplicadas 17/06 (tarde). **AGUARDANDO TESTE DE CAMPO.** Detalhe completo e estado de cada achado em `KATUU_CONTEXT_EXPLORADOR.md` (§11 achados, §12 execução/resolução). Aberto: testar listagem e categorias em campo; card de presença que não some do Perfil (§12.4); selfie no Explore (11.1) a confirmar em campo; UX das mensagens.
 - **FCM push com app fechado** (próxima grande conversa anunciada): infra server já existe; falta lado do app + aposentar Web Push + logo na notificação.
 - Deep links de signup/Google com auto-login (DeepLinkHandler só trata recovery).
 - **Login Google** via `@capgo/capacitor-social-login`: pendente — logar retorno de `SocialLogin.login()`.
 - Play Store: `privacidade.html`/`termos.html` estáticos públicos, bundleRelease, screenshots, versionCode crescente, remover `/debug`.
 - Verificação de selfie real = ML Kit nativo.
-- Busca por nome de local; PresenceProvider global.
+- Busca por nome de local.
 
 ## 11. Aparelhos de teste
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +9,7 @@ import { TemporaryPlaceIcon } from '@/components/icons/TemporaryPlaceIcon';
 import { Place, PROXIMITY_THRESHOLD_METERS } from '@/services/placesService';
 import { NearbyTemporaryPlace } from '@/hooks/usePresence';
 import { supabase } from '@/integrations/supabase/client';
+import { useValidatePlaceDistance } from '@/hooks/useValidatePlaceDistance';
 
 const PlaceMap = lazy(() => import('@/components/location/PlaceMap'));
 
@@ -76,10 +78,17 @@ export function PlaceSelector({
   presenceRadius,
   userCoords,
 }: PlaceSelectorProps) {
+  const navigate = useNavigate();
+  const { validateAndProceed } = useValidatePlaceDistance();
   const [searchQuery, setSearchQuery] = useState('');
   const [showList, setShowList] = useState(!closestPlace);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [tempPlacesCoords, setTempPlacesCoords] = useState<{ id: string; latitude: number; longitude: number }[]>([]);
+
+  const handleExplore = (e: React.MouseEvent, placeId: string) => {
+    e.stopPropagation();
+    navigate(`/explore/${placeId}`);
+  };
 
   // Fetch coords for temporary places (RPC doesn't return them)
   useEffect(() => {
@@ -145,7 +154,17 @@ export function PlaceSelector({
               <X className="h-4 w-4 mr-2" />
               Não é esse
             </Button>
-            <Button className="flex-1 h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold" onClick={() => onSelectPlace(closestPlace.id)}>
+            <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={(e) => handleExplore(e, closestPlace.id)}>
+              Explorar
+            </Button>
+            <Button
+              className="flex-1 h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
+              onClick={() => validateAndProceed(
+                { latitude: closestPlace.latitude, longitude: closestPlace.longitude },
+                { categoria: closestPlace.categoria, isTemporary: closestPlace.is_temporary },
+                () => onSelectPlace(closestPlace.id)
+              )}
+            >
               <Check className="h-4 w-4 mr-2" />
               Aqui
             </Button>
@@ -192,7 +211,10 @@ export function PlaceSelector({
                 <Clock className="h-4 w-4 text-katu-green" />
                 <span>Locais temporários ativos</span>
               </div>
-              {temporaryPlaces.map(place => <div key={place.id} onClick={() => onSelectPlace(place.id)} className="bg-card rounded-xl p-3 shadow-sm border-2 border-katu-green/30 place-card cursor-pointer hover:border-katu-green/50">
+              {temporaryPlaces.map(place => <div key={place.id} onClick={() => {
+                  const coords = tempPlacesCoords.find(c => c.id === place.id) ?? null;
+                  validateAndProceed(coords, { categoria: null, isTemporary: true }, () => onSelectPlace(place.id));
+                }} className="bg-card rounded-xl p-3 shadow-sm border-2 border-katu-green/30 place-card cursor-pointer hover:border-katu-green/50">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-katu-green/10 flex items-center justify-center flex-shrink-0">
                       <TemporaryPlaceIcon className="h-6 w-6 text-katu-green" />
@@ -209,6 +231,9 @@ export function PlaceSelector({
                         </span>
                       </div>
                     </div>
+                    <Button size="sm" variant="outline" className="rounded-lg font-semibold px-4" onClick={(e) => handleExplore(e, place.id)}>
+                      Explorar
+                    </Button>
                     <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg font-semibold px-4">
                       Aqui
                     </Button>
@@ -226,7 +251,11 @@ export function PlaceSelector({
           const CategoryIcon = getCategoryIcon(place.categoria);
           const bgColor = getCategoryBgColor(place.categoria);
           const iconColor = getCategoryIconColor(place.categoria);
-          return <div key={place.id} onClick={() => onSelectPlace(place.id)} className="bg-card rounded-xl p-3 shadow-sm border border-border place-card cursor-pointer">
+          return <div key={place.id} onClick={() => validateAndProceed(
+                    { latitude: place.latitude, longitude: place.longitude },
+                    { categoria: place.categoria, isTemporary: place.is_temporary },
+                    () => onSelectPlace(place.id)
+                  )} className="bg-card rounded-xl p-3 shadow-sm border border-border place-card cursor-pointer">
                     <div className="flex items-center gap-3">
                       <div className={`w-12 h-12 rounded-xl ${bgColor} flex items-center justify-center flex-shrink-0`}>
                         <CategoryIcon className={`h-6 w-6 ${iconColor}`} />
@@ -242,6 +271,9 @@ export function PlaceSelector({
                             </span>}
                         </div>
                       </div>
+                      <Button size="sm" variant="outline" className="rounded-lg font-semibold px-4" onClick={(e) => handleExplore(e, place.id)}>
+                        Explorar
+                      </Button>
                       <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg font-semibold px-4">
                       Aqui
                     </Button>

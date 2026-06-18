@@ -21,11 +21,9 @@ export function usePresenceTimer({ currentPresence, onExpired }: UsePresenceTime
       return;
     }
 
-    const lastActivity = new Date(currentPresence.ultima_atividade).getTime();
-    const elapsed = Date.now() - lastActivity;
-    const remaining = Math.max(0, PRESENCE_DURATION_MS - elapsed);
+    const remaining = Math.max(0, new Date(currentPresence.expires_at).getTime() - Date.now());
     setRemainingTime(remaining);
-  }, [currentPresence?.id, currentPresence?.ultima_atividade]);
+  }, [currentPresence?.id, currentPresence?.expires_at]);
 
   // Countdown interval
   useEffect(() => {
@@ -44,8 +42,12 @@ export function usePresenceTimer({ currentPresence, onExpired }: UsePresenceTime
     return () => clearInterval(interval);
   }, [currentPresence, onExpired]);
 
-  const resetTimer = useCallback(() => {
-    setRemainingTime(PRESENCE_DURATION_MS);
+  const resetTimer = useCallback((expiresAt?: string) => {
+    if (expiresAt) {
+      setRemainingTime(Math.max(0, new Date(expiresAt).getTime() - Date.now()));
+    } else {
+      setRemainingTime(PRESENCE_DURATION_MS);
+    }
   }, []);
 
   const getFormattedRemainingTime = useCallback(() => {
