@@ -550,6 +550,12 @@ Deno.serve(async (req) => {
       })
     );
 
+    // Display order only — selection above is already final (by distance).
+    // More Katuu users first; ties broken by proximity.
+    placesWithActiveUsers.sort((a, b) =>
+      b.active_users - a.active_users || a.distance_meters - b.distance_meters
+    );
+
     console.log(`[search-places] 📤 Returning ${placesWithActiveUsers.length} places (${curatedCandidates.length} curated candidates)`);
 
     return new Response(
