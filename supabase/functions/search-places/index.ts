@@ -485,11 +485,10 @@ Deno.serve(async (req) => {
     }
 
     // Return places from database with distance and active user count.
-    // Box steps are a geographic limit only — the DB SELECT has no ORDER BY
-    // distance (PostgREST can't sort by Haversine without an RPC), so we never
-    // cut by quantity before sorting. CANDIDATE_FETCH_CAP is a guard against a
-    // pathologically dense cache, not a proximity cut.
-    const BOX_STEPS_METERS = [300, 600];
+    // Single bounding box at `radius` — the DB SELECT has no ORDER BY distance
+    // (PostgREST can't sort by Haversine without an RPC), so sorting/slicing by
+    // distance happens after fetching all candidates in the box. CANDIDATE_FETCH_CAP
+    // is just a safety ceiling against a pathologically dense cache, not a proximity cut.
     const CANDIDATE_FETCH_CAP = 150;
 
     const fetchCuratedCandidates = async (boxRadiusMeters: number) => {
@@ -519,20 +518,10 @@ Deno.serve(async (req) => {
       return (data || []).filter(place => shouldIncludePlaceFromDb(place));
     };
 
-    const curatedCandidates = await (async () => {
-      if (query && query.trim()) {
-        // Name search already requests the max radius (no progressive box).
-        console.log(`[search-places] 🔤 Filtering DB by name: "${query.trim()}"`);
-        return fetchCuratedCandidates(radius);
-      }
-
-      let candidates = await fetchCuratedCandidates(BOX_STEPS_METERS[0]);
-      for (const step of BOX_STEPS_METERS.slice(1)) {
-        if (candidates.length >= limit) break;
-        candidates = await fetchCuratedCandidates(step);
-      }
-      return candidates;
-    })();
+    if (query && query.trim()) {
+      console.log(`[search-places] 🔤 Filtering DB by name: "${query.trim()}"`);
+    }
+    const curatedCandidates = await fetchCuratedCandidates(radius);
 
     const placesWithDistance = curatedCandidates
       .map(place => {
