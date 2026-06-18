@@ -310,13 +310,38 @@ maior raio de categoria coincide com o limite do servidor.
 
 ### 12.4 — Achados NOVOS (abertos, para próxima sessão)
 
+- **[CAUSA CONFIRMADA — resolução decidida] 11.1: selfie não aparece no Explore
+  (ícone quebrado).** Investigação fechada por eliminação (17/06 noite): o dado
+  no banco está correto (`presence.checkin_selfie_url` preenchido, path válido);
+  AS DUAS RPCs (`get_place_explore_feed` e `get_users_at_place_feed`) tiram o
+  selfie da MESMA coluna; a lógica de assinatura no cliente é IDÊNTICA. A
+  diferença real: a policy de SELECT do bucket `checkin-selfies` chama-se
+  **"Users can view selfies from same location"** e EXIGE CO-PRESENÇA. O
+  explorador é leitor puro SEM presença → a RLS do Storage nega → `createSignedUrls`
+  falha por item silenciosamente → o cliente cai no path cru → `<img>` quebra.
+  (A migration dizia "qualquer authenticated", mas a policy real no painel foi
+  alterada para co-presença — Storage não está no snapshot, lacuna conhecida.)
+  - **Decisão de produto:** explorador DEVE ver a selfie (é o coração do card).
+  - **Solução escolhida = `entry_type` (ver KATUU_CONTEXT, épico de centralização).**
+    Quando o explorador passar a ter linha em `presence` com `entry_type='exploration'`,
+    ele estará "no local" para a policy do Storage e a selfie funciona SEM
+    afrouxar a policy nem assinar server-side. O bug some como efeito colateral
+    da modelagem unificada. Até lá, a selfie do explorador continua quebrada.
+  - **Bug de diagnóstico correlato:** `getSignedSelfieUrls` (src/lib/storage.ts)
+    descarta itens que falham SEM logar qual path nem o erro (`createSignedUrls`
+    retorna `{path, signedUrl, error}` por item). Adicionar `console.warn` por
+    item falho — barato, evita cegueira futura. Pode ir independente do resto.
 - **[ABERTO] Card de presença não some do Perfil após expiração por tempo.**
   Presença expirou por tempo (sweeper rodou, aviso no local apareceu certo), mas
   ao ir em Perfil pra sair da conta o card pessoal de presença ainda estava lá.
   Hipótese: o Perfil lê a presença de uma fonte que não invalidou (cache no
   cliente, ou query sem filtro `ativo`/`expires_at`). É da MESMA família do bug
-  "aceno aceito → chat em andamento": estado dessincronizado entre telas.
-  Precisa ver o hook/query que alimenta o card de presença no Perfil.
+  "aceno aceito → chat em andamento": estado dessincronizado entre telas. Será
+  curado pelo épico de centralização (PresenceProvider / fonte de verdade).
+- **[ABERTO] Pull-to-refresh na Home/Location.** Após criar local temporário num
+  aparelho, o outro não atualizou a lista nem arrastando a tela pra baixo. Falta
+  o gesto universal de puxar-pra-atualizar ligado ao refetch. (Não é botão.)
+  Também da família de estado que não reflete mudança externa.
 - **[UX, depois] 11.5** segue pendente (mensagem "precisa estar no local").
 
 ### 12.5 — Lições registradas (na memória do Claude Code também)
@@ -331,3 +356,64 @@ maior raio de categoria coincide com o limite do servidor.
 - **Cuidado com `\u` em tool calls:** caracteres Unicode literais em regex
   corrompem por encoding no pipeline de edição; usar property escapes
   (`\p{Diacritic}`) em vez de ranges de combining marks.
+
+---
+
+## 13. EVOLUÇÕES DO EXPLORAR (ideias 18/06 — uma pronta, duas de roadmap)
+
+O Modo Explorar abriu três direções de produto. Registradas aqui; nenhuma
+construída ainda (decisão de quando é do Fabricio).
+
+### 13.1 — [PRONTA PRA FAZER] Ordenação de exibição por densidade de usuários
+
+**Princípio (Fabricio):** "o Katuu só faz sentido para quem usa o Katuu — um bar
+lotado sem nenhum usuário Katuu traz 0 pessoas." Distância pura não é o que o
+usuário quer; ele quer saber ONDE TEM GENTE do Katuu.
+
+**Solução elegante (sem mentiras), em DUAS etapas separadas:**
+1. **Seleção** (quem entra na lista): os 20 mais próximos em 600m, por distância.
+   JÁ EXISTE e funciona — NÃO mexer. Garante que a lista é sempre honesta (só
+   lugares perto; nada distante aparece só por ter gente).
+2. **Exibição** (a ordem mostrada): reordenar esses 20 por
+   **(active_users DESC, distância ASC)** — mais cheio primeiro; empate, mais
+   perto primeiro.
+
+**Por que é segura:** como a seleção continua por proximidade, o longe nunca
+entra e o perto nunca some — a contagem só REORDENA o que já é perto. Com a base
+atual (quase tudo zero usuários), todos empatam em zero → desempate por distância
+→ idêntico à lista de hoje. Conforme a base cresce, locais com gente sobem
+sozinhos. Transição suave: não muda nada agora, melhora sozinho depois.
+
+**Implementação (pequena, do tamanho da correção do bounding box):** na Edge
+`search-places`, a sequência atual é `sort distance → slice 20 → conta
+active_users`. Adicionar um sort FINAL após a contagem:
+`sort (active_users DESC, distance ASC)`. O active_users já é calculado nos 20
+(depois do slice), então o dado já está lá — é só a reordenação final.
+Sequência: `sort distance → slice 20 → conta active_users → sort (users desc, dist asc)`.
+
+### 13.2 — [ROADMAP] Explorar região remota (busca por endereço/bairro)
+
+**Conceito (Fabricio):** alguém num bairro afastado quer ver como está a Av.
+Kennedy (região badalada) ANTES de sair de casa. Num campo de busca específico
+digita uma rua, endereço completo ou nome de bairro; a lista atualiza com os 20
+locais daquela região (mesma regra 600m). Ele não entra em nenhum (não está lá),
+mas explora e decide se vai pra Kennedy ou pra outro lugar.
+
+**Viável e barato — o motor já existe.** A busca já recebe lat/lng e devolve os
+20 mais próximos em 600m; hoje vem do GPS. O que muda: a coordenada passa a vir
+de um LOCAL PESQUISADO. Entra de novo: (a) campo de busca por local na UI, (b)
+**geocoding** (texto → lat/lng; Foursquare ou Google fazem). Edge, feed e
+renderização NÃO mudam. Conceitualmente é talvez MAIS explorador que o atual
+(decidir de casa, antes de escolher o bairro, é a forma pura de "estar decidindo
+aonde ir"). A pensar no design: até onde se pode explorar (cidade? mundo?);
+reforça a importância do `entry_type`/anonimato (explorador remoto jamais conta
+como presente no local).
+
+### 13.3 — [PRINCÍPIO — calibrar com dados] Score combinado de ranking
+
+A 13.1 (densidade na exibição) é o primeiro passo. O passo maduro, no futuro, é
+um **score combinado** (proximity + active_users + business_boost — a spec do
+Business já menciona), ponderando distância e densidade em vez de critério
+rígido. MAS calibrar os pesos exige DADOS REAIS DE USO (ver o que as pessoas
+clicam) — fazer agora, com base zero, é otimização cega. Registrar o princípio;
+calibrar quando houver base. (A 13.1 é a versão simples e honesta que serve até lá.)

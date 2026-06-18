@@ -10,6 +10,7 @@ import { Place, PROXIMITY_THRESHOLD_METERS } from '@/services/placesService';
 import { NearbyTemporaryPlace } from '@/hooks/usePresence';
 import { supabase } from '@/integrations/supabase/client';
 import { useValidatePlaceDistance } from '@/hooks/useValidatePlaceDistance';
+import { useToast } from '@/components/ui/use-toast';
 
 const PlaceMap = lazy(() => import('@/components/location/PlaceMap'));
 
@@ -24,6 +25,8 @@ interface PlaceSelectorProps {
   searchingByName: boolean;
   presenceRadius: number;
   userCoords: { lat: number; lng: number } | null;
+  /** Lista vem de um endereço pesquisado (geocoding), não do GPS — usuário não está fisicamente lá. */
+  isRemoteSearch?: boolean;
 }
 
 // Map category to icon
@@ -77,8 +80,10 @@ export function PlaceSelector({
   searchingByName,
   presenceRadius,
   userCoords,
+  isRemoteSearch = false,
 }: PlaceSelectorProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { validateAndProceed } = useValidatePlaceDistance();
   const [searchQuery, setSearchQuery] = useState('');
   const [showList, setShowList] = useState(!closestPlace);
@@ -88,6 +93,11 @@ export function PlaceSelector({
   const handleExplore = (e: React.MouseEvent, placeId: string) => {
     e.stopPropagation();
     navigate(`/explore/${placeId}`);
+  };
+
+  const handleExploreTemporaryBlocked = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toast({ title: 'Locais temporários não podem ser explorados' });
   };
 
   // Fetch coords for temporary places (RPC doesn't return them)
@@ -117,8 +127,9 @@ export function PlaceSelector({
     }
   };
 
-  // Show direct suggestion for very close place
-  if (closestPlace && !showList) {
+  // Show direct suggestion for very close place — nunca em busca remota
+  // (pressupõe presença física que a busca por endereço não garante).
+  if (closestPlace && !showList && !isRemoteSearch) {
     const CategoryIcon = getCategoryIcon(closestPlace.categoria);
     const bgColor = getCategoryBgColor(closestPlace.categoria);
     const iconColor = getCategoryIconColor(closestPlace.categoria);
@@ -231,7 +242,7 @@ export function PlaceSelector({
                         </span>
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" className="rounded-lg font-semibold px-4" onClick={(e) => handleExplore(e, place.id)}>
+                    <Button size="sm" variant="outline" className="rounded-lg font-semibold px-4" onClick={handleExploreTemporaryBlocked}>
                       Explorar
                     </Button>
                     <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg font-semibold px-4">
@@ -251,11 +262,11 @@ export function PlaceSelector({
           const CategoryIcon = getCategoryIcon(place.categoria);
           const bgColor = getCategoryBgColor(place.categoria);
           const iconColor = getCategoryIconColor(place.categoria);
-          return <div key={place.id} onClick={() => validateAndProceed(
+          return <div key={place.id} onClick={isRemoteSearch ? undefined : () => validateAndProceed(
                     { latitude: place.latitude, longitude: place.longitude },
                     { categoria: place.categoria, isTemporary: place.is_temporary },
                     () => onSelectPlace(place.id)
-                  )} className="bg-card rounded-xl p-3 shadow-sm border border-border place-card cursor-pointer">
+                  )} className={`bg-card rounded-xl p-3 shadow-sm border border-border place-card ${isRemoteSearch ? '' : 'cursor-pointer'}`}>
                     <div className="flex items-center gap-3">
                       <div className={`w-12 h-12 rounded-xl ${bgColor} flex items-center justify-center flex-shrink-0`}>
                         <CategoryIcon className={`h-6 w-6 ${iconColor}`} />
@@ -274,9 +285,11 @@ export function PlaceSelector({
                       <Button size="sm" variant="outline" className="rounded-lg font-semibold px-4" onClick={(e) => handleExplore(e, place.id)}>
                         Explorar
                       </Button>
-                      <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg font-semibold px-4">
-                      Aqui
-                    </Button>
+                      {!isRemoteSearch && (
+                        <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg font-semibold px-4">
+                          Aqui
+                        </Button>
+                      )}
                     </div>
                   </div>;
         })}
