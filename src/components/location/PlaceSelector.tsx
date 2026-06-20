@@ -2,9 +2,8 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { MapPin, Navigation, Loader2, Users, Clock, Search, Plus, Check, X, UtensilsCrossed, Coffee, Beer, Music, ShoppingBag, Dumbbell, Briefcase, Building2, Store, List, Map } from 'lucide-react';
+import { MapPin, Navigation, Loader2, Clock, Search, Plus, Check, X, UtensilsCrossed, Coffee, Beer, Music, ShoppingBag, Dumbbell, Briefcase, Building2, Store, List, Map } from 'lucide-react';
 import { TemporaryPlaceIcon } from '@/components/icons/TemporaryPlaceIcon';
 import { Place, PROXIMITY_THRESHOLD_METERS } from '@/services/placesService';
 import { NearbyTemporaryPlace } from '@/hooks/usePresence';
@@ -27,6 +26,14 @@ interface PlaceSelectorProps {
   userCoords: { lat: number; lng: number } | null;
   /** Lista vem de um endereço pesquisado (geocoding), não do GPS — usuário não está fisicamente lá. */
   isRemoteSearch?: boolean;
+  addressInput: string;
+  onAddressInputChange: (value: string) => void;
+  onSearchByAddress: (text: string) => void;
+  geocodingLoading: boolean;
+  remoteSearchLabel: string | null;
+  addressCandidates: { label: string; lat: number; lon: number }[];
+  onSelectCandidate: (candidate: { label: string; lat: number; lon: number }) => void;
+  onUseMyLocation: () => void;
 }
 
 // Map category to icon
@@ -69,6 +76,17 @@ function getCategoryIconColor(categoria?: string | null) {
   if (cat.includes('office') || cat.includes('cowork') || cat.includes('escritório')) return 'text-blue-600';
   return 'text-muted-foreground';
 }
+// Badge circular no canto superior direito — mesmo padrão do botão de aceno
+// (PersonCard.tsx). O Button pai precisa de `relative` pra ancorar o `absolute`.
+function CountBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="absolute -top-2 -right-2 bg-accent text-accent-foreground text-xs rounded-full min-w-5 h-5 px-1.5 flex items-center justify-center font-semibold shadow-sm">
+      {count}
+    </span>
+  );
+}
+
 export function PlaceSelector({
   loading,
   places,
@@ -81,6 +99,14 @@ export function PlaceSelector({
   presenceRadius,
   userCoords,
   isRemoteSearch = false,
+  addressInput,
+  onAddressInputChange,
+  onSearchByAddress,
+  geocodingLoading,
+  remoteSearchLabel,
+  addressCandidates,
+  onSelectCandidate,
+  onUseMyLocation,
 }: PlaceSelectorProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -186,8 +212,7 @@ export function PlaceSelector({
 
   // Show full list or map
   return <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-2xl font-bold text-foreground">Onde você está agora?</h2>
+      <div className="flex items-center justify-end mb-2">
         {userCoords && (
           <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as 'list' | 'map')} size="sm" className="bg-muted rounded-lg p-0.5">
             <ToggleGroupItem value="list" aria-label="Lista" className="rounded-md px-3 data-[state=on]:bg-card data-[state=on]:shadow-sm">
@@ -222,34 +247,32 @@ export function PlaceSelector({
                 <Clock className="h-4 w-4 text-katu-green" />
                 <span>Locais temporários ativos</span>
               </div>
-              {temporaryPlaces.map(place => <div key={place.id} onClick={() => {
+              {temporaryPlaces.map(place => {
+                const explorerCount = 0; // TODO: plugar contagem real do explorador quando existir a fonte de dado
+                return <div key={place.id} onClick={() => {
                   const coords = tempPlacesCoords.find(c => c.id === place.id) ?? null;
                   validateAndProceed(coords, { categoria: null, isTemporary: true }, () => onSelectPlace(place.id));
                 }} className="bg-card rounded-xl p-3 shadow-sm border-2 border-katu-green/30 place-card cursor-pointer hover:border-katu-green/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-katu-green/10 flex items-center justify-center flex-shrink-0">
-                      <TemporaryPlaceIcon className="h-6 w-6 text-katu-green" />
+                  <div className="flex items-stretch gap-3">
+                    <div className="self-stretch aspect-square rounded-xl bg-katu-green/10 flex items-center justify-center flex-shrink-0">
+                      <TemporaryPlaceIcon className="h-8 w-8 text-katu-green" />
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 flex flex-col gap-1.5">
                       <h3 className="font-semibold truncate">{place.nome}</h3>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge variant="secondary" className="text-xs bg-katu-green/10 text-katu-green border-0">
-                          <Users className="h-3 w-3 mr-1" />
-                          {place.active_users} {place.active_users === 1 ? 'pessoa' : 'pessoas'}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {Math.round(place.distance_meters)}m
-                        </span>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" className="flex-1 rounded-lg font-semibold relative" onClick={handleExploreTemporaryBlocked}>
+                          Explorar
+                          <CountBadge count={explorerCount} />
+                        </Button>
+                        <Button size="sm" className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg font-semibold relative">
+                          Entrar
+                          <CountBadge count={place.active_users} />
+                        </Button>
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" className="rounded-lg font-semibold px-4" onClick={handleExploreTemporaryBlocked}>
-                      Explorar
-                    </Button>
-                    <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg font-semibold px-4">
-                      Aqui
-                    </Button>
                   </div>
-                </div>)}
+                </div>;
+              })}
             </div>}
 
           {/* Foursquare Places Section */}
@@ -262,34 +285,31 @@ export function PlaceSelector({
           const CategoryIcon = getCategoryIcon(place.categoria);
           const bgColor = getCategoryBgColor(place.categoria);
           const iconColor = getCategoryIconColor(place.categoria);
+          const explorerCount = 0; // TODO: plugar contagem real do explorador quando existir a fonte de dado
           return <div key={place.id} onClick={isRemoteSearch ? undefined : () => validateAndProceed(
                     { latitude: place.latitude, longitude: place.longitude },
                     { categoria: place.categoria, isTemporary: place.is_temporary },
                     () => onSelectPlace(place.id)
                   )} className={`bg-card rounded-xl p-3 shadow-sm border border-border place-card ${isRemoteSearch ? '' : 'cursor-pointer'}`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-12 h-12 rounded-xl ${bgColor} flex items-center justify-center flex-shrink-0`}>
-                        <CategoryIcon className={`h-6 w-6 ${iconColor}`} />
+                    <div className="flex items-stretch gap-3">
+                      <div className={`self-stretch aspect-square rounded-xl ${bgColor} flex items-center justify-center flex-shrink-0`}>
+                        <CategoryIcon className={`h-8 w-8 ${iconColor}`} />
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
                         <h3 className="font-semibold truncate">{place.nome}</h3>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {place.active_users !== undefined && place.active_users > 0 ? <Badge variant="secondary" className="text-xs bg-katu-green/10 text-katu-green border-0">
-                              <Users className="h-3 w-3 mr-1" />
-                              {place.active_users} {place.active_users === 1 ? 'pessoa' : 'pessoas'}
-                            </Badge> : <span className="text-xs text-muted-foreground">
-                              Ninguém por aqui ainda
-                            </span>}
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="outline" className="flex-1 rounded-lg font-semibold relative" onClick={(e) => handleExplore(e, place.id)}>
+                            Explorar
+                            <CountBadge count={explorerCount} />
+                          </Button>
+                          {!isRemoteSearch && (
+                            <Button size="sm" className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg font-semibold relative">
+                              Entrar
+                              <CountBadge count={place.active_users ?? 0} />
+                            </Button>
+                          )}
                         </div>
                       </div>
-                      <Button size="sm" variant="outline" className="rounded-lg font-semibold px-4" onClick={(e) => handleExplore(e, place.id)}>
-                        Explorar
-                      </Button>
-                      {!isRemoteSearch && (
-                        <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-lg font-semibold px-4">
-                          Aqui
-                        </Button>
-                      )}
                     </div>
                   </div>;
         })}
@@ -314,8 +334,48 @@ export function PlaceSelector({
             </div>
           </div>
 
+          {/* Remote address search section */}
+          <div className="pt-4 border-t border-border space-y-3">
+            <p className="text-sm text-muted-foreground">
+              O que está acontecendo longe de você?
+            </p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Rua, bairro ou cidade"
+                value={addressInput}
+                onChange={(e) => onAddressInputChange(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') onSearchByAddress(addressInput); }}
+                className="flex-1 h-11 rounded-xl bg-card"
+              />
+              <Button variant="secondary" size="icon" className="h-11 w-11 rounded-xl shrink-0" onClick={() => onSearchByAddress(addressInput)} disabled={!addressInput.trim() || geocodingLoading}>
+                {geocodingLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
+              </Button>
+            </div>
+            {isRemoteSearch && (
+              <div className="flex items-center justify-between gap-2 bg-muted/50 rounded-xl px-3 py-2">
+                <p className="text-xs text-muted-foreground truncate">
+                  Explorando: <span className="font-medium text-foreground">{remoteSearchLabel}</span>
+                </p>
+                <Button variant="ghost" size="sm" className="h-8 rounded-lg shrink-0" onClick={onUseMyLocation}>
+                  <Navigation className="h-3.5 w-3.5 mr-1.5" />
+                  Usar minha localização
+                </Button>
+              </div>
+            )}
+            {addressCandidates.length > 0 && (
+              <div className="space-y-1.5">
+                {addressCandidates.map((candidate, index) => (
+                  <button key={`${candidate.lat}-${candidate.lon}-${index}`} type="button" onClick={() => onSelectCandidate(candidate)} className="w-full flex items-center gap-2 text-left bg-muted/50 hover:bg-muted rounded-xl px-3 py-2.5 transition-colors">
+                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm truncate">{candidate.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Create temporary place button */}
-          <Button variant="outline" className="w-full h-11 rounded-xl border-dashed border-2" onClick={onCreateTemporary}>
+          <Button className="w-full h-11 rounded-xl bg-katu-green text-white hover:bg-katu-green/90 font-semibold" onClick={onCreateTemporary}>
             <Plus className="h-4 w-4 mr-2" />
             Criar local temporário
           </Button>

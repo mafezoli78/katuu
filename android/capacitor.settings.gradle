@@ -17,8 +17,5 @@ project(':capacitor-geolocation').projectDir = new File('../node_modules/@capaci
 include ':capacitor-push-notifications'
 project(':capacitor-push-notifications').projectDir = new File('../node_modules/@capacitor/push-notifications/android')
 
-include ':capgo-capacitor-nativegeocoder'
-project(':capgo-capacitor-nativegeocoder').projectDir = new File('../node_modules/@capgo/capacitor-nativegeocoder/android')
-
 include ':capgo-capacitor-social-login'
 project(':capgo-capacitor-social-login').projectDir = new File('../node_modules/@capgo/capacitor-social-login/android')

@@ -11,8 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Users, MapPin, ArrowLeft, Search, Navigation } from 'lucide-react';
-import { NativeGeocoder } from '@capgo/capacitor-nativegeocoder';
+import { Loader2, Users, MapPin, ArrowLeft } from 'lucide-react';
 import { Place, placesService, PROXIMITY_THRESHOLD_METERS, EXPANDED_SEARCH_RADIUS_METERS } from '@/services/placesService';
 import { PlaceSelector } from '@/components/location/PlaceSelector';
 import { CheckinSelfie } from '@/components/location/CheckinSelfie';
@@ -63,6 +62,7 @@ export default function Location() {
   const [remoteSearchLabel, setRemoteSearchLabel] = useState<string | null>(null);
   const [geocodingLoading, setGeocodingLoading] = useState(false);
   const [addressInput, setAddressInput] = useState('');
+  const [addressCandidates, setAddressCandidates] = useState<{ label: string; lat: number; lon: number }[]>([]);
 
   const DEFAULT_INTENTION_ID = 'fe9396db-a8d8-4064-a5f5-c1220e6722f1';
 
@@ -298,30 +298,33 @@ export default function Location() {
     }
   };
 
-  // Busca remota: converte texto de endereço/região em coordenada via geocoder
-  // nativo e lista estabelecimentos a partir dali — não do GPS. O usuário não
-  // está fisicamente lá, então isRemoteSearch trava o fluxo de "Entrar" na UI.
+  // Busca remota: converte texto de endereço/região em candidatos via Edge
+  // geocode-autocomplete (Geoapify) e exibe a lista para o usuário escolher —
+  // sem geocodar de novo ao tocar no candidato. O usuário não está fisicamente
+  // lá, então isRemoteSearch trava o fluxo de "Entrar" na UI.
   const handleSearchByAddress = async (addressText: string) => {
     const trimmed = addressText.trim();
-    if (!trimmed) return;
+    if (trimmed.length < 3) return;
 
     setGeocodingLoading(true);
     try {
-      const { addresses } = await NativeGeocoder.forwardGeocode({
-        addressString: trimmed,
-        maxResults: 1,
-        useLocale: true,
+      const { data, error } = await supabase.functions.invoke('geocode-autocomplete', {
+        body: { text: trimmed },
       });
 
-      if (!addresses || addresses.length === 0) {
+      if (error) {
+        logger.error('[Location] geocode-autocomplete invoke error', error);
+        toast({ variant: 'destructive', title: 'Não foi possível buscar esse endereço', description: 'Tente novamente.' });
+        return;
+      }
+
+      const results = data?.results ?? [];
+      if (results.length === 0) {
         toast({ variant: 'destructive', title: 'Endereço não encontrado', description: 'Tente algo mais específico, como rua e bairro.' });
         return;
       }
 
-      const { latitude, longitude } = addresses[0];
-      setIsRemoteSearch(true);
-      setRemoteSearchLabel(trimmed);
-      await fetchPlaces(latitude, longitude, { skipClosest: true });
+      setAddressCandidates(results);
     } catch (error) {
       logger.error('[Location] Geocoding error', error);
       toast({ variant: 'destructive', title: 'Não foi possível buscar esse endereço', description: 'Tente novamente.' });
@@ -330,9 +333,17 @@ export default function Location() {
     }
   };
 
+  const handleSelectCandidate = async (candidate: { label: string; lat: number; lon: number }) => {
+    setIsRemoteSearch(true);
+    setRemoteSearchLabel(candidate.label);
+    setAddressCandidates([]);
+    await fetchPlaces(candidate.lat, candidate.lon, { skipClosest: true });
+  };
+
   const handleUseMyLocation = () => {
     setIsRemoteSearch(false);
     setRemoteSearchLabel(null);
+    setAddressCandidates([]);
     if (userCoords) fetchPlaces(userCoords.lat, userCoords.lng);
   };
 
@@ -503,54 +514,27 @@ export default function Location() {
 
         {/* Seleção de local */}
         {step === 'select' && (
-          <div className="space-y-4">
-            {/* Busca remota por endereço/região — exploração, não check-in */}
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Ex: Rua Augusta, Consolação, São Paulo"
-                  value={addressInput}
-                  onChange={(e) => setAddressInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleSearchByAddress(addressInput); }}
-                  className="flex-1 h-11 rounded-xl"
-                />
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-11 w-11 rounded-xl shrink-0"
-                  onClick={() => handleSearchByAddress(addressInput)}
-                  disabled={!addressInput.trim() || geocodingLoading}
-                >
-                  {geocodingLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
-                </Button>
-              </div>
-              {isRemoteSearch && (
-                <div className="flex items-center justify-between gap-2 bg-muted/50 rounded-xl px-3 py-2">
-                  <p className="text-xs text-muted-foreground truncate">
-                    Explorando: <span className="font-medium text-foreground">{remoteSearchLabel}</span>
-                  </p>
-                  <Button variant="ghost" size="sm" className="h-8 rounded-lg shrink-0" onClick={handleUseMyLocation}>
-                    <Navigation className="h-3.5 w-3.5 mr-1.5" />
-                    Usar minha localização
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            <PlaceSelector
-              loading={loading || placesLoading}
-              places={places}
-              temporaryPlaces={nearbyTemporaryPlaces}
-              closestPlace={closestPlace}
-              onSelectPlace={handleSelectPlace}
-              onCreateTemporary={() => setStep('create_temp')}
-              onSearchByName={handleSearchByName}
-              searchingByName={searchingByName}
-              presenceRadius={presenceRadiusMeters}
-              userCoords={userCoords}
-              isRemoteSearch={isRemoteSearch}
-            />
-          </div>
+          <PlaceSelector
+            loading={loading || placesLoading}
+            places={places}
+            temporaryPlaces={nearbyTemporaryPlaces}
+            closestPlace={closestPlace}
+            onSelectPlace={handleSelectPlace}
+            onCreateTemporary={() => setStep('create_temp')}
+            onSearchByName={handleSearchByName}
+            searchingByName={searchingByName}
+            presenceRadius={presenceRadiusMeters}
+            userCoords={userCoords}
+            isRemoteSearch={isRemoteSearch}
+            addressInput={addressInput}
+            onAddressInputChange={setAddressInput}
+            onSearchByAddress={handleSearchByAddress}
+            geocodingLoading={geocodingLoading}
+            remoteSearchLabel={remoteSearchLabel}
+            addressCandidates={addressCandidates}
+            onSelectCandidate={handleSelectCandidate}
+            onUseMyLocation={handleUseMyLocation}
+          />
         )}
 
         {/* Criar local temporário */}
