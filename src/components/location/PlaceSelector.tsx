@@ -253,8 +253,8 @@ export function PlaceSelector({
                   const coords = tempPlacesCoords.find(c => c.id === place.id) ?? null;
                   validateAndProceed(coords, { categoria: null, isTemporary: true }, () => onSelectPlace(place.id));
                 }} className="bg-card rounded-xl p-3 shadow-sm border-2 border-katu-green/30 place-card cursor-pointer hover:border-katu-green/50">
-                  <div className="flex items-stretch gap-3">
-                    <div className="self-stretch aspect-square rounded-xl bg-katu-green/10 flex items-center justify-center flex-shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="h-16 w-16 rounded-xl bg-katu-green/10 flex items-center justify-center flex-shrink-0">
                       <TemporaryPlaceIcon className="h-8 w-8 text-katu-green" />
                     </div>
                     <div className="flex-1 min-w-0 flex flex-col gap-1.5">
@@ -277,10 +277,6 @@ export function PlaceSelector({
 
           {/* Foursquare Places Section */}
           {places.length > 0 && <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium px-1">
-                <Navigation className="h-4 w-4 text-katu-blue" />
-                <span>Estabelecimentos ({places.length})</span>
-              </div>
               {places.map(place => {
           const CategoryIcon = getCategoryIcon(place.categoria);
           const bgColor = getCategoryBgColor(place.categoria);
@@ -291,8 +287,8 @@ export function PlaceSelector({
                     { categoria: place.categoria, isTemporary: place.is_temporary },
                     () => onSelectPlace(place.id)
                   )} className={`bg-card rounded-xl p-3 shadow-sm border border-border place-card ${isRemoteSearch ? '' : 'cursor-pointer'}`}>
-                    <div className="flex items-stretch gap-3">
-                      <div className={`self-stretch aspect-square rounded-xl ${bgColor} flex items-center justify-center flex-shrink-0`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`h-16 w-16 rounded-xl ${bgColor} flex items-center justify-center flex-shrink-0`}>
                         <CategoryIcon className={`h-8 w-8 ${iconColor}`} />
                       </div>
                       <div className="flex-1 min-w-0 flex flex-col gap-1.5">
@@ -374,11 +370,16 @@ export function PlaceSelector({
             )}
           </div>
 
-          {/* Create temporary place button */}
-          <Button className="w-full h-11 rounded-xl bg-katu-green text-white hover:bg-katu-green/90 font-semibold" onClick={onCreateTemporary}>
-            <Plus className="h-4 w-4 mr-2" />
-            Criar local temporário
-          </Button>
+          {/* Create temporary place section */}
+          <div className="pt-4 border-t border-border space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Crie seu próprio local
+            </p>
+            <Button className="w-full h-11 rounded-xl bg-katu-green text-white hover:bg-katu-green/90 font-semibold" onClick={onCreateTemporary}>
+              <Plus className="h-4 w-4 mr-2" />
+              Criar local temporário
+            </Button>
+          </div>
         </div>}
     </div>;
 }
