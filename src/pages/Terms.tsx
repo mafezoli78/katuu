@@ -13,9 +13,9 @@ export default function Terms() {
         <h2 className="text-lg font-semibold text-foreground">1. Sobre o Katuu</h2>
         <p>O Katuu é uma plataforma social de presença física que conecta pessoas que estão no mesmo local ao mesmo tempo e estão abertas para uma conversa. O aplicativo é operado por:</p>
         <p>
-          <strong className="text-foreground">[NOME DA EMPRESA LTDA]</strong><br />
-          CNPJ: 00.000.000/0001-00<br />
-          Endereço: [Rua, número, complemento, bairro, cidade, estado, CEP]<br />
+          <strong className="text-foreground">R ROMANETTO - PRIMUS APPS</strong><br />
+          CNPJ: 66.663.358/0001-02<br />
+          Endereço: [Rod. Mario Marcondes Lobo, 4200, Porto de Cima, Morretes, PR, 83350-000]<br />
           E-mail: contato@katuu.com.br
         </p>
 
@@ -61,7 +61,7 @@ export default function Terms() {
         <h2 className="text-lg font-semibold text-foreground">15. Contato</h2>
         <p>Dúvidas sobre estes Termos: <strong className="text-foreground">suporte@katuu.com.br</strong></p>
 
-        <p className="text-xs text-muted-foreground/60 mt-8">Última atualização: [DD/MM/AAAA]</p>
+        <p className="text-xs text-muted-foreground/60 mt-8">Última atualização: 22/06/2026</p>
       </div>
     </div>
   );

@@ -40,11 +40,11 @@ export function EmailChangeDialog({ open, onClose, currentEmail }: EmailChangeDi
       if (error) throw error;
       
       setSuccess(true);
-    } catch (error: any) {
-      toast({ 
-        variant: 'destructive', 
+    } catch (error: unknown) {
+      toast({
+        variant: 'destructive',
         title: 'Erro ao alterar email',
-        description: error.message 
+        description: error instanceof Error ? error.message : 'Tente novamente'
       });
     } finally {
       setLoading(false);

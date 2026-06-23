@@ -13,9 +13,9 @@ export default function Privacy() {
         <h2 className="text-lg font-semibold text-foreground">1. Controlador dos Dados</h2>
         <p>Esta Política descreve como o Katuu coleta, usa e protege seus dados pessoais, em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).</p>
         <p>
-          <strong className="text-foreground">[NOME DA EMPRESA LTDA]</strong><br />
-          CNPJ: 00.000.000/0001-00<br />
-          Endereço: [Rua, número, complemento, bairro, cidade, estado, CEP]<br />
+          <strong className="text-foreground">R ROMANETTO - PRIMUS APPS</strong><br />
+          CNPJ: 66.663.358/0001-02<br />
+          Endereço: [Rod. Mario Marcondes Lobo, 4200, Porto de Cima, Morretes, PR, 83350-000]<br />
           E-mail do DPO: privacidade@katuu.com.br
         </p>
 
@@ -63,7 +63,7 @@ export default function Privacy() {
           Suporte geral: <strong className="text-foreground">suporte@katuu.com.br</strong>
         </p>
 
-        <p className="text-xs text-muted-foreground/60 mt-8">Última atualização: [DD/MM/AAAA]</p>
+        <p className="text-xs text-muted-foreground/60 mt-8">Última atualização: 22/06/2026</p>
       </div>
     </div>
   );

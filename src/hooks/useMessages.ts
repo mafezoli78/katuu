@@ -129,7 +129,7 @@ export function useMessages(conversationId: string | null) {
         { event: '*', schema: 'public', table: 'message_reactions' },
         (payload) => {
           if (payload.eventType === 'DELETE') {
-            const oldId = (payload.old as any)?.id;
+            const oldId = (payload.old as { id?: string })?.id;
             if (oldId) setReactions(prev => prev.filter(r => r.id !== oldId));
             return;
           }

@@ -27,10 +27,14 @@ export function useInterestCategories() {
       if (error) {
         console.error('Error fetching interest categories:', error);
       } else {
+        // Linhas cruas retornadas pelo Supabase (categoria com interesses aninhados).
+        type RawInterest = { id: string; name: string; slug: string; category_id: string; sort_order: number | null };
+        type RawCategory = { id: string; name: string; sort_order: number | null; interests: RawInterest[] | null };
+
         // Sort interests within each category by sort_order
-        const sorted = (data || []).map((cat: any) => ({
+        const sorted = ((data as RawCategory[]) || []).map((cat) => ({
           ...cat,
-          interests: (cat.interests || []).sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+          interests: (cat.interests || []).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
         }));
         setCategories(sorted as InterestCategory[]);
       }

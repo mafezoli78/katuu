@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { SelfCard } from '@/components/profile/SelfCard';
 import { DateOfBirthPicker } from '@/components/profile/DateOfBirthPicker';
@@ -49,6 +50,7 @@ export default function Profile() {
   const [gender, setGender] = useState<Gender | null>(null);
   const [genderCustom, setGenderCustom] = useState('');
   const [loading, setLoading] = useState(false);
+  const [visibleInExplore, setVisibleInExplore] = useState(true);
 
   useEffect(() => {
     if (!user) navigate('/auth', { replace: true });
@@ -61,6 +63,7 @@ export default function Profile() {
       setDataNascimento(profile.data_nascimento || '');
       setGender(profile.gender ?? null);
       setGenderCustom(profile.gender_custom || '');
+      setVisibleInExplore(profile.visible_in_explore);
     }
     setSelectedInterests(interests.map(i => i.interest_id));
   }, [profile, interests]);
@@ -126,6 +129,16 @@ export default function Profile() {
       if (found) return found.name;
     }
     return interestId;
+  };
+
+  const handleToggleVisibleInExplore = async (checked: boolean) => {
+    const previous = visibleInExplore;
+    setVisibleInExplore(checked);
+    const { error } = await updateProfile({ visible_in_explore: checked });
+    if (error) {
+      setVisibleInExplore(previous);
+      toast({ variant: 'destructive', title: 'Não foi possível salvar' });
+    }
   };
 
   const validateForm = (): boolean => {
@@ -452,6 +465,21 @@ export default function Profile() {
                   </span>
                 </span>
               </Button>
+
+              <div className="flex items-center justify-between gap-3 py-1">
+                <span className="flex flex-col pr-2">
+                  <span className="font-medium text-sm">Aparecer no modo Explorar</span>
+                  <span className="text-xs text-muted-foreground font-normal">
+                    Quando ligado, quem está explorando o local de longe pode ver você.
+                    Desligar não afeta quem está no mesmo local que você.
+                  </span>
+                </span>
+                <Switch
+                  checked={visibleInExplore}
+                  disabled={!profile}
+                  onCheckedChange={handleToggleVisibleInExplore}
+                />
+              </div>
             </CardContent>
           </Card>
         )}

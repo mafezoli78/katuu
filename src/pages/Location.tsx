@@ -45,6 +45,10 @@ export default function Location() {
   const [permissionStatus, setPermissionStatus] = useState<'prompt' | 'granted' | 'denied' | 'blocked'>('prompt');
   const [isRequestingPermission, setIsRequestingPermission] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  // Centro do mapa: segue a busca ativa. Setado so em acoes discretas (primeiro
+  // fix de GPS, escolher candidato remoto, "usar minha localizacao") — nunca a
+  // cada drift do GPS, pra nao arrastar a vista. userCoords segue so-GPS.
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [newPlaceName, setNewPlaceName] = useState('');
   const [activating, setActivating] = useState(false);
@@ -231,6 +235,7 @@ export default function Location() {
         localStorage.setItem('location_permission_granted', 'true');
         const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
         setUserCoords(coords);
+        setMapCenter(prev => prev ?? coords);
         fetchPlacesRef.current?.(coords.lat, coords.lng);
         if (!pendingRef.current) setStep('select');
       },
@@ -336,6 +341,7 @@ export default function Location() {
   const handleSelectCandidate = async (candidate: { label: string; lat: number; lon: number }) => {
     setIsRemoteSearch(true);
     setRemoteSearchLabel(candidate.label);
+    setMapCenter({ lat: candidate.lat, lng: candidate.lon });
     setAddressCandidates([]);
     await fetchPlaces(candidate.lat, candidate.lon, { skipClosest: true });
   };
@@ -344,7 +350,21 @@ export default function Location() {
     setIsRemoteSearch(false);
     setRemoteSearchLabel(null);
     setAddressCandidates([]);
-    if (userCoords) fetchPlaces(userCoords.lat, userCoords.lng);
+    if (userCoords) {
+      setMapCenter(userCoords);
+      fetchPlaces(userCoords.lat, userCoords.lng);
+    }
+  };
+
+  // Refresh manual da lista. Respeita o contexto: em busca remota, recarrega a
+  // região pesquisada (mapCenter); caso normal, usa o GPS (skipClosest evita
+  // reabrir o card "Você está aqui?" num refresh manual).
+  const handleRefresh = () => {
+    if (isRemoteSearch && mapCenter) {
+      fetchPlaces(mapCenter.lat, mapCenter.lng, { skipClosest: true });
+    } else if (userCoords) {
+      fetchPlaces(userCoords.lat, userCoords.lng, { skipClosest: true });
+    }
   };
 
   const handleCreateTemporaryPlace = async () => {
@@ -525,6 +545,7 @@ export default function Location() {
             searchingByName={searchingByName}
             presenceRadius={presenceRadiusMeters}
             userCoords={userCoords}
+            mapCenter={mapCenter}
             isRemoteSearch={isRemoteSearch}
             addressInput={addressInput}
             onAddressInputChange={setAddressInput}
@@ -534,6 +555,7 @@ export default function Location() {
             addressCandidates={addressCandidates}
             onSelectCandidate={handleSelectCandidate}
             onUseMyLocation={handleUseMyLocation}
+            onRefresh={handleRefresh}
           />
         )}
 

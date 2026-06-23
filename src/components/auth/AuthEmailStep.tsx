@@ -31,8 +31,9 @@ export function AuthEmailStep({ email, setEmail, onBack, onExistingUser, onNewUs
       } else {
         onNewUser();
       }
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erro', description: err.message });
+    } catch (err: unknown) {
+      const description = err instanceof Error ? err.message : 'Erro ao verificar e-mail';
+      toast({ variant: 'destructive', title: 'Erro', description });
     } finally {
       setLoading(false);
     }

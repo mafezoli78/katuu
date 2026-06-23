@@ -206,26 +206,12 @@ class GeoapifyProvider implements PlaceProvider {
 }
 
 // =============================================================================
-// MAPBOX PROVIDER (stub)
-// =============================================================================
-
-class MapboxProvider implements PlaceProvider {
-  name = "mapbox";
-
-  async search(_params: SearchParams): Promise<StandardPlace[]> {
-    throw new Error("Mapbox provider not implemented yet");
-  }
-}
-
-// =============================================================================
 // PROVIDER FACTORY
 // =============================================================================
 
 function getProvider(): PlaceProvider {
   const providerName = (Deno.env.get("PLACE_PROVIDER") || "geoapify").toLowerCase();
   switch (providerName) {
-    case "mapbox":
-      return new MapboxProvider();
     case "geoapify":
     default:
       return new GeoapifyProvider();
@@ -354,13 +340,6 @@ Deno.serve(async (req) => {
         providerSuccess = true;
       } catch (apiError) {
         console.error(`[search-places] ⚠️ Provider ${provider.name} failed:`, apiError);
-        // For providers that aren't implemented (e.g. Mapbox), return 501
-        if ((apiError as Error).message?.includes("not implemented")) {
-          return new Response(
-            JSON.stringify({ error: "Mapbox provider not implemented yet" }),
-            { status: 501, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
       }
 
       // Persist places to database
@@ -412,12 +391,14 @@ Deno.serve(async (req) => {
 
     // O query só filtra a lista final de exibição — nunca a decisão de
     // cobertura acima (ver comentário em fetchCuratedCandidates).
-    // TODO (Etapa 7): este filtro por nome é provisório; será redesenhado
-    // via autocomplete.
+    // Busca por nome = filtrar os candidatos do cache (além do top 20), com
+    // match parcial e insensível a caixa e a acento. Geoapify não tem busca
+    // textual livre, então não há busca por nome do lado do provider.
     if (query && query.trim()) {
-      const needle = query.trim().toLowerCase();
+      const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+      const needle = norm(query.trim());
       console.log(`[search-places] 🔤 Filtering by name: "${query.trim()}"`);
-      curatedCandidates = curatedCandidates.filter(place => place.nome?.toLowerCase().includes(needle));
+      curatedCandidates = curatedCandidates.filter(place => place.nome ? norm(place.nome).includes(needle) : false);
     }
 
     const placesWithDistance = curatedCandidates
@@ -441,7 +422,8 @@ Deno.serve(async (req) => {
           .from("presence")
           .select("*", { count: "exact", head: true })
           .eq("place_id", place.id)
-          .eq("ativo", true);
+          .eq("ativo", true)
+          .eq("entry_type", "presence");
 
         return { ...place, active_users: count || 0 };
       })

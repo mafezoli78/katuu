@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -131,7 +132,7 @@ export default {
     },
   },
   plugins: [
-    require("tailwindcss-animate"),
+    tailwindcssAnimate,
     function({ addVariant }: { addVariant: (name: string, definition: string) => void }) {
       addVariant('hover', '@media (hover: hover) { &:hover }');
     },

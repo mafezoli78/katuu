@@ -17,6 +17,7 @@ export interface Profile {
   foto_url: string | null;
   gender: Gender | null;
   gender_custom: string | null;
+  visible_in_explore: boolean;
   criado_em: string;
   atualizado_em: string;
 }

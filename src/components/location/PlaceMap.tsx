@@ -9,7 +9,15 @@ interface PlaceMapProps {
   temporaryPlaces: NearbyTemporaryPlace[];
   temporaryPlacesCoords: { id: string; latitude: number; longitude: number }[];
   userCoords: { lat: number; lng: number };
+  /** Centro/foco do mapa: segue a busca ativa (GPS no fluxo normal, coord
+   *  geocodificada na busca remota). Separado de userCoords de propósito —
+   *  userCoords só move o pontinho "você"; center move a vista do mapa. */
+  center: { lat: number; lng: number } | null;
+  /** Em busca remota o usuário não está fisicamente no lugar — esconde "Entrar". */
+  isRemoteSearch: boolean;
   onSelectPlace: (placeId: string) => void;
+  /** Abre o modo explorador do lugar. */
+  onExplore: (placeId: string) => void;
 }
 
 function createPlaceIcon(activeUsers: number, isTemporary: boolean): L.DivIcon {
@@ -33,22 +41,27 @@ const userIcon = L.divIcon({
   iconAnchor: [10, 10],
 });
 
-function buildPopupHtml(name: string, activeUsers: number, placeId: string): string {
-  const badge = activeUsers > 0
-    ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:2px 8px;border-radius:9999px;background:rgba(34,197,94,0.1);color:#16a34a;">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        ${activeUsers}
-      </span>`
-    : `<span style="font-size:12px;color:#9ca3af;">Ninguém aqui</span>`;
+// Popup do pin: espelha o card da lista — Explorar + Entrar, sem contagem
+// (a bolinha do pin já mostra o número de presentes). canExplore=false em
+// local temporário; canEnter=false em busca remota.
+function buildPopupHtml(
+  name: string,
+  placeId: string,
+  opts: { canExplore: boolean; canEnter: boolean },
+): string {
+  const explorar = opts.canExplore
+    ? `<button data-explore-id="${placeId}" style="flex:1;background:transparent;color:hsl(var(--foreground));border:1px solid hsl(var(--border));border-radius:8px;padding:0 12px;font-weight:600;font-size:13px;cursor:pointer;height:34px;">Explorar</button>`
+    : '';
+  const entrar = opts.canEnter
+    ? `<button data-place-id="${placeId}" style="flex:1;background:hsl(var(--accent));color:hsl(var(--accent-foreground));border:none;border-radius:8px;padding:0 12px;font-weight:600;font-size:13px;cursor:pointer;height:34px;">Entrar</button>`
+    : '';
 
   return `
     <div style="padding:8px;min-width:180px;">
-      <p style="font-weight:600;font-size:14px;margin:0 0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</p>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-        ${badge}
-        <button data-place-id="${placeId}" style="background:hsl(var(--accent));color:hsl(var(--accent-foreground));border:none;border-radius:8px;padding:4px 16px;font-weight:600;font-size:13px;cursor:pointer;height:32px;">
-          Aqui
-        </button>
+      <p style="font-weight:600;font-size:14px;margin:0 0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</p>
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${explorar}
+        ${entrar}
       </div>
     </div>
   `;
@@ -59,42 +72,60 @@ export default function PlaceMap({
   temporaryPlaces,
   temporaryPlacesCoords,
   userCoords,
+  center,
+  isRemoteSearch,
   onSelectPlace,
+  onExplore,
 }: PlaceMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const placeMarkersRef = useRef<L.LayerGroup>(L.layerGroup());
   const tempMarkersRef = useRef<L.LayerGroup>(L.layerGroup());
-  // Store callback in ref so popup click handler always has latest version
+  // Store callbacks in refs so the popup click handler always has the latest.
   const onSelectPlaceRef = useRef(onSelectPlace);
   onSelectPlaceRef.current = onSelectPlace;
+  const onExploreRef = useRef(onExplore);
+  onExploreRef.current = onExplore;
 
   // Init map
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    // Foco inicial: a busca ativa (center) se já existir, senão o GPS.
+    const focus = center ?? userCoords;
+
     const map = L.map(containerRef.current, {
-      center: [userCoords.lat, userCoords.lng],
+      center: [focus.lat, focus.lng],
       zoom: 16,
       zoomControl: false,
       attributionControl: true,
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+    const stadiaKey = import.meta.env.VITE_STADIA_API_KEY;
+    L.tileLayer(`https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png?api_key=${stadiaKey}`, {
+      attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+      detectRetina: true,
+      maxZoom: 20,
     }).addTo(map);
 
     userMarkerRef.current = L.marker([userCoords.lat, userCoords.lng], { icon: userIcon, interactive: false }).addTo(map);
     placeMarkersRef.current.addTo(map);
     tempMarkersRef.current.addTo(map);
 
-    // Single delegated click handler on the map container for popup buttons
+    // Click delegado: distingue "Entrar" (data-place-id) de "Explorar" (data-explore-id).
     containerRef.current.addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-place-id]');
-      if (btn) {
+      const target = e.target as HTMLElement;
+      const enterBtn = target.closest<HTMLElement>('[data-place-id]');
+      if (enterBtn) {
         e.stopPropagation();
-        onSelectPlaceRef.current(btn.dataset.placeId!);
+        onSelectPlaceRef.current(enterBtn.dataset.placeId!);
+        return;
+      }
+      const exploreBtn = target.closest<HTMLElement>('[data-explore-id]');
+      if (exploreBtn) {
+        e.stopPropagation();
+        onExploreRef.current(exploreBtn.dataset.exploreId!);
       }
     });
 
@@ -108,11 +139,20 @@ export default function PlaceMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update user position
+  // Update user position (pontinho "você" — sempre o GPS real)
   useEffect(() => {
     if (!userMarkerRef.current) return;
     userMarkerRef.current.setLatLng([userCoords.lat, userCoords.lng]);
   }, [userCoords]);
+
+  // Re-centraliza a vista quando o foco da busca muda (busca remota ou
+  // "usar minha localização"). Propositalmente NÃO depende de userCoords:
+  // assim a variação contínua do GPS não arrasta o mapa enquanto o usuário
+  // navega — só uma ação de busca move a vista.
+  useEffect(() => {
+    if (!mapRef.current || !center) return;
+    mapRef.current.flyTo([center.lat, center.lng], 16, { duration: 0.5 });
+  }, [center]);
 
   // Update place markers
   useEffect(() => {
@@ -122,13 +162,13 @@ export default function PlaceMap({
       const marker = L.marker([place.latitude, place.longitude], {
         icon: createPlaceIcon(place.active_users ?? 0, false),
       });
-      marker.bindPopup(buildPopupHtml(place.nome, place.active_users ?? 0, place.id), {
+      marker.bindPopup(buildPopupHtml(place.nome, place.id, { canExplore: true, canEnter: !isRemoteSearch }), {
         className: 'leaflet-popup-katuu',
         closeButton: false,
       });
       group.addLayer(marker);
     });
-  }, [places]);
+  }, [places, isRemoteSearch]);
 
   // Update temporary place markers
   useEffect(() => {
@@ -141,13 +181,13 @@ export default function PlaceMap({
       const marker = L.marker([coords.latitude, coords.longitude], {
         icon: createPlaceIcon(tp.active_users, true),
       });
-      marker.bindPopup(buildPopupHtml(tp.nome, tp.active_users, tp.id), {
+      marker.bindPopup(buildPopupHtml(tp.nome, tp.id, { canExplore: false, canEnter: !isRemoteSearch }), {
         className: 'leaflet-popup-katuu',
         closeButton: false,
       });
       group.addLayer(marker);
     });
-  }, [temporaryPlaces, temporaryPlacesCoords]);
+  }, [temporaryPlaces, temporaryPlacesCoords, isRemoteSearch]);
 
   const handleRecenter = useCallback(() => {
     mapRef.current?.flyTo([userCoords.lat, userCoords.lng], 16, { duration: 0.5 });

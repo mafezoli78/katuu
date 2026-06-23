@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { ArrowLeft, Users, Loader2, MapPin } from 'lucide-react';
+import { ArrowLeft, Users, Loader2, MapPin, RefreshCw, X } from 'lucide-react';
 import { calculateAge } from '@/utils/date';
 import { getSignedSelfieUrls } from '@/lib/storage';
 import { useValidatePlaceDistance } from '@/hooks/useValidatePlaceDistance';
@@ -36,6 +36,8 @@ export default function Explore() {
   const [placeName, setPlaceName] = useState<string | null>(null);
   const [cards, setCards] = useState<ExploreCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selected, setSelected] = useState<ExploreCard | null>(null);
   const { validating, validateAndProceed } = useValidatePlaceDistance();
 
   const mountedRef = useRef(true);
@@ -78,7 +80,10 @@ export default function Explore() {
         return;
       }
 
-      const rows = (data || []) as ExploreCard[];
+      // Regra do app: sem selfie não há presença. Um card sem selfie seria um
+      // bug a montante — omitimos da galeria (o explorador nunca vê quadro
+      // quebrado; a linha continua no banco para investigação).
+      const rows = ((data || []) as ExploreCard[]).filter(r => !!r.checkin_selfie_url);
 
       const selfiePaths = rows
         .map(r => r.checkin_selfie_url)
@@ -104,11 +109,46 @@ export default function Explore() {
     }
   }, [placeId]);
 
+  // Ciclo de vida da exploração: registra o explorador ao montar e remove a
+  // linha ao desmontar (voltar, entrar no local, fechar). A saída é ponto
+  // único — o cleanup cobre todos os caminhos. Dependência vazia: a tela
+  // sempre monta com o placeId da rota e só se explora um local por vez
+  // (sempre via Home), então enter/leave seguem o montar/desmontar real.
+  useEffect(() => {
+    mountedRef.current = true;
+
+    if (placeId) {
+      supabase.rpc('enter_as_explorer' as any, { p_place_id: placeId }).then(({ error }) => {
+        // ALREADY_PRESENT: usuário já está presente num local — o backend barra
+        // a exploração de propósito; o cliente apenas ignora.
+        if (error && error.message !== 'ALREADY_PRESENT') {
+          console.error('[Explore] enter_as_explorer:', error);
+        }
+      });
+    }
+
+    return () => {
+      mountedRef.current = false;
+      supabase.rpc('leave_exploration' as any).then(({ error }) => {
+        if (error) console.error('[Explore] leave_exploration:', error);
+      });
+    };
+  }, []);
+
+  // Feed: primeira carga + refresh periódico (também serve de heartbeat no
+  // servidor — get_place_explore_feed renova o expires_at da exploração).
   useEffect(() => {
     fetchFeed();
     const interval = setInterval(fetchFeed, FEED_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [fetchFeed]);
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    await fetchFeed();
+    setTimeout(() => { if (mountedRef.current) setRefreshing(false); }, 600);
+  }, [refreshing, fetchFeed]);
 
   const handleEnter = () => {
     if (!placeId) return;
@@ -117,38 +157,43 @@ export default function Explore() {
     });
   };
 
-  const enterButton = (
-    <Button
-      onClick={handleEnter}
-      disabled={validating}
-      className="w-full h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
-    >
-      {validating ? (
-        <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Verificando localização...</>
-      ) : (
-        <><MapPin className="h-4 w-4 mr-2" />Entrar</>
-      )}
-    </Button>
-  );
-
   return (
     <MobileLayout>
       <div className="p-4 space-y-4 page-fade">
+        {/* Cabeçalho: voltar + nome do local + atualizar (canto direito) */}
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <h2 className="text-xl font-bold leading-tight">{placeName || 'Explorar'}</h2>
-            <p className="text-sm text-muted-foreground flex items-center gap-1">
-              <Users className="h-3.5 w-3.5" />
-              {cards.length} {cards.length === 1 ? 'pessoa aqui' : 'pessoas aqui'}
-            </p>
-          </div>
+          <h2 className="text-xl font-bold leading-tight flex-1 truncate">{placeName || 'Explorar'}</h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-xl shrink-0"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
         </div>
 
-        {enterButton}
+        {/* Entrar */}
+        <Button
+          onClick={handleEnter}
+          disabled={validating}
+          className="w-full h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
+        >
+          {validating ? (
+            <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Verificando localização...</>
+          ) : (
+            <><MapPin className="h-4 w-4 mr-2" />Entrar</>
+          )}
+        </Button>
 
+        {/* Explicativo */}
+        <p className="text-sm text-muted-foreground">Veja quem já está presente</p>
+
+        {/* Galeria */}
         {loading ? (
           <div className="text-center py-12">
             <Loader2 className="h-10 w-10 animate-spin mx-auto text-katu-blue" />
@@ -163,49 +208,67 @@ export default function Explore() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
-            {cards.map((card) => {
-              const age = card.data_nascimento ? calculateAge(card.data_nascimento) : null;
-              const initials = card.nome?.[0]?.toUpperCase() || '?';
-              const gLabel = genderLabel(card.gender);
-
-              return (
-                <Card key={card.user_id} className="border-0 shadow-sm overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="flex h-full">
-                      <div className="w-[36%] flex items-center p-2.5">
-                        {card.checkin_selfie_url ? (
-                          <img
-                            src={card.checkin_selfie_url}
-                            alt={card.nome || ''}
-                            className="w-full aspect-square object-cover rounded-lg"
-                          />
-                        ) : (
-                          <div className="w-full aspect-square flex items-center justify-center font-bold text-xl bg-muted text-muted-foreground rounded-lg">
-                            {initials}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex-1 flex flex-col justify-center p-4">
-                        <div className="font-semibold text-base">{card.nome}</div>
-
-                        {(gLabel || age !== null) && (
-                          <span className="inline-block text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full mt-1 w-fit">
-                            {gLabel}
-                            {gLabel && age !== null && ' • '}
-                            {age !== null && age}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+          <div className="grid grid-cols-3 gap-2">
+            {cards.map((card) => (
+              <button
+                key={card.user_id}
+                onClick={() => setSelected(card)}
+                className="block w-full aspect-square rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-katu-blue"
+              >
+                <img
+                  src={card.checkin_selfie_url!}
+                  alt={card.nome || ''}
+                  className="w-full h-full object-cover"
+                />
+              </button>
+            ))}
           </div>
         )}
       </div>
+
+      {/* Modal: foto ampliada + dados (ao tocar numa foto) */}
+      {selected && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6"
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="bg-background rounded-2xl overflow-hidden max-w-xs w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative">
+              <img
+                src={selected.checkin_selfie_url!}
+                alt={selected.nome || ''}
+                className="w-full aspect-square object-cover"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2 h-9 w-9 rounded-full bg-black/40 text-white hover:bg-black/60"
+                onClick={() => setSelected(null)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className="p-4">
+              <div className="font-semibold text-lg">{selected.nome}</div>
+              {(() => {
+                const age = selected.data_nascimento ? calculateAge(selected.data_nascimento) : null;
+                const gLabel = genderLabel(selected.gender);
+                if (!gLabel && age === null) return null;
+                return (
+                  <div className="text-sm text-muted-foreground mt-0.5">
+                    {gLabel}
+                    {gLabel && age !== null && ' • '}
+                    {age !== null && age}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </MobileLayout>
   );
 }

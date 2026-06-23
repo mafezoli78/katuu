@@ -78,9 +78,11 @@ try {
       }
 
       return data.places || [];
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Don't throw on abort - just return empty
-      if (err?.name === 'AbortError' || err?.message?.includes('aborted')) {
+      const name = err instanceof Error ? err.name : '';
+      const message = err instanceof Error ? err.message : '';
+      if (name === 'AbortError' || message.includes('aborted')) {
         logger.debug('[placesService] Request aborted (new request started)');
         return [];
       }

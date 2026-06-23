@@ -38,6 +38,21 @@ interface SessionWave {
   };
 }
 
+// Linha crua da tabela `waves` (campos que esta tela lê antes do enriquecimento).
+interface WaveRow {
+  id: string;
+  criado_em: string;
+  visualizado: boolean;
+  expires_at: string | null;
+  status: 'pending' | 'accepted' | 'expired';
+  de_user_id: string;
+  para_user_id: string;
+  ignored_at?: string | null;
+  intention?: WaveIntention;
+  intention_message?: string | null;
+  place_id?: string;
+}
+
 const STATUS_BADGE: Record<WaveDisplayStatus, { label: string; className: string }> = {
   pendente: { label: 'Pendente', className: 'bg-amber-100 text-amber-700' },
   aceito:   { label: 'Aceito',   className: 'bg-katu-green/15 text-katu-green' },
@@ -97,7 +112,7 @@ export default function Waves() {
     try {
       // Sessão = desde o início da presença atual (fallback: teto de 2h)
       const sessionStart =
-        (currentPresence as any)?.inicio ||
+        (currentPresence as { inicio?: string } | null)?.inicio ||
         new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
       const { data, error } = await supabase
@@ -110,12 +125,12 @@ export default function Waves() {
 
       if (error) throw error;
 
-      const rows = (data as any[]) || [];
+      const rows = (data as WaveRow[]) || [];
       const received = rows.filter(w => w.para_user_id === user.id);
       const sent = rows.filter(w => w.de_user_id === user.id);
 
       // Enriquecimento: perfil do outro usuário (+ selfie do remetente nos recebidos)
-      const enrich = async (waves: any[], otherIdKey: 'de_user_id' | 'para_user_id', withSelfie: boolean): Promise<SessionWave[]> => {
+      const enrich = async (waves: WaveRow[], otherIdKey: 'de_user_id' | 'para_user_id', withSelfie: boolean): Promise<SessionWave[]> => {
         const result: SessionWave[] = [];
         for (const wave of waves) {
           const otherId = wave[otherIdKey];
@@ -123,7 +138,7 @@ export default function Waves() {
             supabase.from('profiles').select('nome, foto_url').eq('id', otherId).single(),
             withSelfie
               ? supabase.from('presence').select('checkin_selfie_url').eq('user_id', otherId).eq('ativo', true).maybeSingle()
-              : Promise.resolve({ data: null } as any),
+              : Promise.resolve({ data: null as { checkin_selfie_url: string | null } | null }),
           ]);
 
           let selfieUrl: string | null = presenceRes.data?.checkin_selfie_url || null;
@@ -184,7 +199,7 @@ export default function Waves() {
           fetchSessionWaves();
           return;
         }
-        const r = payload.new as any;
+        const r = payload.new as { de_user_id?: string; para_user_id?: string };
         if (r?.de_user_id === user.id || r?.para_user_id === user.id) {
           fetchSessionWaves();
         }

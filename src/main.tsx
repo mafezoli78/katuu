@@ -149,7 +149,7 @@ function bootstrap() {
     createRoot(rootElement).render(<App />);
     console.log('[Katuu] ✅ App montado com sucesso');
 
-  } catch (fatalError: any) {
+  } catch (fatalError: unknown) {
     console.error('[Katuu] Erro fatal:', fatalError);
     showFallbackScreen('Erro inesperado', 'O app encontrou um problema. Tente novamente.', true);
   }

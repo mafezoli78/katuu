@@ -1,12 +1,41 @@
 // Serviço de câmera - suporte nativo (Capacitor) e web (MediaStream)
 // As importações do Capacitor são carregadas condicionalmente
 
+// Interface mínima do plugin CameraPreview (só os métodos que usamos). O plugin
+// é injetado em runtime pelo Capacitor; tipamos o contrato que consumimos.
+interface CameraPreviewPlugin {
+  start(options: {
+    position: string;
+    parent: string;
+    className: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    toBack: boolean;
+    disableAudio: boolean;
+  }): Promise<void>;
+  captureSample(options: { quality: number }): Promise<{ value: string }>;
+  stop(): Promise<void>;
+}
+
+// Forma mínima do objeto global injetado pelo Capacitor em runtime.
+interface CapacitorGlobal {
+  isNativePlatform?: () => boolean;
+  getPlatform?: () => string;
+  Plugins?: { CameraPreview?: CameraPreviewPlugin };
+}
+
+function getCapacitor(): CapacitorGlobal | undefined {
+  return (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
+}
+
 // Detecta se está rodando em app nativo sem importar o módulo diretamente
 function isNativePlatform(): boolean {
-  const win = window as any;
-  return !!(win.Capacitor?.isNativePlatform?.()) ||
-    !!(win.Capacitor?.getPlatform?.() === 'android') ||
-    !!(win.Capacitor?.getPlatform?.() === 'ios');
+  const cap = getCapacitor();
+  return !!(cap?.isNativePlatform?.()) ||
+    cap?.getPlatform?.() === 'android' ||
+    cap?.getPlatform?.() === 'ios';
 }
 
 export function isNative(): boolean {
@@ -18,13 +47,12 @@ export function isNative(): boolean {
 // ============================================================
 
 let previewActive = false;
-let CameraPreviewModule: any = null;
+let CameraPreviewModule: CameraPreviewPlugin | null = null;
 
-async function getCameraPreview(): Promise<any> {
+async function getCameraPreview(): Promise<CameraPreviewPlugin> {
   if (!CameraPreviewModule) {
     if (isNativePlatform()) {
-      const win = window as any;
-      const plugin = win.Capacitor?.Plugins?.CameraPreview;
+      const plugin = getCapacitor()?.Plugins?.CameraPreview;
       if (!plugin) {
         throw new Error('Camera plugin not available');
       }
@@ -127,7 +155,9 @@ export async function stopPreview(): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 300));
     const CameraPreview = await getCameraPreview();
     await CameraPreview.stop();
-  } catch { }
+  } catch {
+    // Ignorado: parar um preview que já parou (ou indisponível) não é erro.
+  }
 }
 
 export function isPreviewActive(): boolean {

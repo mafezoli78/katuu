@@ -23,7 +23,7 @@ interface PresenceStatusCardProps {
   isTemporary: boolean;
   formatRemainingTime: () => string;
   remainingTime: number;
-  renewPresence: () => Promise<{ error: any }>;
+  renewPresence: () => Promise<{ error: Error | null }>;
   deactivatePresence: () => void;
 }
 

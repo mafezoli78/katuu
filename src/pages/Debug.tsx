@@ -65,8 +65,10 @@ export default function Debug() {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       stream.getTracks().forEach(t => t.stop());
       setCameraResult({ status: 'OK ✓' });
-    } catch (err: any) {
-      setCameraResult({ status: 'Erro', error: `${err.name}: ${err.message}` });
+    } catch (err: unknown) {
+      const name = err instanceof Error ? err.name : 'Error';
+      const message = err instanceof Error ? err.message : String(err);
+      setCameraResult({ status: 'Erro', error: `${name}: ${message}` });
     } finally {
       setCameraLoading(false);
     }

@@ -178,7 +178,10 @@ Deno.serve(async (req) => {
     })
   );
 
-  const processedCount = results.filter(r => r.status === 'fulfilled' && (r.value as any).success).length;
+  const processedCount = results.filter(
+    (r): r is PromiseFulfilledResult<{ id: string; success: boolean }> =>
+      r.status === 'fulfilled' && r.value.success
+  ).length;
   console.log(`[process-queue] Concluído: ${processedCount}/${pendingItems.length} enviados`);
 
   return new Response(JSON.stringify({ processed: processedCount, total: pendingItems.length }), {

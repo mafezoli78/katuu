@@ -9,13 +9,17 @@ import { supabase } from '@/integrations/supabase/client';
 const VAPID_PUBLIC_KEY = 'BMjJdgmsVCtRExT2_2vs0eQmoDrZ8ObtjwxatJaEYyAdYAzDPdeUtBCUSuKLmrU4PllBY0QCnlYryostL0iVCQ8';
 
 // Detecta se está rodando em app nativo (Capacitor) sem importar o módulo
+// Em ambiente nativo, o Capacitor injeta window.Capacitor
+interface CapacitorGlobal {
+  isNativePlatform?: () => boolean;
+  getPlatform?: () => string;
+}
+
 function isNativePlatform(): boolean {
-  // Verifica se existe a ponte nativa do Capacitor no window
-  // Em ambiente nativo, o Capacitor injeta window.Capacitor
-  const win = window as any;
-  return !!(win.Capacitor?.isNativePlatform?.()) || 
-         !!(win.Capacitor?.getPlatform?.() === 'android') ||
-         !!(win.Capacitor?.getPlatform?.() === 'ios');
+  const cap = (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
+  return !!(cap?.isNativePlatform?.()) ||
+         cap?.getPlatform?.() === 'android' ||
+         cap?.getPlatform?.() === 'ios';
 }
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -45,11 +49,16 @@ async function subscribeUser(userId: string) {
     const sub = subscription.toJSON();
     if (!sub.keys) return;
 
+    // A tabela `push_subscriptions` não está no schema TypeScript gerado
+    // (supabase gen types). Ao regenerar os tipos com essa tabela incluída,
+    // estes casts podem ser removidos.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase.from('push_subscriptions' as any).upsert({
       user_id: userId,
       endpoint: sub.endpoint,
       p256dh: sub.keys.p256dh,
       auth: sub.keys.auth,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any, { onConflict: 'endpoint' }));
 
   } catch (err) {

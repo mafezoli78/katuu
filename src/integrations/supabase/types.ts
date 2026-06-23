@@ -85,6 +85,8 @@ export type Database = {
           encerrado_motivo: string | null
           encerrado_por: string | null
           id: string
+          intention: string | null
+          intention_message: string | null
           origem_wave_id: string | null
           place_id: string
           reinteracao_permitida_em: string | null
@@ -98,6 +100,8 @@ export type Database = {
           encerrado_motivo?: string | null
           encerrado_por?: string | null
           id?: string
+          intention?: string | null
+          intention_message?: string | null
           origem_wave_id?: string | null
           place_id: string
           reinteracao_permitida_em?: string | null
@@ -111,6 +115,8 @@ export type Database = {
           encerrado_motivo?: string | null
           encerrado_por?: string | null
           id?: string
+          intention?: string | null
+          intention_message?: string | null
           origem_wave_id?: string | null
           place_id?: string
           reinteracao_permitida_em?: string | null
@@ -154,6 +160,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      fcm_tokens: {
+        Row: {
+          atualizado_em: string | null
+          criado_em: string | null
+          device_id: string | null
+          id: string
+          platform: string | null
+          token: string
+          user_id: string
+        }
+        Insert: {
+          atualizado_em?: string | null
+          criado_em?: string | null
+          device_id?: string | null
+          id?: string
+          platform?: string | null
+          token: string
+          user_id: string
+        }
+        Update: {
+          atualizado_em?: string | null
+          criado_em?: string | null
+          device_id?: string | null
+          id?: string
+          platform?: string | null
+          token?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       intentions: {
         Row: {
@@ -264,11 +300,45 @@ export type Database = {
           },
         ]
       }
+      message_reactions: {
+        Row: {
+          criado_em: string
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          criado_em?: string
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          criado_em?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           conteudo: string
           conversation_id: string
           criado_em: string
+          deletado_em: string | null
+          editado_em: string | null
           id: string
           sender_id: string
         }
@@ -276,6 +346,8 @@ export type Database = {
           conteudo: string
           conversation_id: string
           criado_em?: string
+          deletado_em?: string | null
+          editado_em?: string | null
           id?: string
           sender_id: string
         }
@@ -283,6 +355,8 @@ export type Database = {
           conteudo?: string
           conversation_id?: string
           criado_em?: string
+          deletado_em?: string | null
+          editado_em?: string | null
           id?: string
           sender_id?: string
         }
@@ -303,6 +377,39 @@ export type Database = {
           },
         ]
       }
+      notification_queue: {
+        Row: {
+          body: string
+          created_at: string | null
+          error_message: string | null
+          id: string
+          payload: Json | null
+          status: string | null
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          body: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          status?: string | null
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          status?: string | null
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       places: {
         Row: {
           ativo: boolean
@@ -317,6 +424,7 @@ export type Database = {
           expires_at: string | null
           id: string
           is_temporary: boolean
+          last_activity_at: string | null
           latitude: number
           longitude: number
           nome: string
@@ -338,6 +446,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_temporary?: boolean
+          last_activity_at?: string | null
           latitude: number
           longitude: number
           nome: string
@@ -359,6 +468,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_temporary?: boolean
+          last_activity_at?: string | null
           latitude?: number
           longitude?: number
           nome?: string
@@ -387,12 +497,16 @@ export type Database = {
           disponivel: boolean
           disponivel_desde: string | null
           disponivel_expira_em: string | null
+          entry_type: string
+          expires_at: string
           id: string
           inicio: string
-          intention_id: string
+          intention_id: string | null
           is_confirmed: boolean
+          last_extended_at: string | null
           location_id: string | null
           place_id: string | null
+          prorrogado: boolean | null
           selfie_provided: boolean | null
           selfie_source: string | null
           ultima_atividade: string
@@ -407,12 +521,16 @@ export type Database = {
           disponivel?: boolean
           disponivel_desde?: string | null
           disponivel_expira_em?: string | null
+          entry_type?: string
+          expires_at: string
           id?: string
           inicio?: string
-          intention_id: string
+          intention_id?: string | null
           is_confirmed?: boolean
+          last_extended_at?: string | null
           location_id?: string | null
           place_id?: string | null
+          prorrogado?: boolean | null
           selfie_provided?: boolean | null
           selfie_source?: string | null
           ultima_atividade?: string
@@ -427,12 +545,16 @@ export type Database = {
           disponivel?: boolean
           disponivel_desde?: string | null
           disponivel_expira_em?: string | null
+          entry_type?: string
+          expires_at?: string
           id?: string
           inicio?: string
-          intention_id?: string
+          intention_id?: string | null
           is_confirmed?: boolean
+          last_extended_at?: string | null
           location_id?: string | null
           place_id?: string | null
+          prorrogado?: boolean | null
           selfie_provided?: boolean | null
           selfie_source?: string | null
           ultima_atividade?: string
@@ -470,9 +592,11 @@ export type Database = {
           data_nascimento: string | null
           foto_url: string | null
           gender: Database["public"]["Enums"]["gender_type"] | null
+          gender_custom: string | null
           id: string
           nome: string | null
           tutorial_enabled: boolean | null
+          visible_in_explore: boolean
         }
         Insert: {
           atualizado_em?: string
@@ -481,9 +605,11 @@ export type Database = {
           data_nascimento?: string | null
           foto_url?: string | null
           gender?: Database["public"]["Enums"]["gender_type"] | null
+          gender_custom?: string | null
           id: string
           nome?: string | null
           tutorial_enabled?: boolean | null
+          visible_in_explore?: boolean
         }
         Update: {
           atualizado_em?: string
@@ -492,9 +618,41 @@ export type Database = {
           data_nascimento?: string | null
           foto_url?: string | null
           gender?: Database["public"]["Enums"]["gender_type"] | null
+          gender_custom?: string | null
           id?: string
           nome?: string | null
           tutorial_enabled?: boolean | null
+          visible_in_explore?: boolean
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          atualizado_em: string
+          auth: string
+          criado_em: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          auth: string
+          criado_em?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          auth?: string
+          criado_em?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -503,28 +661,46 @@ export type Database = {
           contexto: string | null
           conversation_id: string | null
           criado_em: string
+          descricao: string | null
+          evidence: Json | null
           id: string
           motivo: string
+          place_id: string | null
           reported_user_id: string
           reporter_id: string
+          revisado_em: string | null
+          revisado_por: string | null
+          status: string
         }
         Insert: {
           contexto?: string | null
           conversation_id?: string | null
           criado_em?: string
+          descricao?: string | null
+          evidence?: Json | null
           id?: string
           motivo: string
+          place_id?: string | null
           reported_user_id: string
           reporter_id: string
+          revisado_em?: string | null
+          revisado_por?: string | null
+          status?: string
         }
         Update: {
           contexto?: string | null
           conversation_id?: string | null
           criado_em?: string
+          descricao?: string | null
+          evidence?: Json | null
           id?: string
           motivo?: string
+          place_id?: string | null
           reported_user_id?: string
           reporter_id?: string
+          revisado_em?: string | null
+          revisado_por?: string | null
+          status?: string
         }
         Relationships: [
           {
@@ -532,6 +708,13 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
         ]
@@ -644,6 +827,51 @@ export type Database = {
           },
         ]
       }
+      user_suspensions: {
+        Row: {
+          ativo: boolean
+          criado_em: string
+          expira_em: string | null
+          id: string
+          motivo: string
+          num_denunciantes: number
+          report_ids: string[]
+          revertido_em: string | null
+          revertido_motivo: string | null
+          revertido_por: string | null
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          criado_em?: string
+          expira_em?: string | null
+          id?: string
+          motivo: string
+          num_denunciantes?: number
+          report_ids?: string[]
+          revertido_em?: string | null
+          revertido_motivo?: string | null
+          revertido_por?: string | null
+          tipo?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          criado_em?: string
+          expira_em?: string | null
+          id?: string
+          motivo?: string
+          num_denunciantes?: number
+          report_ids?: string[]
+          revertido_em?: string | null
+          revertido_motivo?: string | null
+          revertido_por?: string | null
+          tipo?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       waves: {
         Row: {
           accepted_by: string | null
@@ -653,6 +881,8 @@ export type Database = {
           id: string
           ignore_cooldown_until: string | null
           ignored_at: string | null
+          intention: string
+          intention_message: string | null
           location_id: string | null
           para_user_id: string
           place_id: string | null
@@ -667,6 +897,8 @@ export type Database = {
           id?: string
           ignore_cooldown_until?: string | null
           ignored_at?: string | null
+          intention?: string
+          intention_message?: string | null
           location_id?: string | null
           para_user_id: string
           place_id?: string | null
@@ -681,6 +913,8 @@ export type Database = {
           id?: string
           ignore_cooldown_until?: string | null
           ignored_at?: string | null
+          intention?: string
+          intention_message?: string | null
           location_id?: string | null
           para_user_id?: string
           place_id?: string | null
@@ -720,7 +954,103 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      active_presences: {
+        Row: {
+          assunto_atual: string | null
+          ativo: boolean | null
+          checkin_selfie_created_at: string | null
+          checkin_selfie_url: string | null
+          confirmed_at: string | null
+          disponivel: boolean | null
+          disponivel_desde: string | null
+          disponivel_expira_em: string | null
+          entry_type: string | null
+          expires_at: string | null
+          id: string | null
+          inicio: string | null
+          intention_id: string | null
+          is_confirmed: boolean | null
+          last_extended_at: string | null
+          location_id: string | null
+          place_id: string | null
+          prorrogado: boolean | null
+          selfie_provided: boolean | null
+          selfie_source: string | null
+          ultima_atividade: string | null
+          user_id: string | null
+        }
+        Insert: {
+          assunto_atual?: string | null
+          ativo?: boolean | null
+          checkin_selfie_created_at?: string | null
+          checkin_selfie_url?: string | null
+          confirmed_at?: string | null
+          disponivel?: boolean | null
+          disponivel_desde?: string | null
+          disponivel_expira_em?: string | null
+          entry_type?: string | null
+          expires_at?: string | null
+          id?: string | null
+          inicio?: string | null
+          intention_id?: string | null
+          is_confirmed?: boolean | null
+          last_extended_at?: string | null
+          location_id?: string | null
+          place_id?: string | null
+          prorrogado?: boolean | null
+          selfie_provided?: boolean | null
+          selfie_source?: string | null
+          ultima_atividade?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          assunto_atual?: string | null
+          ativo?: boolean | null
+          checkin_selfie_created_at?: string | null
+          checkin_selfie_url?: string | null
+          confirmed_at?: string | null
+          disponivel?: boolean | null
+          disponivel_desde?: string | null
+          disponivel_expira_em?: string | null
+          entry_type?: string | null
+          expires_at?: string | null
+          id?: string | null
+          inicio?: string | null
+          intention_id?: string | null
+          is_confirmed?: boolean | null
+          last_extended_at?: string | null
+          location_id?: string | null
+          place_id?: string | null
+          prorrogado?: boolean | null
+          selfie_provided?: boolean | null
+          selfie_source?: string | null
+          ultima_atividade?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presence_intention_id_fkey"
+            columns: ["intention_id"]
+            isOneToOne: false
+            referencedRelation: "intentions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presence_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presence_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_wave: { Args: { p_wave_id: string }; Returns: string }
@@ -737,29 +1067,34 @@ export type Database = {
       check_email_exists: { Args: { p_email: string }; Returns: boolean }
       cleanup_expired_presences: { Args: never; Returns: number }
       close_conversations_without_presence: { Args: never; Returns: undefined }
-      confirm_presence: { Args: { p_place_id: string }; Returns: boolean }
+      confirm_presence: {
+        Args: { p_lat?: number; p_lng?: number; p_place_id: string }
+        Returns: boolean
+      }
+      create_temporary_place: {
+        Args: { p_lat: number; p_lng: number; p_nome: string }
+        Returns: string
+      }
+      delete_message: { Args: { p_message_id: string }; Returns: undefined }
+      edit_message: {
+        Args: { p_conteudo: string; p_message_id: string }
+        Returns: undefined
+      }
       end_conversation: {
         Args: { p_conversation_id: string; p_motivo?: string }
         Returns: undefined
       }
-      end_presence_cascade:
-        | {
-            Args: { p_place_id: string; p_user_id: string }
-            Returns: undefined
-          }
-        | {
-            Args: { p_motivo?: string; p_place_id: string; p_user_id: string }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              p_force?: boolean
-              p_motivo?: string
-              p_place_id: string
-              p_user_id: string
-            }
-            Returns: undefined
-          }
+      end_presence_cascade: {
+        Args: {
+          p_force?: boolean
+          p_motivo?: string
+          p_place_id: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      enter_as_explorer: { Args: { p_place_id: string }; Returns: string }
+      extend_presence: { Args: never; Returns: string }
       find_nearby_temporary_places: {
         Args: { radius_meters?: number; user_lat: number; user_lng: number }
         Returns: {
@@ -769,9 +1104,25 @@ export type Database = {
           nome: string
         }[]
       }
+      get_active_conversations: { Args: never; Returns: Json }
       get_active_mute_for_pair: {
         Args: { p_muted_user_id: string; p_user_id: string }
         Returns: string
+      }
+      get_interaction_context: { Args: { p_place_id: string }; Returns: Json }
+      get_my_presence_card: { Args: never; Returns: Json }
+      get_my_suspension: { Args: never; Returns: Json }
+      get_place_explore_feed: {
+        Args: { p_place_id: string }
+        Returns: {
+          checkin_selfie_url: string
+          data_nascimento: string
+          gender: string
+          mutual_count: number
+          mutual_interests: string[]
+          nome: string
+          user_id: string
+        }[]
       }
       get_unread_counts: {
         Args: { p_conversation_ids: string[] }
@@ -782,6 +1133,7 @@ export type Database = {
       }
       get_user_active_location_id: { Args: never; Returns: string }
       get_user_active_place_id: { Args: never; Returns: string }
+      get_user_active_presence_place_id: { Args: never; Returns: string }
       get_users_at_place_feed: {
         Args: { p_place_id: string }
         Returns: {
@@ -790,6 +1142,8 @@ export type Database = {
           checkin_selfie_url: string
           data_nascimento: string
           foto_url: string
+          gender: string
+          gender_custom: string
           intention_id: string
           interests: string[]
           match_score: number
@@ -799,6 +1153,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      ignore_wave: { Args: { p_wave_id: string }; Returns: undefined }
       is_user_blocked: {
         Args: { p_other_user_id: string; p_user_id: string }
         Returns: boolean
@@ -807,6 +1162,8 @@ export type Database = {
         Args: { p_other_user_id: string; p_user_id: string }
         Returns: boolean
       }
+      is_user_suspended: { Args: { p_user_id: string }; Returns: boolean }
+      leave_exploration: { Args: never; Returns: undefined }
       log_action: {
         Args: {
           p_action: string
@@ -821,24 +1178,44 @@ export type Database = {
         Args: { p_muted_user_id: string; p_place_id?: string }
         Returns: undefined
       }
+      notify_fcm: {
+        Args: {
+          p_body: string
+          p_data?: Json
+          p_title: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       send_wave: {
-        Args: { p_place_id: string; p_to_user_id: string }
+        Args: {
+          p_intention?: string
+          p_intention_message?: string
+          p_place_id: string
+          p_to_user_id: string
+        }
         Returns: string
+      }
+      submit_report: {
+        Args: {
+          p_contexto?: string
+          p_conversation_id?: string
+          p_descricao?: string
+          p_motivo: string
+          p_place_id?: string
+          p_reported_user_id: string
+        }
+        Returns: Json
       }
       unblock_user: { Args: { p_blocked_user_id: string }; Returns: undefined }
       unmute_user: { Args: { p_muted_user_id: string }; Returns: undefined }
+      update_my_presence_card: {
+        Args: { p_assunto_atual?: string; p_selfie_url?: string }
+        Returns: undefined
+      }
     }
     Enums: {
-      gender_type:
-        | "man"
-        | "woman"
-        | "non_binary"
-        | "trans_man"
-        | "trans_woman"
-        | "agender"
-        | "genderfluid"
-        | "prefer_not_to_say"
-        | "other"
+      gender_type: "man" | "woman" | "non_binary" | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -966,17 +1343,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      gender_type: [
-        "man",
-        "woman",
-        "non_binary",
-        "trans_man",
-        "trans_woman",
-        "agender",
-        "genderfluid",
-        "prefer_not_to_say",
-        "other",
-      ],
+      gender_type: ["man", "woman", "non_binary", "other"],
     },
   },
 } as const

@@ -3,11 +3,35 @@ import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
+// Payloads do plugin nativo PushNotifications (só o que esta tela consome).
+interface PushToken { value: string }
+interface PushNotificationPayload { title?: string; body?: string }
+interface PushActionPayload { notification?: { data?: { url?: string } } }
+
+interface PushNotificationsPlugin {
+  requestPermissions(): Promise<{ receive: string }>;
+  register(): Promise<void>;
+  addListener(event: 'registration', cb: (token: PushToken) => void): void;
+  addListener(event: 'registrationError', cb: (err: unknown) => void): void;
+  addListener(event: 'pushNotificationReceived', cb: (n: PushNotificationPayload) => void): void;
+  addListener(event: 'pushNotificationActionPerformed', cb: (a: PushActionPayload) => void): void;
+}
+
+interface CapacitorGlobal {
+  isNativePlatform?: () => boolean;
+  getPlatform?: () => string;
+  Plugins?: { PushNotifications?: PushNotificationsPlugin };
+}
+
+function getCapacitor(): CapacitorGlobal | undefined {
+  return (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
+}
+
 function isNative(): boolean {
-  const win = window as any;
-  return !!(win.Capacitor?.isNativePlatform?.()) ||
-    win.Capacitor?.getPlatform?.() === 'android' ||
-    win.Capacitor?.getPlatform?.() === 'ios';
+  const cap = getCapacitor();
+  return !!(cap?.isNativePlatform?.()) ||
+    cap?.getPlatform?.() === 'android' ||
+    cap?.getPlatform?.() === 'ios';
 }
 
 export function usePushNotifications() {
@@ -19,8 +43,7 @@ export function usePushNotifications() {
 
     const setup = async () => {
       try {
-        const win = window as any;
-        const PushNotifications = win.Capacitor?.Plugins?.PushNotifications;
+        const PushNotifications = getCapacitor()?.Plugins?.PushNotifications;
 
         if (!PushNotifications) {
           console.warn('[Push] PushNotifications plugin não disponível');
@@ -38,7 +61,7 @@ export function usePushNotifications() {
         await PushNotifications.register();
 
         // Recebe o token FCM
-        PushNotifications.addListener('registration', async (token: { value: string }) => {
+        PushNotifications.addListener('registration', async (token: PushToken) => {
           console.log('[Push] Token FCM:', token.value);
           registeredRef.current = true;
 
@@ -62,12 +85,12 @@ export function usePushNotifications() {
         });
 
         // Erro de registro
-        PushNotifications.addListener('registrationError', (err: any) => {
+        PushNotifications.addListener('registrationError', (err: unknown) => {
           console.error('[Push] Erro de registro FCM:', err);
         });
 
         // Notificação recebida com app aberto — exibe toast interno
-        PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
+        PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationPayload) => {
           console.log('[Push] Notificação recebida:', notification);
           toast({
             title: notification.title || 'Nova notificação',
@@ -77,7 +100,7 @@ export function usePushNotifications() {
         });
 
         // Usuário tocou na notificação — navega para URL interna
-        PushNotifications.addListener('pushNotificationActionPerformed', (action: any) => {
+        PushNotifications.addListener('pushNotificationActionPerformed', (action: PushActionPayload) => {
           console.log('[Push] Ação na notificação:', action);
           const url = action.notification?.data?.url;
           if (url) {
