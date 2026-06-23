@@ -19,6 +19,7 @@ interface PlaceSelectorProps {
   temporaryPlaces: NearbyTemporaryPlace[];
   closestPlace: Place | null;
   onSelectPlace: (placeId: string) => void;
+  onDismissClosest: () => void;
   onCreateTemporary: () => void;
   onSearchByName: (query: string) => void;
   searchingByName: boolean;
@@ -85,6 +86,7 @@ export function PlaceSelector({
   temporaryPlaces,
   closestPlace,
   onSelectPlace,
+  onDismissClosest,
   onCreateTemporary,
   onSearchByName,
   searchingByName,
@@ -186,7 +188,7 @@ export function PlaceSelector({
           </div>
 
           <div className="flex gap-3 mt-4">
-            <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={() => setShowList(true)}>
+            <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={() => { onDismissClosest(); setShowList(true); }}>
               <X className="h-4 w-4 mr-2" />
               Não
             </Button>

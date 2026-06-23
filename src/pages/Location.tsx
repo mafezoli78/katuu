@@ -59,6 +59,12 @@ export default function Location() {
   const [closestPlace, setClosestPlace] = useState<Place | null>(null);
   const [searchingByName, setSearchingByName] = useState(false);
 
+  // Places que o usuário já recusou no card "Você está aqui?" durante esta
+  // sessão da tela (A+C). Em ref para o fetchPlaces consultar sem virar
+  // dependência. Some ao entrar num local ou sair da tela (componente
+  // desmonta); volta a perguntar ao reabrir o app — recusa é efêmera.
+  const dismissedClosestRef = useRef<Set<string>>(new Set());
+
   // Busca remota por endereço/região: a coordenada vem do geocoding, NÃO do GPS.
   // Mantida separada de userCoords para nunca contaminar fluxos que assumem
   // presença física (criar local temporário, ativar presença).
@@ -88,9 +94,12 @@ export default function Location() {
       setPlaces(results);
 
       // "Você está aqui?" pressupõe presença física — nunca em busca remota.
+      // Não reabre para um place que o usuário já recusou nesta sessão.
       if (!skipClosest && results.length > 0 && results[0].distance_meters !== undefined) {
-        if (results[0].distance_meters <= PROXIMITY_THRESHOLD_METERS) {
+        if (results[0].distance_meters <= PROXIMITY_THRESHOLD_METERS && !dismissedClosestRef.current.has(results[0].id)) {
           setClosestPlace(results[0]);
+        } else {
+          setClosestPlace(null);
         }
       } else {
         setClosestPlace(null);
@@ -109,8 +118,10 @@ export default function Location() {
           const results = await placesService.searchNearby({ latitude: lat, longitude: lng, radius: EXPANDED_SEARCH_RADIUS_METERS, limit: 20 });
           setPlaces(results);
           if (!skipClosest && results.length > 0 && results[0].distance_meters !== undefined) {
-            if (results[0].distance_meters <= PROXIMITY_THRESHOLD_METERS) {
+            if (results[0].distance_meters <= PROXIMITY_THRESHOLD_METERS && !dismissedClosestRef.current.has(results[0].id)) {
               setClosestPlace(results[0]);
+            } else {
+              setClosestPlace(null);
             }
           } else {
             setClosestPlace(null);
@@ -288,6 +299,13 @@ export default function Location() {
     setSelectedPlaceId(placeId);
     setStep('expression');
   };
+
+  // "Não" no card "Você está aqui?": registra a recusa (para não reabrir ao
+  // voltar do background) e some com o card mostrando a lista.
+  const handleDismissClosest = useCallback(() => {
+    if (closestPlace) dismissedClosestRef.current.add(closestPlace.id);
+    setClosestPlace(null);
+  }, [closestPlace]);
 
   const handleSearchByName = async (query: string) => {
     if (!userCoords) return;
@@ -540,6 +558,7 @@ export default function Location() {
             temporaryPlaces={nearbyTemporaryPlaces}
             closestPlace={closestPlace}
             onSelectPlace={handleSelectPlace}
+            onDismissClosest={handleDismissClosest}
             onCreateTemporary={() => setStep('create_temp')}
             onSearchByName={handleSearchByName}
             searchingByName={searchingByName}
