@@ -18,12 +18,14 @@ import { CheckinSelfie } from '@/components/location/CheckinSelfie';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/hooks/useProfile';
 import { logger } from '@/lib/logger';
+import { useDeviceLocation } from '@/contexts/LocationContext';
 
 export default function Location() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const navLocation = useLocation();
   const { toast } = useToast();
+  const { requestPosition } = useDeviceLocation();
   // Vindo do "Entrar" do Modo Explorar (/explore/:placeId) — pula a etapa de listagem
   const preSelectedPlaceId = (navLocation.state as { preSelectedPlaceId?: string } | null)?.preSelectedPlaceId;
 
@@ -231,27 +233,27 @@ export default function Location() {
     setIsRequestingPermission(true);
     setStep('detecting');
 
-    if (!navigator.geolocation) {
-      setIsRequestingPermission(false);
-      setPermissionStatus('blocked');
-      toast({ variant: 'destructive', title: 'Geolocalização não suportada' });
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
+    requestPosition({ maximumAge: 30000 })
+      .then((fix) => {
         hasFetchedRef.current = true;
         setIsRequestingPermission(false);
         setPermissionStatus('granted');
         localStorage.setItem('location_permission_granted', 'true');
-        const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
+        const coords = { lat: fix.lat, lng: fix.lng };
         setUserCoords(coords);
         setMapCenter(prev => prev ?? coords);
         fetchPlacesRef.current?.(coords.lat, coords.lng);
         if (!pendingRef.current) setStep('select');
-      },
-      (error) => {
+      })
+      .catch((error) => {
         setIsRequestingPermission(false);
+
+        if (error instanceof Error && error.message === 'GEOLOCATION_UNSUPPORTED') {
+          setPermissionStatus('blocked');
+          toast({ variant: 'destructive', title: 'Geolocalização não suportada' });
+          return;
+        }
+
         if (error.code === error.PERMISSION_DENIED) {
           if (navigator.permissions) {
             navigator.permissions.query({ name: 'geolocation' }).then((result) => {
@@ -262,10 +264,8 @@ export default function Location() {
           }
         }
         setStep('permission');
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
-    );
-  }, [isRequestingPermission, toast]);
+      });
+  }, [isRequestingPermission, toast, requestPosition]);
 
 
 

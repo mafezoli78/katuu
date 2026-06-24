@@ -155,8 +155,10 @@ export default function Home() {
     );
   }
 
-  // Tela de carregamento inicial (presença ainda sendo verificada)
-  if (presenceLoading) {
+  // Tela de carregamento: presença sendo verificada OU entrando num local.
+  // isEnteringPlace cobre a janela entre o activate_presence e o
+  // fetchCurrentPresence — sem ela, o empty state pisca durante a entrada.
+  if (presenceLoading || presenceState.isEnteringPlace) {
     return (
       <MobileLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">

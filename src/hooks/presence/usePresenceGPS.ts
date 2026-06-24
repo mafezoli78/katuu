@@ -12,6 +12,7 @@ import { PresenceEndReason, END_REASON_MESSAGES } from '@/types/presence';
 import type { Presence } from './types';
 import type { Place } from '@/services/placesService';
 import { logger } from '@/lib/logger';
+import { useDeviceLocation, type GpsFix } from '@/contexts/LocationContext';
 
 interface UsePresenceGPSOptions {
   userId: string | undefined;
@@ -39,7 +40,9 @@ export function usePresenceGPS({
   currentPlace,
   onPresenceEnded,
 }: UsePresenceGPSOptions) {
-  const gpsWatchIdRef = useRef<number | null>(null);
+  const { watchPosition } = useDeviceLocation();
+
+  const gpsStopRef = useRef<(() => void) | null>(null);
   const outsideRadiusCountRef = useRef(0);
   const presenceLocationRef = useRef<{ lat: number; lng: number } | null>(null);
   const baselineEstablishedRef = useRef(false);
@@ -53,10 +56,10 @@ export function usePresenceGPS({
   userIdRef.current = userId;
 
   const stopGPSMonitoring = useCallback(() => {
-    if (gpsWatchIdRef.current !== null) {
+    if (gpsStopRef.current !== null) {
       logger.debug('[GPS] 🛑 Stopping position monitoring');
-      navigator.geolocation.clearWatch(gpsWatchIdRef.current);
-      gpsWatchIdRef.current = null;
+      gpsStopRef.current();
+      gpsStopRef.current = null;
       outsideRadiusCountRef.current = 0;
       baselineEstablishedRef.current = false;
     }
@@ -128,10 +131,10 @@ export function usePresenceGPS({
   }, [stopGPSMonitoring, onPresenceEnded]);
 
   const checkGPSPosition = useCallback(
-    (position: GeolocationPosition) => {
+    (fix: GpsFix) => {
       if (!presenceLocationRef.current || !currentPresenceRef.current) return;
 
-      const { latitude, longitude, accuracy } = position.coords;
+      const { lat: latitude, lng: longitude, accuracy } = fix;
       const { lat: locLat, lng: locLng } = presenceLocationRef.current;
 
       if (accuracy && accuracy > GPS_ACCURACY_THRESHOLD_METERS) {
@@ -191,24 +194,18 @@ export function usePresenceGPS({
   );
 
   const startGPSMonitoring = useCallback(() => {
-    if (!navigator.geolocation || gpsWatchIdRef.current !== null) return;
+    if (gpsStopRef.current !== null) return;
 
     logger.debug('[GPS] 📍 Starting position monitoring...');
     outsideRadiusCountRef.current = 0;
     baselineEstablishedRef.current = false;
 
-    gpsWatchIdRef.current = navigator.geolocation.watchPosition(
-      checkGPSPosition,
-      (error) => {
-        console.error('[GPS] Error:', error.message);
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: GPS_CHECK_INTERVAL_MS,
-        timeout: 15000,
-      }
-    );
-  }, [checkGPSPosition]);
+    // Erro de leitura é logado dentro do LocationProvider (watchPosition).
+    gpsStopRef.current = watchPosition(checkGPSPosition, {
+      maximumAge: GPS_CHECK_INTERVAL_MS,
+      timeout: 15000,
+    });
+  }, [checkGPSPosition, watchPosition]);
 
   const setPresenceLocation = useCallback((lat: number, lng: number) => {
     presenceLocationRef.current = { lat, lng };

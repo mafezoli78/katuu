@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ConversationsProvider } from "@/contexts/ConversationsContext";
 import { RealtimeProvider } from "@/contexts/RealtimeContext";
+import { LocationProvider } from "@/contexts/LocationContext";
+import { PresenceProvider } from "@/contexts/PresenceContext";
 import { TutorialFlow } from "@/components/tutorial/TutorialFlow";
 import { useAutoPushSubscription } from "@/hooks/useAutoPushSubscription";
 import { supabase } from '@/integrations/supabase/client';
@@ -347,14 +349,18 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
+          <LocationProvider>
           <ConversationsProvider>
             <RealtimeProvider>
+            <PresenceProvider>
             <TooltipProvider>
               <Toaster />
               <AppRoutes />
             </TooltipProvider>
+            </PresenceProvider>
             </RealtimeProvider>
           </ConversationsProvider>
+          </LocationProvider>
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>
